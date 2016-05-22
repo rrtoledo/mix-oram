@@ -1,0 +1,51 @@
+\documentclass[USenglish,oneside,twocolumn]{article}
+
+
+\begin{document}
+
+\author*[1]{Raphael R. Toledo}
+
+
+\affil[1]{University College London, E-mail: r.toledo@cs.ucl.ac.uk}
+
+\title{Mix-ORAM}
+
+
+  \begin{abstract}{
+  
+  }
+\end{abstract}
+
+\keywords{Private Information Retrieval, Anonymous communications, Private Queries, Differential Privacy}
+
+\maketitle
+
+\section{Introduction}
+
+\section{Related Work}
+
+\section{Mix-ORAM}
+
+\section{Permutation ORAM}
+
+-- cutoff
+We pay particular attention to the cutoﬀ phenomenon, which says that convergence to the equilibrium distribution of a Markov chain tends to occur abruptly asymptotically as some parameter n → ∞ (usually the size of the state space of the chain, or the number of cards if talking about a card shuﬄing problem). If this occurs, the time at which this convergence takes place is called the mixing time. proving or disproving the cutoﬀ phenomenon is a major area of modern probability, and despite remarkable progress over the last 25 years since this phenomenon was discovered by Diaconis and Shahshahani and by Aldous, there are still only very few examples which are completely understood.
+
+
+Formal definition of a cut off:
+
+Let X be a family of Markov chains. We say that there is (asymptotically) a cutoff phenomenon at $\t_n$, the mixing time,  if for every $\epsilon>0$,
+\begin{align}
+d( (1-\epsilon)\cdot \tau_n) \arrow 1
+but 
+d( (1+\epsilon)\cdot \tau_n) \arrow 0
+
+
+\end{align}
+\section{Evaluation}
+
+\section{Discussion}
+
+\section{Conclusion}
+
+\end{document}
