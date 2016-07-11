@@ -7,6 +7,7 @@
 \usepackage{amsfonts}
 \usepackage{subcaption}
 \usepackage{tikz}
+\usepackage{cite}
 \usetikzlibrary{calc, automata, chains}
 
 \newtheorem{privdef}{Privacy Definition}
@@ -18,10 +19,12 @@
 \begin{document}
 
 \author{Raphael R. Toledo \thanks{E-mail: r.toledo@cs.ucl.ac.uk} }
+\author{George Danezis \thanks{E-mail: g.danezis@cs.ucl.ac.uk} }
 
 \affil{University College London }
 
-\title{Mix-ORAM}
+\title{Oblivious RAM: towards a shuffle amortization.}
+%what matters the most ? The sorting algo or the use of mixnets ?
 
 \maketitle
 
@@ -32,22 +35,34 @@ We present in this paper an ORAM system relying on mixnet technologies for the e
 \end{abstract}
 
 \section{Introduction}
-Most of existing ORAM solutions have so far required the whole database to be periodically rerandomized by the user.
-In 2013, Stefanov and Shi~\cite{} proposed a multi-cloud oblivious storage where two or more semi-trusted clouds are used to serve user requests and hide the access pattern.
-However, the practicality of owning and managing more than a cloud was not discussed in the paper which presented.
-In this work, we suggest to leave the eviction and shuffling to an untrusted third party and attest its privacy thanks to an information theoric proof.
-The advantages of such use are the delegation of the shuffling, the possibility to postpone the latter to quieter times and the non dependance to a centralized party.
+Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the providers is to protect the users, not only against active adversaries, who resolutely hinder a user, but also against passive ones, and doing so for reasonable costs. 
+Cryptographic functions are thus used among other things to create secure communication channels, authenticate users, encrypt and check the data integrity. These solutions however do not prevent the leakage of some information and its interception : an adversary can count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge : the file size distribution, the file access frequency distribution, etc..
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem by hiding the pattern access.\\
+
+Most of existing ORAM solutions so far have required the whole database to be periodically rerandomized by the user. Improvements have been made on the eviction process thanks to structural change in the data representation, considering trees or rings, and the shuffling algorithm, in particular with the introduction of dummies.
+In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where two or more semi-trusted clouds are used to serve user requests and hide the access pattern concurrently. However, the practicality of owning and managing more than a cloud was not discussed in the paper. \\
+
+In this work, we present a new security defition relying on indistiguishability assumptions and suggest to leave the eviction and shuffling to untrusted third partys and attest its privacy thanks to an information theoric proof.
+The advantages of such use are the delegation of the shuffling, the possibility to postpone the latter to quieter times and the independance to centralized parties.
 
 \subsection{Related Work}
-\noindent\textbf{ORAM.}
+\subsubsection{ORAM}
 
-\noindent\textbf{Mixnets.}
+\subsubsection{Mixnets.}
 
-\noindent\textbf{Permutation.}
+\subsubsection{Shuffling and Sorting.}
+
+
+\noindent\textbf{Shuffling} \\
+
 Random transpositions shuffle (RTS) have been thoroughly studied since 1981 when Diaconis and Ashahshahani released their paper on random permutation generations~cite{}.
 RTS consists in randomly selecting two cards from a deck of cards and exchange them if they are different.
 The time of convergence towards the uniform distribution, the mixing time, was bounded at $\left(2+o(1)\right)n\log(n)$ thanks to strong a stationary time argument due to Broder\cite{}.
-Diaconis however observed a cutoff phenomenon in his first paper in 1981, an abrupt convergence to the equilibrium distribution, at $\frac{1}{2}n\log(n)$ of width $O(n)$.
+Diaconis however observed a cutoff phenomenon in his first paper in 1981, an abrupt convergence to the equilibrium distribution, at $\frac{1}{2}n\log(n)$ of width $O(n)$.\\
+
+\noindent\textbf{Sorting} \\
+- sorting networks\\
+- Melbourne shuffle\\
 
 \subsection{Our contributions}
 
@@ -77,21 +92,15 @@ Reencryption network vs Decryption network. Reencryption ORAM will be used as de
 Symmetrical Reencryption network ?
 
 \subsection{Operation and Messages}
-\subsection{}
-\subsection{Eviction process: the Mixnet}
-To evict the stash, the client updates the former in the database and sends a signal to the mixnet or to the database if he wants the eviction to be postponed to quieter times.
+\section{The Eviction process.}
+\subsection{Amortizing the Eviction.}
+In this section we look at transposition shuffles and their use in order to amortize over time the database randomization happening during the eviction process.
+We first present the mixing time of $k$-random transposition shuffles before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
 
-Two different methods can be applied for the eviction process depending on the mixnet architecture, in both cases eviction rely on repeatedly fetching $k$ records, refreshing and permuting them before updating them back in the ORAM.
-If the mixnet is a cascade network, the first mix outputs the resulting array to next mix while repeating the process for distinct records, otherwise, in the mesh case, the mixes fetch in parallel the records.
-The cascade case is more advantageous in time as the outputs and inputs of the mixes coincide, hence the communication cost is roughly divided by two. There is futhermore no synchronization needed between the mixes to process different records at the same time.
-However what is gain in duration is loose in resilience as any mix failure in the cascade mixnet would compromise the whole system. Moreover an attack specific to cascade mixnet also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
-so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
-
-Use of distributive encryption ?
-
-\subsubsection{$k$-Random Transposition Shuffle}
-We argue that integrating $k$ RTS, that we call $k$-permutation for short, in the ORAM access method could help the randomization of the database.
-The eviction process could also be postpone to minimize ORAM response time in a similar way as Burst ORAM~\cite{}.
+\subsubsection{$k$-Random Transposition Shuffle.}
+%We first argue that using $k$-random transposition shuffles in both the ORAM randomization and access method could help to spread over time the shuffling of the database.
+Random Transposition Shuffles (RTS) are widely used examples in card shuffling: a player selects two cards of a deck, throw a coin and permute them accordingly before putting them back at the same location.
+We call an oblivious $k$-random transposition shuffle (RTS) a similar process consisting in a user fetching $k$ out of $n$ records from a remote server, permuting them locally, and uploading them at the same location.
 
 \begin{secthm}
 A $k$-permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
@@ -102,20 +111,54 @@ E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1)
 \end{align*}
 \end{secthm}
 
+A $k$-RTS thus implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.
+
+\subsubsection{Oblivious Merge}
+Before the eviction algorithm is run, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s and $n-s$ are 0s. These two sets respectively corresponds to records which were accessed, the 1s, ot not, the 0s, by the user.
+We argue that in this representation, elements of the same sets are indistiguishable to the adversary thanks to prior encryption and permutation. This simplifing assumption significantly the number of possible orderings in the adversarial view, there now are ${n \choose s}$ arrangings instead of $n!$ (proof thanks to the Stars and Bars theorem) which represents a gain of order $\mathcal{O}\left ( (n-s)!\cdot s!\right )$.
+
+To consider an oblivious merge of these two sets, we consider the user having a local memory of capacity $m$ fetches elements from the two sets, permutes them locally, refreshes the encryption again before uploading them back at the same locations.
+
+\begin{secthm}
+An oblivious merge of 2 indistiguishable sets of respective size $n$ and $s$ requires $\tau$ rounds such that any arranging is possible, with
+\begin{align*}
+\tau \leq s \ln{s}&
+\end{align*}
+Proof can be found in Annex.~\cite{}.
+\end{secthm}
+
+\subsubsection{Amortizable sort}
+
+We now use the $k$-RTS and Oblivious Merge to create an obivious amortizable sort algorithm.
+The user first rerandomizes the elements keeping in memory each of their location (cuckoo hashing?) then reaches a fixed distribution $\pi$ given by a seed.
+
+\subsection{Eviction process: the Mixnet.}
+To evict the stash, the client updates the former in the database and sends a signal to the mixnet or to the database if he wants the eviction to be postponed to quieter times.
+
+Two different methods can be applied for the eviction process depending on the mixnet architecture, in both cases eviction rely on repeatedly fetching $k$ records, refreshing and permuting them before updating them back in the ORAM.
+If the mixnet is a cascade network, the first mix outputs the resulting array to next mix while repeating the process for distinct records, otherwise, in the mesh case, the mixes fetch in parallel the records.
+The cascade case is more advantageous in time as the outputs and inputs of the mixes coincide, hence the communication cost is roughly divided by two. There is futhermore no synchronization needed between the mixes to process different records at the same time.
+However what is gain in duration is loose in resilience as any mix failure in the cascade mixnet would compromise the whole system. Moreover an attack specific to cascade mixnet also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
+so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
+
+Use of distributive encryption ?
+
+
+
 The computation cost of the eviction would thus be of the order of $m\cdot n \cdot \log(n)$ while the communication cost will be either $4\cdot m \cdot n \log(n)$ or $2\cdot(m+1) \cdot n \log(n)$ depending on the mixnet architecture.
 
-\section{Lowering Eviction Costs.}
+\subsection{Lowering Eviction Costs.}
 
 In order to lower the eviction costs sustained by the mixnet, two optimizations can be enforced
 
-\subsection{Client Optimization}
-\subsubsection{User participation}
+\subsubsection{Client Optimization.}
+\textbf{User participation.}
 The client, to lower the eviction costs, could instead of fetching the only the requested record query $k-1$ other records. Doing so, we can advance further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mixnet performing cheaper and weaker permutations.
 What's more, requesting more records can help in hidding the access pattern to the adversary has discussed in~\cite{Lower cost PIR}.
 
 For instance if $n=10^4,\ k=\log(n)=4$ and the stash has a size of $\sqrt(n)=100$, without considering fake accesses, we need 25 accesses before evicting the stash.
 
-\subsubsection{Fake access}
+\textbf{Fake access.}
 When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
 These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
 
@@ -133,7 +176,7 @@ The average number of fake access is $ \frac{v0}{v1}$.
 \end{proof}
 \end{secthm}
 
-\subsection{Mixnet Optimization}
+\subsubsection{Mixnet Optimization.}
 
 Instead of requiring the mixes to permute all of the $k$ fetched records, the user could set as a parameter of the system the probability of permuting an element $p=\frac{\alpha}{k}$, with $\alpha$ the average number of records to permute.
 In that case, the probability a record's index is known to the adversary can be reduced to the probability a record has not been permuted.
@@ -166,6 +209,9 @@ Using proof of shuffle and proof of work to counter injection attacks.
 Using a reputation system alongside to dismiss mixes more quickly.
 
 \section{Conclusion}
+
+\bibliography{mix_oram}{}
+\bibliographystyle{plain}
 
 \clearpage
 \appendix 
