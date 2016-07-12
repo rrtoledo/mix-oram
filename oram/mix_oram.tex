@@ -23,7 +23,7 @@
 
 \affil{University College London }
 
-\title{Oblivious RAM: towards a delegated shuffle amortization.}
+\title{Mix-ORAM,\\ towards a delegated shuffle amortization.}
 %what matters the most ? The sorting algo or the use of mixnets ?
 
 \maketitle
@@ -65,10 +65,17 @@ Diaconis however observed a cutoff phenomenon in his first paper in 1981, an abr
 - Melbourne shuffle\\
 
 \subsection{Our contributions}
+\begin{itemize}
+ \item We present the first ORAM relying on a mixnet for the eviction process.
+ \item We present a amortizable shuffle.
+\end{itemize}
 
 \subsection{Content}
+After presenting the ORAM model, its associated threat model and explaining the different costs in Section.~\ref{section1}, we introduce Random Transposition Shuffles, how to use them in ORAM and together with a mixnet and discuss of various optimizations in Section.~\ref{section2}.
+We finally evaluate our schemes with standard ORAM model and discuss about the advantages and drawbacks of using mixnets.
 
 \section{Preliminaries}
+\label{section1}
 \subsection{Model}
 We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. 
 
@@ -84,7 +91,7 @@ We will call $C_p$ the computation cost derived from the eviction and $C_a$ from
 
 
 \section{Mix-ORAM}
-
+\label{section2}
 Reencryption network vs Decryption network. Reencryption ORAM will be used as decryption requires the user to update all records with all the keys... (except two layer encryption?).
 Symmetrical Reencryption network ?
 
@@ -210,8 +217,12 @@ In that case, the probability a record's index is known to the adversary can be 
 
 
 \section{Discussion}
-Using proof of shuffle and proof of work to counter injection attacks.
-Using a reputation system alongside to dismiss mixes more quickly.
+\begin{itemize}
+ \item Ads and Cons of mixnets
+ \item Multiuser oram
+ \item Using proof of shuffle and proof of work to counter injection attacks.
+ \item Using a reputation system alongside to dismiss mixes more quickly.
+\end{itemize}
 
 \section{Conclusion}
 
