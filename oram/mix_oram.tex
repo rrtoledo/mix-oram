@@ -23,14 +23,14 @@
 
 \affil{University College London }
 
-\title{Oblivious RAM: towards a shuffle amortization.}
+\title{Oblivious RAM: towards a delegated shuffle amortization.}
 %what matters the most ? The sorting algo or the use of mixnets ?
 
 \maketitle
 
 \begin{abstract}
 {
-We present in this paper an ORAM system relying on mixnet technologies for the eviction process.
+We present in this paper an ORAM system relying on amortizable shuffle and mixnet technologies for the eviction process.
 }
 \end{abstract}
 
@@ -70,20 +70,17 @@ Diaconis however observed a cutoff phenomenon in his first paper in 1981, an abr
 
 \section{Preliminaries}
 \subsection{Model}
-We consider a system composed of a remote server running the ORAM protocol with storage of size O($N$) where $N$ corresponds to the number of $b$ bits cipher blocks the user owns and a mixnet of $m$ mixes.
-The client includes a storage manager and a stash of $s$-block capacity. 
+We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. 
 
 \subsection{Threat model}
-We consider an adversary $\mathcal{A}$ has corrupted $m_{a}$ mixes and potentially the ORAM database in order to discover the relationship between the records and the indexes. 
+We consider an adversary $\mathcal{A}$ has corrupted $m_{a}$ mixes and potentially the ORAM database in order to discover the relationship between the user's records and indexes. 
 The corrupted servers are said honest but curious in that they perform correctly the assigned protocols and algorithms but passively record and share all information they observe to achieve this objective.
-We also assume that the adversary observes all the user's incoming and outgoing communication.
-However, we assume that all messages, database request or mix packet, are encrypted and that only message timing, volume and size from honest servers are visible to the adversary.
-Attacks and countermeasures, together with the implied costs, will only be examined in the Discussion section (c.f. Section.\cite{}).
+We also assume that the adversary observes all the user's incoming and outgoing communication. However, we assume that all messages, database request or mix packet, are encrypted and that only message timing, volume and size from honest servers are visible to the adversary.
+Attacks and countermeasures to such attacks will only be examined in the Discussion section (c.f. Section.\cite{}).
 
 \subsection{Costs}
-This work studies PIR scalability, and we focus on analyzing costs on the server side, which is the performance bottleneck of current techniques.
-We denote the communication costs by $C_d$ for the number of \emph{bits} sent by the ORAM, $C_{c}$ by the client to $\mathcal{DS}$, and by $C_{m}$ sent by the mixes. 
-We will call $C_p$ the computation cost derived from the mixes' permutation and $C_a$ from the database accesses.
+We denote the communication costs by $C_o$ for the number of \emph{bits} sent by the ORAM, $C_{c}$ by the client, and by $C_{m}$ sent by the mixes. 
+We will call $C_p$ the computation cost derived from the eviction and $C_a$ from the database accesses.
 
 
 \section{Mix-ORAM}
@@ -94,30 +91,31 @@ Symmetrical Reencryption network ?
 \subsection{Operation and Messages}
 \section{The Eviction process.}
 \subsection{Amortizing the Eviction.}
-In this section we look at transposition shuffles and their use in order to amortize over time the database randomization happening during the eviction process.
-We first present the mixing time of $k$-random transposition shuffles before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
+In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
+We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
 
 \subsubsection{$k$-Random Transposition Shuffle.}
-%We first argue that using $k$-random transposition shuffles in both the ORAM randomization and access method could help to spread over time the shuffling of the database.
-Random Transposition Shuffles (RTS) are widely used examples in card shuffling: a player selects two cards of a deck, throw a coin and permute them accordingly before putting them back at the same location.
-We call an oblivious $k$-random transposition shuffle (RTS) a similar process consisting in a user fetching $k$ out of $n$ records from a remote server, permuting them locally, and uploading them at the same location.
+% Def of RTS. RTS can be broken down in independent rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
+Random Transposition Shuffles are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
+These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranding is possible.
+We can already see why RTS are natural candidates for amortized ORAMs. As they can be broke down in independant rounds which can be spread over time, so can a randomization process based on RTS. Futhermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
+Diaconis in 19XX~\cite{} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards, to make the scheme more efficient.
 
 \begin{secthm}
-A $k$-permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
+\textbf{Mixing time of $k$-RTS.} A $k$- random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
 \begin{align*}
 E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) &\\
-\sigma^2(\tau) &< \frac{4}{3} \cdot {\pi}^2 \cdot \left ( \frac{n}{k} \right )^2 &\\
-\tau\left (\epsilon \right ) &\geq \frac{n-1}{2k} \ln{n\cdot \frac{1-\epsilon}{6}}&
+\sigma^2(\tau) &< \frac{4}{3} \cdot {\pi}^2 \cdot \left ( \frac{n}{k} \right )^2 &
 \end{align*}
 \end{secthm}
 
-A $k$-RTS thus implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.
+An oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.
 
 \subsubsection{Oblivious Merge}
 Before the eviction algorithm is run, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s and $n-s$ are 0s. These two sets respectively corresponds to records which were accessed, the 1s, ot not, the 0s, by the user.
 We argue that in this representation, elements of the same sets are indistiguishable to the adversary thanks to prior encryption and permutation. This simplifing assumption significantly the number of possible orderings in the adversarial view, there now are ${n \choose s}$ arrangings instead of $n!$ (proof thanks to the Stars and Bars theorem) which represents a gain of order $\mathcal{O}\left ( (n-s)!\cdot s!\right )$.
 
-To consider an oblivious merge of these two sets, we consider the user having a local memory of capacity $m$ fetches elements from the two sets, permutes them locally, refreshes the encryption again before uploading them back at the same locations.
+To consider an oblivious merge of these two sets, we consider the user fetches elements from the two sets, permutes them locally, and refreshes the encryption before uploading them back at the same locations.
 
 \begin{secthm}
 An oblivious merge of 2 indistiguishable sets of respective size $n$ and $s$ requires $\tau$ rounds such that any arranging is possible, with
@@ -279,8 +277,8 @@ $$\tau \left (\epsilon \right ) \geq \frac{n-1}{2k} \ln(n\cdot \frac{1-\epsilon}
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[->, >=stealth, auto, semithick, node distance=1.5cm]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black,scale=1]
-\node[state]    (A)                     {$0$};
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black,scale=1, minimum size = 3em]
+\node[state]    (A)               {$0$};
 \node[state]    (B)[right of=A]   {$1$};
 \node[state]    (x)[right of=B]   {$...$};
 \node[state]    (i)[right of=x]   {$i$};
