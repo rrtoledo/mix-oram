@@ -66,7 +66,7 @@ We finally evaluate our schemes with standard ORAM model and discuss about the a
 \subsection{Related Work}
 \subsubsection{ORAM}
 
-\raphael{todo ?}
+\raphael{todo}
 
 \subsubsection{Mixnets.}
 
@@ -80,7 +80,8 @@ In this work we will always consider an ideal anonymity system that can be abstr
 
 \subsubsection{Shuffling and Sorting.}
 
-\noindent\textbf{Shuffling} \\
+%diff sorting/shuffling (knowledge of the output permutation)
+\noindent\textbf{Shuffling}
 
 \raphael{Melbourne Shuffle intro for inspiration}
 A shufﬂe is an algorithm for rearranging an array to achieve a random permutation of its elements.
@@ -247,9 +248,10 @@ In that case, the probability a record's index is known to the adversary can be 
 
 \raphael{Check Cost section and columns. Choose techs}
 
-\begin{table*}[t]
+\iffalse
+\begin{table*}[t!]
 \centering
- \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}l|c|c|c|c}
+ \begin{tabular*}{\linewidth}{@{\extracolsep{\ fill}}l|c|c|c|c}
   ORAM 		& Access Overhead 	& Message size			& Client Memory 	& Server Storage	\\ \hline
   Others	&			&				&			&			\\ \hline
   Mix 		& $\mathcal{O}(1)$	& $\mathcal{O}(log(n))$		& $s$			& $\mathcal{O}(n)$			\\ 
@@ -258,7 +260,7 @@ In that case, the probability a record's index is known to the adversary can be 
  \captionsetup{justification=centering}
  \caption{System comparison where the online access overhead is the number of accesses to retrieve the requested item.}\label{tab:summarySystem}
 \end{table*}
-
+\fi
 
 \section{Discussion}
 \begin{itemize}
@@ -425,5 +427,23 @@ $$ \frac{s \cdot (s+1)}{2 \cdot n} < f < \frac{s \cdot (s+1)}{2 \cdot (n+1-s)} $
 
 
 \end{proof}
+
+\subsubsection{Proof of Oblivious Merge}
+\label{proofOM}
+
+We want to find the mixing time $\tau(\epsilon)$of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$ and $1-\lambda^*$ is the spectral gap,
+$$\frac{\lambda^*}{1-\lambda^*} \cdot \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{1}{1-\lambda^*}\cdot \ln\left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
+
+We now want to find a bound for $\lambda^*$. We represent the arranging of merge of the 2 distinct sets by $\mathcal{G}$, a $k$-regular bipartite graph with $n$ vertices corresponding to the different arrangings and the undirected edges to transpositions of two elements.
+By definition, the eigen value of the transition matrix of the $\mathcal{G}$, $\lambda_0 > \lambda_1 \geq  ... \geq \lambda_{n-1}$, are real positive and we have,
+
+\begin{align*}
+\text{diam}\left( \mathcal{G}\right) &\leq \frac{log(n-1)}{log(\frac{k}{\lambda^*})}+1 \text{ with } \lambda^* = max_{i\neq0}(\lambda_i)&\\
+log(\frac{k}{\lambda^*}) &\leq\frac{\log(n-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
+log({\lambda^*}) &\geq log(k) - \frac{log(n-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
+\lambda^* &\geq \frac{k}{(n-1)^{\frac{1}{\text{diam}\left(\mathcal{G}\right)-1}}}
+\end{align*}
+
+
 
 \end{document}
