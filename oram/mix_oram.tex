@@ -31,42 +31,76 @@
 \maketitle
 
 \begin{abstract}
-{
-ORAM systems suffer of impracticality, notably due to the cost of the randomization process in the eviction phase.
-We present in this paper an ORAM system relying on amortizable shuffle and mixnet technologies and optimizations to make it more usable.
-}
+{Oblivious RAM systems suffer of impracticality, notably due to the cost of the randomization process in the eviction phase.
+We present in this paper an ORAM system relying on amortizable shuffle and mixnet technologies to make it more usable.}
 \end{abstract}
 
 \section{Introduction}
-Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the providers is to protect the users, not only against active adversaries but also against passive ones, and doing so for reasonable costs. 
+\begin{itemize}
+ \item Introduction to ORAM (we have to hide the access pattern) ~/
+ \item Different ORAM over time \raphael{p.2 TODO}
+ \item Eviction is too costly to happen at once -> Amortization \raphael{TODO}
+ \item Emergence of A.S. \raphael{TODO}
+ \item Combining ORAM and AS \raphael{p.3 TODO}
+\end{itemize}
+
+
+Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to ensure the users that the data is protected, not only from external adversaries but also itself, and doing so for reasonable costs. 
 Cryptographic functions are thus used among other things to create secure communication channels, authenticate users, encrypt and check the data integrity.
-These solutions however do not prevent the leakage of some information and its interception. An adversary can for instance count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge (the file size distribution, the file access frequency distribution, etc.).
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. The access methods are made independent of the sought records and the datablocks are periodically randomized to hide the access pattern and conceal which records were previously retrieved.\\
+These solutions however do not prevent the leakage of some information and its interception. One can for instance count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge (the file size distribution, the file access frequency distribution, etc.).
+We can illustrate how much of a problem this is by considering the following example. Eve was recently made redundant by its company which is outsourcing its data to Eve's new workplace. Eve can evesdrop the storage servers and thus observe which files are being retrieved. She may not know the current content of the files but can guess what project they correspond to. Seeing which project is active, she can sell the information to a competitor.  
 
-Improvements have been made on the eviction process thanks to structural change in the data representation, considering trees~\cite{} or rings~\cite{}, and the shuffling algorithm, in particular with the introduction of dummies.
-In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where two or more semi-trusted clouds are used to serve user requests and hide the access pattern concurrently. However, the practicality of owning and managing more than a cloud was not discussed in the paper.\\
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. The access methods are made independent of the sought records to hide the access pattern and the datablocks are periodically randomized to hide which records were previously retrieved.
+Improvements have been made on the data retrieval costs thanks to structural change in the data representation, considering trees~\cite{} or rings~\cite{}, and the shuffling algorithm, in particular with the introduction of dummies ~cite{}.
+The eviction algorithm however...
+In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where two or more semi-trusted clouds are used to serve user requests and hide the access pattern concurrently. However, the practicality of owning and managing more than a cloud was not discussed in the paper.
 
-In this work, we present a new security defition relying on indistiguishability assumptions and suggest to leave the eviction and shuffling to untrusted third partys and attest its privacy thanks to an information theoric proof.
-The advantages of such use are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
+Anonymity systems...
 
 \subsection{Our contributions}
+In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction and shuffling to untrusted third parties.
+The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
+
 \begin{itemize}
  \item We present the first ORAM relying on a mixnet for the eviction process.
- \item We give a new security definition of ORAM. %indistiguishability between accessed and unretrieved elements
- \item We present a amortizable shuffle.
+ \item We give a new security definition of ORAM's eviction. %indistiguishability between accessed and unretrieved elements
+ \item We present an amortizable shuffle.
 \end{itemize}
 
 \subsection{Content}
 After presenting the related work, the ORAM model, its associated threat model and explaining the different costs in Section.~\ref{section1}, we introduce Random Transposition Shuffles, how to use them in ORAM and together with a mixnet and discuss of various optimizations in Section.~\ref{section2}.
 We finally evaluate our schemes with standard ORAM model and discuss about the advantages and drawbacks of using mixnets.
 
+
 \section{Preliminaries}
 \label{section1}
 
 \subsection{Related Work}
 \subsubsection{ORAM}
-
+first ORAM
+square-root, partiion
+Trees
+Rings
 \raphael{todo}
+
+\subsubsection{Shuffling and Sorting.}
+
+%diff sorting/shuffling (knowledge of the output permutation)
+\noindent\textbf{Shuffling}
+
+\raphael{Melbourne Shuffle intro for inspiration}
+A shufﬂe is an algorithm for rearranging an array to achieve a random permutation of its elements.
+Early shufﬂe methods were motivated by the problem of shufﬂing a deck of cards.
+Classic card shufﬂe methods(e.g.,Knuth(orFisher-Yates)[17],the rifﬂe shufﬂe[2],Thorp shufﬂe[24]) are not data-oblivious, however, as anyone observing card swaps or rifﬂes (interleaving two subdecks) of such methods can learn the ﬁnal output permutation.
+In ICALP 2012, Goodrich and Mitzenmacher [10] showed that one can,in fact,shufﬂe a deck of n cards and guarantee that an observer cannot ﬁnd a particular card in the output permutation with probability better than O(1/n).
+However, this algorithm is not an effective shufﬂe for our purposes,since the output permutations produced by the algorithm are not allequally likely and there may be dependencies between large groups of cards that could be leaked.
+Most other existing efﬁcient data-oblivious shufﬂing methods assign random values to the elements of the array and use a dataoblivious algorithm to sort the array according to these values.
+
+\noindent\textbf{Sorting} \\
+sorting...
+Oblivious sorting
+- sorting networks\\
+- Melbourne shuffle\\
 
 \subsubsection{Mixnets.}
 
@@ -78,28 +112,6 @@ Low-latency anonymity systems, however, may still fail under attacks such as tra
 Cascade mix networks offer perfect privacy at the cost of lower performance \cite{berthold2001disadvantages}.
 In this work we will always consider an ideal anonymity system that can be abstracted, from the perspective of an adversary, as an unknown random permutation of input messages to output messages. Real-world instantiations are imperfect and security parameters may have to be adapted, or in the case of onion routing systems~\cite{DBLP:conf/uss/DingledineMS04} some additional batching and mixing may be required.
 
-\subsubsection{Shuffling and Sorting.}
-
-%diff sorting/shuffling (knowledge of the output permutation)
-\noindent\textbf{Shuffling}
-
-\raphael{Melbourne Shuffle intro for inspiration}
-A shufﬂe is an algorithm for rearranging an array to achieve a random permutation of its elements.
-Early shufﬂe methods were motivated by the problem of shufﬂing a deck of cards.
-Classic card shufﬂe methods(e.g.,Knuth(orFisher-Yates)[17],therifﬂeshufﬂe[2],Thorpshufﬂe[24]) are not data-oblivious, however, as anyone observing card swaps or rifﬂes (interleaving two subdecks) of such methods can learn the ﬁnal output permutation.
-In ICALP 2012, Goodrich and Mitzenmacher [10] showed that one can,in fact,shufﬂe a deck of n cards and guarantee that an observer cannot ﬁnd a particular card in the output permutation with probability better than O(1/n).
-However, this algorithm is not an effective shufﬂe for our purposes,since the output permutations produced by the algorithm are not allequally likely and there may be dependencies between large groups of cards that could be leaked.
-Most other existing efﬁcient data-oblivious shufﬂing methods assign random values to the elements of the array and use a dataoblivious algorithm to sort the array according to these values.
-
-\raphael{RTS here or in relevant chapter ?}
-Random transpositions shuffle (RTS) have been thoroughly studied since 1981 when Diaconis and Ashahshahani released their paper on random permutation generations~cite{}.
-RTS consists in randomly selecting two cards from a deck of cards and exchange them if they are different.
-The time of convergence towards the uniform distribution, the mixing time, was bounded at $\left(2+o(1)\right)n\log(n)$ thanks to strong a stationary time argument due to Broder\cite{}.
-Diaconis however observed a cutoff phenomenon in his first paper in 1981, an abrupt convergence to the equilibrium distribution, at $\frac{1}{2}n\log(n)$ of width $O(n)$.\\
-
-\noindent\textbf{Sorting} \\
-- sorting networks\\
-- Melbourne shuffle\\
 
 \subsubsection{Differential Privacy.}
 \raphael{May be erase. If not, rewrite, add lower cost...}
@@ -123,8 +135,10 @@ We denote the communication costs by $C_o$ for the number of \emph{bits} sent by
 We will call $C_p$ the computation cost derived from the eviction and $C_a$ from the database accesses.
 
 \subsection{Cryptographic Primitives}
-Encryption
-Pseudo Random Permutations and Seeds
+\begin{itemize}
+ \item Encryption 
+ \item Seeds \raphael{TODO ?}
+\end{itemize}
 
 \section{Mix-ORAM}
 \label{section2}
@@ -132,6 +146,14 @@ Reencryption network vs Decryption network. Reencryption ORAM will be used as de
 Symmetrical Reencryption network ?
 
 \subsection{Operation and Messages}
+We consider traditional cloud opertions...
+\begin{itemize}
+ \item get(index)
+ \item get\_range($index_i$, $index_j$)
+ \item put(index) 
+ \item put\_range($index_i$, $index_j$)
+\end{itemize}
+
 \subsection{The Eviction process.}
 In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
@@ -177,7 +199,7 @@ We now use the $k$-RTS and Oblivious Merge to create an obivious amortizable sor
 
 The user first rerandomizes the elements keeping in memory each of their location (cuckoo hashing?) then reaches a fixed distribution $\pi$ given by a seed.
 \raphael{I think we do as this ?}
-\raphael{how do we do the permutations? --> what is the format of the information ?}
+\raphael{how do we do the permutations? --> what is the format of the seed ? how do we combine them ?}
 
 \subsection{Eviction process: the Mixnet.}
 \raphael{Cascade mix or not?}
@@ -189,7 +211,7 @@ The cascade case is more advantageous in time as the outputs and inputs of the m
 However what is gain in duration is loose in resilience as any mix failure in the cascade mixnet would compromise the whole system. Moreover an attack specific to cascade mixnet also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
 so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
 
-Use of distributive encryption ?
+\raphael{Use of distributive encryption ?}
 
 The computation cost of the eviction would thus be of the order of $m\cdot n \cdot \log(n)$ while the communication cost will be either $4\cdot m \cdot n \log(n)$ or $2\cdot(m+1) \cdot n \log(n)$ depending on the mixnet architecture.
 
@@ -197,7 +219,7 @@ The computation cost of the eviction would thus be of the order of $m\cdot n \cd
 
 \subsection{Lowering Eviction Costs.}
 
-In order to lower the eviction costs sustained by the mixnet, two optimizations can be enforced
+In order to lower the eviction costs sustained by the mixnet, optimizations on each side of the channel can be done.
 
 \subsubsection{Client Optimization.}
 \noindent\textbf{Changing ORAM access.}
@@ -280,10 +302,9 @@ MSR...
 \end{itemize}
 
 
-
 \bibliography{mix_oram}{}
 \bibliographystyle{plain}
-\clearpage
+
 \appendix 
 \section{Proofs of Theorems}
 
@@ -311,8 +332,8 @@ We can thus rewrite $\tau$'s expectation as following.
  &< \sum_{t=0}^{n-1} \frac{n^2}{k \cdot (t+1)\cdot(n-t)}  &\\
  &< \frac{1}{k} \cdot \frac{n^2}{n+1} \cdot  \sum_{t=0}^{n-1} \left ( \frac{1}{t+1} + \frac{1}{n-t} \right ) &\\
  &< \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot \sum_{t=1}^{n} \left ( \frac{1}{t} \right ) &\\
- &< \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot H_n &\\
- &< \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot \left( \ln(n) + \gamma +\mathcal{O}(\frac{1}{2n}) \right ) \text{ with } \gamma = \lim_{n \to \infty} \left ( H_n - \ln(n) \right ) & \\
+ &< \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot H_n  < \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot \left( \ln(n) + \gamma +\mathcal{O}(\frac{1}{2n}) \right )&\\
+ \text{ with } \gamma &= \lim_{n \to \infty} \left ( H_n - \ln(n) \right ) & \\
  \end{align*}
  \begin{align*}
  var(\tau) &= \sum_{t=0}^{n-1}\frac{1-p_t}{{p_t}^2}\ <\  \sum_{t=0}^{n-1}\frac{1}{{p_t}^2} &\\
@@ -347,6 +368,7 @@ $$\tau \left (\epsilon \right ) \geq \frac{n-1}{2k} \ln(n\cdot \frac{1-\epsilon}
 \label{Annexe:FAccess}
 \begin{proof}
  We want to prove that the average number of fake access is 0 in case of a uniform distribution. To do so, we consider the markov chain in Fig~\ref{fig:AMC} and its Transition Matrix as depicted in Fig~\ref{fig:ATM} for $s=5$.
+ \iffalse
 \begin{figure*}[t!]
 \centering
 \begin{adjustbox}{width=\textwidth}
@@ -390,6 +412,7 @@ $$\tau \left (\epsilon \right ) \geq \frac{n-1}{2k} \ln(n\cdot \frac{1-\epsilon}
 
 \caption{Corresponding Transition Matrix $P$, for $s=5$} \label{fig:ATM}
 \end{figure}
+\fi
 The transition matrix $P$ represents the $s$ transient state, in which the stash is not completely filled, and the absorption state in which the stash is full.
 Thus, $P$ can be decomposed in 4 submatrices: the square submatrix $Q_s$ representing all the transcient state, the column matrix R with the probabilities of transitioning to the absorbing state, the null row matrix and the absorption matrix.
 \[
@@ -431,19 +454,60 @@ $$ \frac{s \cdot (s+1)}{2 \cdot n} < f < \frac{s \cdot (s+1)}{2 \cdot (n+1-s)} $
 \subsubsection{Proof of Oblivious Merge}
 \label{proofOM}
 
-We want to find the mixing time $\tau(\epsilon)$of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$ and $1-\lambda^*$ is the spectral gap,
-$$\frac{\lambda^*}{1-\lambda^*} \cdot \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{1}{1-\lambda^*}\cdot \ln\left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
+We want to find the mixing time $\tau(\epsilon)$ of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$ and $1-\lambda^*$ is the spectral gap,
+$$\frac{\lambda^*}{1-\lambda^*} \cdot \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{1}{1-\lambda^*}\cdot \log \left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
 
-We now want to find a bound for $\lambda^*$. We represent the arranging of merge of the 2 distinct sets by $\mathcal{G}$, a $k$-regular bipartite graph with $n$ vertices corresponding to the different arrangings and the undirected edges to transpositions of two elements.
-By definition, the eigen value of the transition matrix of the $\mathcal{G}$, $\lambda_0 > \lambda_1 \geq  ... \geq \lambda_{n-1}$, are real positive and we have,
+We now want to find a bound for $\lambda^*$. We represent the arranging of merge of the 2 distinct sets by $\mathcal{G}$, a $k$-regular bipartite graph with $v$ vertices corresponding to the different arrangings and the undirected edges to transpositions of two elements.
+By definition, the eigenvalues of the transition matrix of the $\mathcal{G}$ are $k={\lambda'}_0 > {\lambda'}_1 \geq  ... \geq {\lambda'}_{n-1}$, and we have,
+$$\text{diam}\left( \mathcal{G}\right) \leq \frac{log(v-1)}{log(\frac{k}{{\lambda'}^*})}+1 \text{ with } {\lambda'}^* = max_{i\neq0}({\lambda'}_i)$$
 
+We can thus find a first relation:
 \begin{align*}
-\text{diam}\left( \mathcal{G}\right) &\leq \frac{log(n-1)}{log(\frac{k}{\lambda^*})}+1 \text{ with } \lambda^* = max_{i\neq0}(\lambda_i)&\\
-log(\frac{k}{\lambda^*}) &\leq\frac{\log(n-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
-log({\lambda^*}) &\geq log(k) - \frac{log(n-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
-\lambda^* &\geq \frac{k}{(n-1)^{\frac{1}{\text{diam}\left(\mathcal{G}\right)-1}}}
+log(\frac{k}{{\lambda'}^*}) &\leq\frac{\log(v-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
+log({{\lambda'}^*}) &\geq log(k) - \frac{log(v-1)}{\text{diam}\left(\mathcal{G}\right)-1}&\\
+{\lambda'}^* &\geq \frac{k}{(v-1)^{\frac{1}{\text{diam}\left(\mathcal{G}\right)-1}}}
 \end{align*}
 
+And can derive the minimum value of $\frac{\lambda^*}{1-\lambda^*}$,
+$$\frac{k}{(v-1)^{\frac{1}{\text{diam}\left(\mathcal{G}\right)-1}}-k}$$
 
+To find an upperbound of $\lambda^*$, we will focus on the spectral gap bounding.
+We have by definition that for a $k$ regular graph, with $\text{h} \left ( \mathcal{G} \right ) $ the Cheeger constant,
+$$ \text{h} \left (\mathcal{G}\right) \leq \sqrt{k(k−{\lambda'}^*)}$$
+
+We thus find the second relation,
+$\frac{h\left (\mathcal{G}\right)^2}{k} \leq k-{\lambda'}^*$ and derive the maximum value of $\frac{1}{1-\lambda^*}$, as ${\lambda'}^* = k\cdot \lambda^*$,
+$$\left ( \frac{k}{\text{h}\left (\mathcal{G}\right)} \right )^2$$
+
+We finally find that,
+$$\frac{k}{(v-1)^{\frac{1}{\text{diam}\left(\mathcal{G}\right)-1}}-k} \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \left ( \frac{k}{\text{h}\left (\mathcal{G}\right)} \right )^2 \log \left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
+
+In our scenario, we have $k= n$, $v={n \choose s}$, $p={n \choose s}^{-1}$, $\text{diam}\left(\mathcal{G}\right)=n$ and $\text{h}\left (\mathcal{G}\right)\geq\frac{\eta}{2}s(n-s)$ with $0<\eta<1$ as stated in ~\cite{bol88}.
+
+Thus,
+$$\frac{n}{({n \choose s}-1)^{\frac{1}{n-1}}-n} \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{2}{\eta} \left (\frac{n}{s\cdot(n-s)} \right )^2 \log \left( \frac{{n \choose s}}{4 \cdot \epsilon^2}\right) $$
+
+When $n>>s$ we have the following approximation:
+$$\log\left ({n \choose s} \right ) \approx s\log \left (\frac{n}{s-0.5}\right)+s-\frac{1}{2}\log \left(2 \pi s\right)$$
+Thus,
+$$\tau(\epsilon) \leq \frac{2}{\eta} \left (\frac{1}{s} \right )^2 \cdot \left [ s \left( \log \left (\frac{n}{s-0.5}\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ]$$
+
+
+READ "On the Second Eigenvalue in Random Regular Graphs" by Friedman and Kahn. ( $\lambda^* \geq 2*\sqrt(d-1) + \mathcal{O}\left( \frac{1}{\log_d(n)} \right)$ )
+In that case, with d the degree,
+\begin{align}
+\frac{1}{1-\lambda^*} &\geq \frac{1}{1-2*\sqrt(d-1)}& \\
+\frac{1}{1-\lambda'*} &\geq \frac{\sqrt{d}}{\sqrt{d}-2}
+\end{align}
+
+\iffalse 
+[01...] -> lazy walk on an hypercube : nlogn complexity with n being the number of bits.
+However all combinations are not possible (there are at most s 0s) : (n choose s) != 2^n.
+If path coupling used (first we choose a card label, then a position): $p(1) 1/n * (n-s)/n + p(0) 1/n s/n = 1/n [p(1) [(n-s)/n+1] + [1+p(0) s/n]] = alpha < 2/n$ very slow 
+why ? car label is very detrimental but position is good (if b1 chosen, any p of 0s or p b1).
+
+other shuffle:
+oblibious merge: download s bits at a time (memory of 2s), permute 1s and 0s and upload to dbs.
+\fi
 
 \end{document}
