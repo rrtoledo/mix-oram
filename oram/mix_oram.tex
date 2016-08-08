@@ -20,8 +20,8 @@
 
 \begin{document}
 
-\author{Raphael R. Toledo \thanks{E-mail: r.toledo@cs.ucl.ac.uk} }
-\author{George Danezis \thanks{E-mail: g.danezis@cs.ucl.ac.uk} }
+\author{Raphael R. Toledo}
+\author{George Danezis}
 
 \affil{University College London }
 
@@ -36,14 +36,15 @@ We present in this paper an ORAM system relying on amortizable shuffle and mixne
 \end{abstract}
 
 \section{Introduction}
+\iffalse
 \begin{itemize}
  \item Introduction to ORAM (we have to hide the access pattern) ~/
  \item Different ORAM over time \raphael{p.2 TODO}
- \item Eviction is too costly to happen at once -> Amortization \raphael{TODO}
+ \item Eviction is too costly to happen at once /
  \item Emergence of A.S. \raphael{TODO}
  \item Combining ORAM and AS \raphael{p.3 TODO}
 \end{itemize}
-
+\fi
 
 Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to ensure the users that the data is protected, not only from external adversaries but also itself, and doing so for reasonable costs. 
 Cryptographic functions are thus used among other things to create secure communication channels, authenticate users, encrypt and check the data integrity.
@@ -52,10 +53,11 @@ We can illustrate how much of a problem this is by considering the following exa
 
 Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. The access methods are made independent of the sought records to hide the access pattern and the datablocks are periodically randomized to hide which records were previously retrieved.
 Improvements have been made on the data retrieval costs thanks to structural change in the data representation, considering trees~\cite{} or rings~\cite{}, and the shuffling algorithm, in particular with the introduction of dummies ~cite{}.
-The eviction algorithm however...
-In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where two or more semi-trusted clouds are used to serve user requests and hide the access pattern concurrently. However, the practicality of owning and managing more than a cloud was not discussed in the paper.
+The eviction problem however remains challenging as the whole database has to be reencrypted and sorted again frequently. The database is consequently unreachable for long periods of time during which the user does heavy computing.
+In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where the eviction algorithm was delegated thanks to the use of several semi-trusted clouds. However, the practicality of owning and managing more than one cloud was not discussed in the paper.
 
-Anonymity systems...
+Mixing networks is a solution widely applied in Anonymity system to obliviously shuffle packets which could be used here. A batch of packets is received by the mixnet where it is reencrypted and shuffled by each mix such that the output of one mix is the next ones's input. For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
+Mixnets could thus address ORAM constraints but at high cost since the reencyption cost is multiplied by the number of mixes. If using mixnet, methods to amortize the shuffle have to be taken into account to make ORAM workable.
 
 \subsection{Our contributions}
 In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction and shuffling to untrusted third parties.
@@ -77,17 +79,13 @@ We finally evaluate our schemes with standard ORAM model and discuss about the a
 
 \subsection{Related Work}
 \subsubsection{ORAM}
-first ORAM
-square-root, partiion
-Trees
-Rings
-\raphael{todo}
+% first ORAM square-root, partition Trees Rings
 
 \subsubsection{Shuffling and Sorting.}
 
 %diff sorting/shuffling (knowledge of the output permutation)
 \noindent\textbf{Shuffling}
-
+\iffalse
 \raphael{Melbourne Shuffle intro for inspiration}
 A shufﬂe is an algorithm for rearranging an array to achieve a random permutation of its elements.
 Early shufﬂe methods were motivated by the problem of shufﬂing a deck of cards.
@@ -95,15 +93,13 @@ Classic card shufﬂe methods(e.g.,Knuth(orFisher-Yates)[17],the rifﬂe shufﬂ
 In ICALP 2012, Goodrich and Mitzenmacher [10] showed that one can,in fact,shufﬂe a deck of n cards and guarantee that an observer cannot ﬁnd a particular card in the output permutation with probability better than O(1/n).
 However, this algorithm is not an effective shufﬂe for our purposes,since the output permutations produced by the algorithm are not allequally likely and there may be dependencies between large groups of cards that could be leaked.
 Most other existing efﬁcient data-oblivious shufﬂing methods assign random values to the elements of the array and use a dataoblivious algorithm to sort the array according to these values.
-
+\fi
 \noindent\textbf{Sorting} \\
-sorting...
-Oblivious sorting
-- sorting networks\\
-- Melbourne shuffle\\
+%sorting...
+%Oblivious sorting: - sorting networks - Melbourne shuffle
 
 \subsubsection{Mixnets.}
-
+\iffalse
 \raphael{from lower PIR, rewrite, not only cascade, focus on mixing...}
 Research on Anonymity Systems (AS) began in 1981 by David Chaum introducing the mixnet for anonymous e-mail \cite{Pseudo}.
 Other AS applications were then studied, such as peer-to-peer and web browsing, in particular in the context of Onion Routing and Tor~\cite{DBLP:conf/uss/DingledineMS04}.
@@ -111,15 +107,16 @@ The Anonymity System accepts a batch of messages and routes them while hiding th
 Low-latency anonymity systems, however, may still fail under attacks such as traffic analysis and fingerprinting~\cite{Fingerprinting}.
 Cascade mix networks offer perfect privacy at the cost of lower performance \cite{berthold2001disadvantages}.
 In this work we will always consider an ideal anonymity system that can be abstracted, from the perspective of an adversary, as an unknown random permutation of input messages to output messages. Real-world instantiations are imperfect and security parameters may have to be adapted, or in the case of onion routing systems~\cite{DBLP:conf/uss/DingledineMS04} some additional batching and mixing may be required.
-
+\fi
 
 \subsubsection{Differential Privacy.}
+\iffalse
 \raphael{May be erase. If not, rewrite, add lower cost...}
 Differential Privacy definitions and mechanisms were first presented in 2006~\cite{DiffPrivacy} to enable safe interactions with statistical databases.
 However, this definition has since been used in machine learning~\cite{DeepLearning}, cloud computing~\cite{Airavat}, and location indistinguishability together with PIR~\cite{GeoIndis} to evaluate and minimize the privacy risk.
 Differentially private definitions have several advantages: they capture the intrinsic loss of privacy due to using a mechanism, and they are not affected by side information the adversary may hold.
 Well-known composition theorems can be applied. We note that Chor et al.~\cite{Chor} also make passing allusion to statistical and leaky definitions of PIR in their seminal paper, only to focus on perfectly information-theoretic schemes.
-
+\fi
 
 \subsection{Model}
 We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. 
@@ -255,7 +252,7 @@ Instead of requiring the mixes to permute all of the $k$ fetched records, the us
 In that case, the probability a record's index is known to the adversary can be reduced to the probability a record has not been permuted.
 
 \raphael{Differential privacy ?}
-
+\iffalse
 \begin{secthm}
  The probability a record was not permuted is
  \begin{align*}
@@ -263,8 +260,7 @@ In that case, the probability a record's index is known to the adversary can be 
  \Pr &= \left ( 1 - \frac{\alpha}{k} \right )^{(m-m_a)\log(n)} \text{ for the eviction.}
  \end{align*} 
 \end{secthm}
-
-\raphael{Check numbers.}
+\fi
 
 \section{Evaluation}
 
