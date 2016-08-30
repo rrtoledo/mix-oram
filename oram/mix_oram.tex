@@ -10,7 +10,7 @@
 \usepackage{cite}
 \usepackage{graphicx}
 \usepackage{adjustbox}
-\usetikzlibrary{calc, automata, chains}
+\usetikzlibrary{calc, automata, chains, shapes, snakes}
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem{secthm}{Security Theorem}
@@ -119,7 +119,15 @@ Well-known composition theorems can be applied. We note that Chor et al.~\cite{C
 \fi
 
 \subsection{Model}
-We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. 
+We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a cascade mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. 
+
+We consider traditional cloud opertions...
+\begin{itemize}
+ \item get(index)
+ \item get\_range($index_i$, $index_j$)
+ \item put(index) 
+ \item put\_range($index_i$, $index_j$)
+\end{itemize}
 
 \subsection{Threat model}
 We consider an adversary $\mathcal{A}$ has corrupted $m_{a}$ mixes and potentially the ORAM database in order to discover the relationship between the user's records and indexes. 
@@ -139,17 +147,54 @@ We will call $C_p$ the computation cost derived from the eviction and $C_a$ from
 
 \section{Mix-ORAM}
 \label{section2}
-Reencryption network vs Decryption network. Reencryption ORAM will be used as decryption requires the user to update all records with all the keys... (except two layer encryption?).
-Symmetrical Reencryption network ?
+After looking at a simple but impractical mix ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 
-\subsection{Operation and Messages}
-We consider traditional cloud opertions...
-\begin{itemize}
- \item get(index)
- \item get\_range($index_i$, $index_j$)
- \item put(index) 
- \item put\_range($index_i$, $index_j$)
-\end{itemize}
+\subsection{A simple Mix-ORAM}
+%Passing the DB from a mix to another
+%Reencryption network thks to AES-CTR commutation property
+We consider here the basic case where the whole database is sent through a cascade mixnet during the eviction process as shown in Fig.\ref{fig:ASMO}.
+Each of the mixes reencrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
+
+To do so, because the symmetric group is not commutative, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering.We also consider reversing the mixnet flow during the second step, the records now going from the last mix to the first before being uploaded on the database, to avoid unnecessary communication costs.\\
+As for encryption, we use AES-CTR for its speed. Since AES-CTR is stateless and commutative, the reencryption order does not matter.However in order to avoid disclosing the initial order to a potential adversary, we'd rather encrypt the records again before deciphering the previous encryption.\\
+The security guarantees rely on the fact that no private information (seed, encryption key) is leaked between innocent mixes and corrupted ones and that the encryption is not deterministic.
+
+Alonside the database records, the user need to send the encrypted seeds and reencryption keys. Hence if we denote by $x$ the size in bits of a seed and encryption key, the total communication cost is of the order $\mathcal{O}\left ( m\cdot N \right )$, more precisely $C_m=2mN + m\cdot(2m-\frac{1}{2})\cdot x$.
+The computation cost is of the order $\mathcal{O}\left(mN\right)$, the encryption process comprising most of it.
+
+We can try to limit the number of seeds and encryption keys the user has to store by reusing some. However doing so, an adversary can discover in some cases, the probability depending on the number of compromised mixes and number of reuse, what permutations or encryptions was done by bruteforcing on a small universe.
+
+\begin{figure*}[t!]
+\centering
+\begin{adjustbox}{width=\textwidth}
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em, scale=0.5]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+\node[draw=none, fill=none]    		(0)		  {};	
+\node[draw, rectangle]   		(A)[right of=0]   {\small$Mix_{1}$};
+\node[draw, rectangle]    		(B)[right of=A]   {\small$Mix_{2}$};
+\node[draw=none, fill=none]    		(X)[right of=B]   {\small$...$};
+\node[draw, rectangle]    		(Z)[right of=X]   {\small$Mix_m$};
+
+\path
+([yshift=2ex]0.east) edge     	node{\small$DB_{k_{i=1..m}}^{S_j=1..m}$}    	([yshift=2ex]A.west)
+([yshift=-2ex]A.west) edge     	node{\small$DB_{k'_{i=1..m}}^{S'_{j=1..m}}$}    	([yshift=-2ex]0.east)
+
+([yshift=2ex]A.east) edge     	node{\small$k_1',S_1^{-1}$}    	([yshift=2ex]B.west)
+([yshift=-2ex]B.west) edge     	node{\small$k_2,S_2'$}    	([yshift=-2ex]A.east)
+
+([yshift=2ex]B.east) edge     	node{\small$k_2',S_2^{-1}$}    	([yshift=2ex]X.west)
+([yshift=-2ex]X.west) edge     	node{\small$k_3,S_3'$}    	([yshift=-2ex]B.east)
+
+([yshift=2ex]X.east) edge     	node{\small$k_{m-1}',S_{m-1}^{-1}$}    	([yshift=2ex]Z.west)
+([yshift=-2ex]Z.west) edge     	node{\small$k_m,S_m'$}    	([yshift=-2ex]X.east)
+
+(Z)    edge[loop right, dashed]    node{\small$k_m,S_m^{-1}$} (Z);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{A simple Mix-ORAM} \label{fig:ASMO}
+\end{figure*} 
+
 
 \subsection{The Eviction process.}
 In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
@@ -157,13 +202,13 @@ We first present the mixing time of $k$-RTS before introducing ORAM assumptions 
 
 \subsubsection{$k$-Random Transposition Shuffle.}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
-Random Transposition Shuffles are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
-These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranding is possible.
-We can already see why RTS are natural candidates for amortized ORAMs. As they can be broke down in independant rounds which can be spread over time, so can a randomization process based on RTS. Futhermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
+Random Transposition Shuffles (RTS) are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
+These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.
+We can already see why RTS are natural candidates for amortized ORAMs : if they can be broke down in independant rounds which can be spread over time, so can a randomization process based on them. Futhermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
 Diaconis in 19XX~\cite{} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards, to make the scheme more efficient.
 
 \begin{secthm}
-\textbf{Mixing time of $k$-RTS.} A $k$- random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
+\textbf{Mixing time of $k$-RTS.} A $k$-random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
 \begin{align*}
 E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) &\\
 \sigma^2(\tau) &< \frac{4}{3} \cdot {\pi}^2 \cdot \left ( \frac{n}{k} \right )^2 &
@@ -179,13 +224,14 @@ Before the eviction algorithm is run, the database can be represented as a simpl
 We argue that in this representation, elements of the same sets are indistiguishable to the adversary thanks to prior encryption and permutation.
 This simplifing assumption significantly reduces the number of possible orderings in the adversarial view, we can prove, thanks to the Bars and Stripes theorem, that there now are ${n \choose s}$ arrangings instead of $n!$, that is to say a gain of order $\mathcal{O}\left ( (n-s)!\cdot s!\right )$.
 
-We now consider the user fetches elements from the two sets, permutes them locally, and refreshes the encryption before uploading them back at the same locations to obviously merge these two sets.
-\raphael{Look if memory assumptions are needed in proof.}
+We now consider the RTS process in that scenario and suppose the records (the bits) are reencrypted before being permuting such that the merge of the two sets is oblivious to the adversary.
 
 \begin{secthm}
 An oblivious merge of 2 indistiguishable sets of respective size $n$ and $s$ requires $\tau$ rounds such that any arranging is possible, with
 \begin{align*}
-\tau \leq s \ln{s}&
+\tau(\epsilon) &\geq \frac{n}{({n \choose s}-1)^{\frac{1}{n-1}}-n} \log\left(\frac{1}{2 \epsilon} \right) &\\
+\tau(\epsilon) &\leq \frac{2}{\eta} \left (\frac{1}{s} \right )^2 \cdot \left [ s \left( \log \left (\frac{n}{s-0.5}\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] &\\
+\tau(\epsilon) &\leq 2 s^2 \left(1- \frac{s}{n} \right )^2 \cdot \log \left(\frac{{n \choose s}}{4\cdot\epsilon^2}\right) \raphael{to\ be\ proved}
 \end{align*}
 Proof can be found in Annexe.~\cite{}.
 \end{secthm}
@@ -198,8 +244,12 @@ The user first rerandomizes the elements keeping in memory each of their locatio
 \raphael{I think we do as this ?}
 \raphael{how do we do the permutations? --> what is the format of the seed ? how do we combine them ?}
 
+\subsection{A simple ORAM.}
+We consider in this part a traditional ORAM system composed of the client with a memory of $\mathcal{O}\left(\sqrt{n}\right)$ blocks and a remote server with a memory of $\mathcal{O}\left(\sqrt{n}\right)$ blocks which uses our oblivious merge during the eviction process.
+
+
 \subsection{Eviction process: the Mixnet.}
-\raphael{Cascade mix or not?}
+%Stress that this is a new case for mixnet as the messages come from the same source but the mixnet client/user needs to retain some information about the output.
 To evict the stash, the client updates the former in the database and sends a signal to the mixnet or to the database if he wants the eviction to be postponed to quieter times.
 
 Two different methods can be applied for the eviction process depending on the mixnet architecture, in both cases eviction rely on repeatedly fetching $k$ records, refreshing and permuting them before updating them back in the ORAM.
@@ -207,6 +257,8 @@ If the mixnet is a cascade network, the first mix outputs the resulting array to
 The cascade case is more advantageous in time as the outputs and inputs of the mixes coincide, hence the communication cost is roughly divided by two. There is futhermore no synchronization needed between the mixes to process different records at the same time.
 However what is gain in duration is loose in resilience as any mix failure in the cascade mixnet would compromise the whole system. Moreover an attack specific to cascade mixnet also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
 so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
+
+Another problem raises
 
 \raphael{Use of distributive encryption ?}
 
