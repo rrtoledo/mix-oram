@@ -162,6 +162,7 @@ The security guarantees rely on the fact that no private information (seed, encr
 Alonside the database records, the user need to send the encrypted seeds and reencryption keys. Hence if we denote by $x$ the size in bits of a seed and encryption key, the total communication cost is of the order $\mathcal{O}\left ( m\cdot N \right )$, more precisely $C_m=2mN + m\cdot(2m-\frac{1}{2})\cdot x$.
 The computation cost is of the order $\mathcal{O}\left(mN\right)$, the encryption process comprising most of it.
 
+This scheme is not efficient as instead of reencrypting each record twice as in the Melbourne Shuffle, $2\cdot m$ encryption per element is necessary to achieve perfect security. The whole database also has to be passed through every node twice which incur severe delays. Parallelization could help increase the efficiency of the mixnet by distributing the workload among mixes, however the cascade configuration would have to change.
 We can try to limit the number of seeds and encryption keys the user has to store by reusing some. However doing so, an adversary can discover in some cases, the probability depending on the number of compromised mixes and number of reuse, what permutations or encryptions was done by bruteforcing on a small universe.
 
 \begin{figure*}[t!]
