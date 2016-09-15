@@ -114,13 +114,11 @@ If most ORAM constructions are based on a single client server model, multi-user
 As we stated before the eviction process is one of the principal problem of ORAM, the clients have to reencrypt and process the whole database for extensive period of time during which record access is usually not possible, some designs permitting read while shuffling as \cite{boneh2011}.
 
 \subsubsection{Shuffling and Sorting}
-Shuffle and sorting algorithms are not oblivious
-
-Sorting networks as Batcher or AKS
-Merge sort
-Melbourne shuffle variant of bucket sort
-randomized shellsort
-
+Shuffle and sorting algorithms are a thouroughly studied subject~\cite{aldous1986shuffling}, central to ORAM for the randomization process, however most of them are not oblivious in that the output of the algorithm depends on the data.
+Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKSé\cite{ajtai19830} which were proved to be impractical respectively because of their number of I/Os, Batchers having $\mathcal{O}\left ( n \log n \right)$ and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
+The Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of bucket sort which relies on temporary arrays.
+randomized shellsort ~\cite{goodrich2010randomized}
+zig zag sort~\cite{goodrich2014zig}
 
 \subsubsection{Mixnets}
 mixnet are usually used today for mixing several users packets such as in TOR or in private friendl remailers..
