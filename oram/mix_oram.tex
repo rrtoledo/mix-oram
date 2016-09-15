@@ -114,16 +114,15 @@ If most ORAM constructions are based on a single client server model, multi-user
 As we stated before the eviction process is one of the principal problem of ORAM, the clients have to reencrypt and process the whole database for extensive period of time during which record access is usually not possible, some designs permitting read while shuffling as \cite{boneh2011}.
 
 \subsubsection{Shuffling and Sorting}
-Shuffle and sorting algorithms are a thouroughly studied subject~\cite{aldous1986shuffling}, central to ORAM for the randomization process, however most of them are not oblivious in that the output of the algorithm depends on the data.
-Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKSé\cite{ajtai19830} which were proved to be impractical respectively because of their number of I/Os, Batchers having $\mathcal{O}\left ( n \log n \right)$ and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
-The Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of bucket sort which relies on temporary arrays.
-randomized shellsort ~\cite{goodrich2010randomized}
-zig zag sort~\cite{goodrich2014zig}
+Shuffle and sorting algorithms are a thouroughly researched subject central to ORAM for the randomization process. However most of them are not oblivious in that the output of the algorithm depends on the data.
+Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKS~\cite{ajtai19830} which were proved to be impractical because of their number of I/Os, Batchers using $\mathcal{O}\left ( n \log n \right)$ I/Os and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
+The randomized shellsort ~\cite{goodrich2010randomized} is an elegant simple data-oblivious version of the Shellsort algorithm running in $\mathcal{O}\left ( n \log n \right)$ time that sort with high probability.
+The zig zag sort~\cite{goodrich2014zig}, presented in 2014, is the deterministic data-oblivious variant of the Shellsort with running time of $\mathcal{O}\left ( n \log n\right)$.
+Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of bucket sort which relies on temporary arrays and dummies to hide the item redistribution.
 
 \subsubsection{Mixnets}
-mixnet are usually used today for mixing several users packets such as in TOR or in private friendl remailers..
-Several topologies exists cascade in Tor in which each server is a single point of failure and ...
-
+\todo{} Tor~\cite{dingledine2004tor}. 
+We present here a new type of mixnet as the messages come from the same source and that the mixnet client needs to store some information to remember the output ordering.
 
 \subsection{Model}
 We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a cascade mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
@@ -404,41 +403,47 @@ A $k$-oblivious Merge ($k$-OM)of 2 indistiguishable sets of respective size $n$ 
 
 \subsubsection{Amortizable sort}
 
-We now use the $k$-Oblivious Merge to create an obivious amortizable sort algorithm. The $k$ parameter is directly linked to the memory and influence the speed of randomization, ideally we have $k=m$.
-
-The user first rerandomizes the elements keeping in memory each of their location (cuckoo hashing?) then reaches a fixed distribution $\pi$ given by a seed.
-\raphael{I think we do as this ?}
-\raphael{how do we do the permutations? --> what is the format of the seed ? how do we combine them ?}
+\todo{}
 
 
 \subsection{Parallel Mix-ORAM}
 We consider in this part a traditional ORAM system composed of the client with a memory of $\mathcal{O}\left(\sqrt{n}\right)$ blocks and a remote server with a memory of $\mathcal{O}\left(\sqrt{n}\right)$ blocks which uses our oblivious merge during the eviction process.
 
 
-\subsection{Eviction process: the Mixnet}
 %Stress that this is a new case for mixnet as the messages come from the same source but the mixnet client/user needs to retain some information about the output.
 To evict the stash, the client updates the former in the database and sends a signal to the mixnet or to the database if he wants the eviction to be postponed to quieter times.
 
+\subsection{Lowering Eviction Costs}
+
+In order to lower the eviction costs sustained by the mixnet, optimizations on each side of the channel can be done.
+
+
+
+\section{Evaluation}
+
+\section{Discussion}
+\label{Discussion}
+\begin{itemize}
+ \item Ads and Cons of mixnets
+ \item Using proof of shuffle and proof of work to counter injection attacks.
+ \item Using a reputation system alongside to dismiss mixes more quickly.
+ \item Multiuser oram
+ \item Lowering the eviction cost
+ \item Fetching $k$ items to postpone the eviction
+\end{itemize}
+
+\subsection{Mixnet: ads \& cons}
 Two different methods can be applied for the eviction process depending on the mixnet architecture, in both cases eviction rely on repeatedly fetching $k$ records, refreshing and permuting them before updating them back in the ORAM.
 If the mixnet is a cascade network, the first mix outputs the resulting array to next mix while repeating the process for distinct records, otherwise, in the mesh case, the mixes fetch in parallel the records.
 The cascade case is more advantageous in time as the outputs and inputs of the mixes coincide, hence the communication cost is roughly divided by two. There is futhermore no synchronization needed between the mixes to process different records at the same time.
 However what is gain in duration is loose in resilience as any mix failure in the cascade mixnet would compromise the whole system. Moreover an attack specific to cascade mixnet also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
 so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
 
-Another problem raises
-
-\raphael{Use of distributive encryption ?}
 
 The computation cost of the eviction would thus be of the order of $m\cdot n \cdot \log(n)$ while the communication cost will be either $4\cdot m \cdot n \log(n)$ or $2\cdot(m+1) \cdot n \log(n)$ depending on the mixnet architecture.
 
-\raphael{Can we delay the encryption ? ($k_{in}=k_{out}$)}
 
-\subsection{Lowering Eviction Costs}
-
-In order to lower the eviction costs sustained by the mixnet, optimizations on each side of the channel can be done.
-
-\subsubsection{Client Optimization}
-\noindent\textbf{Changing ORAM access.}
+\subsection{Lowering the eviction costs}
 
 The client, to lower the eviction costs, could instead of fetching only the requested record query $k-1$ other dummy records. Doing so, we can advance further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mixnet performing cheaper and weaker permutations.
 What's more, requesting more records can help in hidding the access pattern to the adversary has discussed in~\cite{toledo2016lower}.
@@ -501,18 +506,10 @@ The average number of fake access is $ \frac{v0}{v1}$.
 \end{proof}
 \end{secthm}
 
+\subsection{Delaying the eviction}
 
-\section{Evaluation}
+The client could replace elements of the stash when querying items to delay the eviction process, i.e. setting $k_in=k_out$.
 
-\section{Discussion}
-\label{Discussion}
-\begin{itemize}
- \item Ads and Cons of mixnets
- \item Multiuser oram
- \item Using proof of shuffle and proof of work to counter injection attacks.
- \item Using a reputation system alongside to dismiss mixes more quickly.
- \item Fetching $k$ items to postpone the eviction
-\end{itemize}
 
 \section{Acknowledgement}
 Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
