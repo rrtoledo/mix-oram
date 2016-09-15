@@ -85,7 +85,6 @@ However, the practicality of owning, managing and storing data on more than one 
 
 We propose here the use of an independant mixnet to execute the shuffling in the eviction algorithm without relying on any specific ORAM design.
 Mixing networks is a solution widely applied in Anonymity system to obliviously shuffle packets. A batch of packets is received by the mixnet where it is reencrypted and shuffled by each mix such that the output of one mix is the next ones's input.
-Several designs exist as cascade mixnet and  \todo{find the name of parallel mixes} for different applications.
 For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mixnets could thus address ORAM constraints but at high cost since the reencyption cost is linear in the number of mixes. If using mixnet, methods to amortize the shuffle have to be taken into account to make ORAM workable.
 
@@ -94,7 +93,7 @@ In this work, we focus on the eviction algorithm. We present a new security defi
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
- \item We present the first ORAM relying on a mixnet for the eviction process.
+ \item We present the first ORAM eviction relying on a mixnet.
  \item We give a new security definition of ORAM's eviction. %indistiguishability between accessed and unretrieved elements
  \item We present an amortizable shuffle.
 \end{itemize}
@@ -108,11 +107,30 @@ We finally evaluate our schemes with standard ORAM model and discuss about the a
 
 \subsection{Related Work}
 \subsubsection{ORAM}
+ORAM technologies were first presented by Goldreich and Ostrovsky in 1990~\cite{ostrovsky1990efficient} to prevent reverse engineering and protect softwares thanks to shielded CPU.
+Since then, several types of enhancement have been proposed including data structures~\cite{goldreich1996software, stefanov2011towards, stefanov2013path, ren2014ring} with trees, partitions and hierarchichal solutions,
+security definitions with statistical security~\cite{damgaard2011perfectly, ajtai2010oblivious} and differential privacy~\cite{wagh2016root}, and item lookup with cuckoo hashing~\cite{pinkas2010oblivious} and bloom filters~\cite{williams2008building}.
+If most ORAM constructions are based on a single client server model, multi-user designs were gradually introduced as \cite{backesanonymous} in 2016 which also provides user anonymity, some relying on right delegation~\cite{franz2011oblivious} or group access~\cite{goodrich2012privacy}.
+As we stated before the eviction process is one of the principal problem of ORAM, the clients have to reencrypt and process the whole database for extensive period of time during which record access is usually not possible, some designs permitting read while shuffling as \cite{boneh2011}.
+
 \subsubsection{Shuffling and Sorting}
+Shuffle and sorting algorithms are not oblivious
+
+Sorting networks as Batcher or AKS
+Merge sort
+Melbourne shuffle variant of bucket sort
+randomized shellsort
+
+
 \subsubsection{Mixnets}
+mixnet are usually used today for mixing several users packets such as in TOR or in private friendl remailers..
+Several topologies exists cascade in Tor in which each server is a single point of failure and ...
+
 
 \subsection{Model}
 We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a cascade mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
+
+\todo{ORAM definition}
 
 We consider here traditional cloud operations for the ORAM system.
 \begin{itemize}
@@ -292,6 +310,7 @@ An oblivious merge (OM) of 2 indistiguishable sets of respective size $n$ and $s
 \tau(\epsilon) &\leq \frac{n}{2\cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] &\\
 \end{align*}
 \end{secthm}
+
 \begin{proof}
 We want to find the mixing time $\tau(\epsilon)$ of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$ and $1-\lambda^*$ is the spectral gap,
 $$\frac{\lambda^*}{1-\lambda^*} \cdot \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{1}{1-\lambda^*}\cdot \log \left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
@@ -370,6 +389,7 @@ A $k$-oblivious Merge ($k$-OM)of 2 indistiguishable sets of respective size $n$ 
 \end{align*}
 \end{secthm}
 
+\iffalse
 \begin{table}
  \centering
 \begin{tabular}{ c|c|c|c|c } 
@@ -382,7 +402,7 @@ A $k$-oblivious Merge ($k$-OM)of 2 indistiguishable sets of respective size $n$ 
 \end{tabular}
 \caption{Comparison of the different shuffles for $k=s=\sqrt(n)$}
 \end{table}
-
+\fi
 
 \subsubsection{Amortizable sort}
 
@@ -497,7 +517,8 @@ The average number of fake access is $ \frac{v0}{v1}$.
 \end{itemize}
 
 \section{Acknowledgement}
-MSR...
+Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
+
 
 \section{Conclusion}
 \begin{itemize}
