@@ -125,9 +125,14 @@ Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient vari
 We present here a new type of mixnet as the messages come from the same source and that the mixnet client needs to store some information to remember the output ordering.
 
 \subsection{Model}
-We consider on one side, a remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a cascade mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
+We consider on one side, an ORAM remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
 
-\todo{ORAM definition}
+\begin{privdef}{ORAM Security Definition.}
+Let $\text{seq}_k=((\text{op}_1, \text{addr}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{addr}_k, \text{data}_k))$ denote a query sequence of length $k$, where $op$ denotes a read or write operation and $data$ the block to write else $
+\perp$.
+We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM process with input $seq_k$.
+The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computally indistiguishable if $k=k'$.
+\end{privdef}
 
 We consider here traditional cloud operations for the ORAM system.
 \begin{itemize}
@@ -137,10 +142,10 @@ We consider here traditional cloud operations for the ORAM system.
  \item put\_range($index_i$, $index_j$, data\_blocks): Writes the data blocks between $index_i$ and $index_j$, returns an error if the data block are too large.
 \end{itemize}
 
-The remote server can additionally includes a small memory of capacity $\mathcal{O}(m)$ to store the seeds and shuffle status.
+The remote server can additionally includes a small memory of capacity $\mathcal{O}(m)$ to store the seeds and shuffle status. In that case, the following operations are avaible to the client :
 \begin{itemize}
  \item shuffle\_db(seed): Shuffles the database with the given seed.
- \item shuffle\_range($index_i$, $index_j$, seed): Shuffles the range of records wit the given seed.
+ \item shuffle\_range($index_i$, $index_j$, seed): Shuffles the range of records with the given seed.
  \item shuffle\_status(): Returns the shuffle status that is whether a shuffle has been set, if it is delayed to quiet time, whether it is being processed and at what round it is.
  \item set\_shuffle(seeds, nb\_mix, rounds, (delay)): Set the next shuffle overwriting its current parameters.
 \end{itemize}
@@ -165,8 +170,17 @@ We denote the communication costs by $C_o$ for the number of \emph{bits} sent by
 We will call $C_p$ the computation cost derived from the eviction and $C_a$ from the database accesses.
 
 \subsection{Cryptographic Primitives}
-\subsubsection{Encryption}
+
 \subsubsection{PRG \& Seeds}
+A pseudorandom generator (PRG) is a deterministic function that produces pseudorandom strings. It can be instanticiated with a seed to produce the same sequence of characters anywhere provided the machines have the samed function version.
+PRGs are commonly used for permuting randomly sequences of number, which is at the core of ORAM eviction process. However because of the uncommutability of the Symmetric group $\mathbb{S}_b$, composing seeds is proved to be impractical.
+In the case of ORAM client-server classic configuration, the client has stored the previous seed and the new one and has to permute obviously the records such that the new ordering is not revealed.
+With the introduction of the mixnet, we have a shift of paradigm: the seeds are known by their corresponding permuter, possibly the adversary, and the client. The database cannot be reconfigured from one ordering to another directly without information leakage. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.
+
+\subsubsection{Encryption}
+
+AES counter model
+Futhermore, AES-CTR presents symmetric and invertible/commutative operations for the encryption and decryption. Such property can be used to inverse the order of operations not to reveal the record plaintext.
 
 \section{Mix-ORAM}
 \label{Mix-ORAM}
