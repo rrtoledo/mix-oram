@@ -1,5 +1,6 @@
 \documentclass[english,oneside,twocolumn]{article}
 
+\usepackage{etex}
 \usepackage[big]{dgruyter_NEW}
 \usepackage{amsmath}
 \usepackage{amsthm}
@@ -10,6 +11,7 @@
 \usepackage[justification=centering]{subcaption}
 \usepackage{tikz}
 \usepackage{adjustbox}
+\usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
  
 %\DOI{foobar}
 
@@ -431,12 +433,58 @@ A $k$-oblivious Merge ($k$-OM)of 2 indistiguishable sets of respective size $n$ 
 
 \subsubsection{Amortizable sort}
 
-\todo{Explanation of figure, message format}
+We now consider the mixnet as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and send them a list of $\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ of private and public seeds and encryption keys.
+The unwrapping and wrapping phases consist of $\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds. In the unwrapping phase, the records are located in the database with the old public seeds, inversely permuted with the old private seeds and reencrypted with the new encryption key. 
+In the wrapping phase, the records are permuted according to the new seeds, decrypted with the old encryption keys and uploaded to the database according to the new public seeds as shown in Fig.~\ref{fig:WAS}.
 
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $old\_S_{pub,j},\ old\_S_{prv,i,j}$; \\ \qquad Encryption key $new\_key_{i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $index$;}
+$Idxs \gets \{{\Pi}_{old\_S_{pub,j}}^{-1} \left ( range(index, index +k)\right ) \}$;\\
+$Records \gets \{\}$;\\
+$i\gets 0$;\\
+\While{$i < k$}
+{
+	$Records.append\left (get(Idxs[i])\right)$;\\
+	$i\gets i+1$;\\
+}
+$Records \gets \{ {\Pi}_{old\_S_{priv,i,j}}^{-1} \left ( Records \right ) \} $;\\
+\ForAll{$record\in Records$}
+{
+	$record \gets encrypt_{new\_key_{i,j}}\left( record \right )$;
+}
+$put\_range \left(index,index+k, Records \right )$;\\
+$\textbf{del } old\_S_{pub,j},\ old\_S_{priv,i,j}$;\\
+\caption{Unwrapping process for the $mix_i$ during $round_j$}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $new\_S_{pub,j},\ new\_S_{prv,i,j}$; \\ \qquad Encryption key $old\_key_{i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $index$;}
+$Records \gets get\_range\left (idx,\ idx+k\right)$;\\
+$Records \gets \{ {\Pi}_{new\_S_{priv,i,j}} \left ( Records \right ) \} $;\\
+\ForAll{$record\in Records$}
+{
+	$record \gets decrypt_{old\_key_{i,j}}\left( record \right )$;
+}
+$Idxs \gets \{{\Pi}_{new\_S_{pub,j}} \left ( range(index, index +k)\right ) \}$;\\
+$i\gets 0$;\\
+\While{$i < k$}
+{
+	$put\left( Idxs[i],\ Records[i] \right )$;\\
+	$i\gets i+1$;
+}
+$\textbf{del } old\_key_{i,j}$;\\
+\caption{Wrapping process for the $mix_i$ during $round_j$}
+\end{algorithm}
+
+\todo{Explanation of figure, message format}
 
 \begin{figure}
 \centering
-\begin{adjustbox}{width=\textwidth/2, height=\textwidth/3}
+\begin{adjustbox}{width=\textwidth/3, height=\textwidth/3}
 \begin{tikzpicture}[->,
 auto,
 semithick, 
@@ -468,7 +516,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  
 \end{tikzpicture}
 \end{adjustbox}
-\caption{A round of Amortizable sort} \label{fig:AS}
+\caption{Wraping in a round of Amortizable sort} \label{fig:WAS}
 \end{figure} 
 
 
