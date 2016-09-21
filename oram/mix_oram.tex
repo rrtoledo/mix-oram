@@ -5,6 +5,7 @@
 \usepackage{amsthm}
 \usepackage{amssymb}
 \usepackage{amsfonts}
+\usepackage{stmaryrd}
 \usepackage[justification=centering]{caption}
 \usepackage[justification=centering]{subcaption}
 \usepackage{tikz}
@@ -75,7 +76,6 @@ We present in this paper an ORAM system relying on amortizable shuffle and mixne
 Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to ensure the users that the data is protected, not only from external adversaries but also itself, and doing so for reasonable costs. 
 Cryptographic functions are thus used among other things to create secure communication channels, to authenticate users, and to encrypt and check the data integrity.
 These solutions however do not prevent the leakage of some information and its interception. One can for instance count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge, for instance the file size distribution, the file access frequency distribution, etc. .
-We can illustrate how much of a problem this is by considering the following example. Eve was recently made redundant by its company which is outsourcing its data to Eve's new workplace. Eve can evesdrop the storage servers and thus observe which files are being retrieved. She may not know the current content of the files but can guess what project they correspond to. Seeing which project is active, she can sell the information to a competitor.  
 
 Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. The access methods are made independent of the sought records to hide the access pattern and the datablocks are periodically randomized to hide which records were previously retrieved.
 Improvements have been made on the data retrieval costs thanks to structural change in the data representation, considering trees~\cite{stefanov2013path} or rings~\cite{ren2014ring}, and the shuffling algorithm, in particular with the introduction of dummies ~\cite{ohrimenko2014melbourne}.
@@ -114,7 +114,7 @@ If most ORAM constructions are based on a single client server model, multi-user
 As we stated before the eviction process is one of the principal problem of ORAM, the clients have to reencrypt and process the whole database for extensive period of time during which record access is usually not possible, some designs permitting read while shuffling as \cite{boneh2011}.
 
 \subsubsection{Shuffling and Sorting}
-Shuffle and sorting algorithms are a thouroughly researched subject central to ORAM for the randomization process. However most of them are not oblivious in that the output of the algorithm depends on the data.
+Shuffle and sorting algorithms are a thouroughly researched subject central to ORAM for the randomization process. However most of them are not oblivious in that the memory accesses done by algorithm depends on the input.
 Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKS~\cite{ajtai19830} which were proved to be impractical because of their number of I/Os, Batchers using $\mathcal{O}\left ( n \log n \right)$ I/Os and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
 The randomized shellsort ~\cite{goodrich2010randomized} is an elegant simple data-oblivious version of the Shellsort algorithm running in $\mathcal{O}\left ( n \log n \right)$ time that sort with high probability.
 The zig zag sort~\cite{goodrich2014zig}, presented in 2014, is the deterministic data-oblivious variant of the Shellsort with running time of $\mathcal{O}\left ( n \log n\right)$.
@@ -125,7 +125,7 @@ Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient vari
 We present here a new type of mixnet as the messages come from the same source and that the mixnet client needs to store some information to remember the output ordering.
 
 \subsection{Model}
-We consider on one side, an ORAM remote server with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
+We consider on one side, an ORAM remote server, defined as follows, with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mixnet composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
 
 \begin{privdef}{ORAM Security Definition.}
 Let $\text{seq}_k=((\text{op}_1, \text{addr}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{addr}_k, \text{data}_k))$ denote a query sequence of length $k$, where $op$ denotes a read or write operation and $data$ the block to write else $
@@ -151,36 +151,50 @@ The remote server can additionally includes a small memory of capacity $\mathcal
 \end{itemize}
 
 
-\subsection{Threat model}
-We consider an adversary $\mathcal{A}$ has corrupted $m_{a}$ mixes and potentially the ORAM database in order to discover the relationship between the user's records and indexes.
-The corrupted servers are said honest but curious in that they perform correctly the assigned protocols and algorithms but passively record and share all information they observe to achieve this objective.
-We also assume that the adversary observes all the user's incoming and outgoing communication. However, we assume that all messages, database request or mix packet, are encrypted and that only message timing, volume and size from honest servers are visible to the adversary.
-Attacks and countermeasures to such attacks will only be examined in the Discussion section (c.f. Section.\ref{Discussion}).
+\subsection{Threat model and Security definition}
 
-\todo{Old Privacy definition}
+The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
+The adversary might have different goals such as identifying a user data access or matching encrypted datablocks with known plaintext for further purposes such as selective data corruption or monitoring.
+
+We assume that all communication between the different parties (user, ORAM server and mixes) may be intercepted as in the \textit{global passive adversary} assumption however only message timing, volume and size from honest parties can be known thanks to packet encryption.
+In addition we assume adversary may have corrupted the ORAM server and a part of the mixnet to achieve his goal.
+We will assume until the discussion\cite{Discussion} that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded until the discussion section (c.f. Sec.~\cite{Discussion}) where we will examine packet injection, dropping and delaying.
+
+This work focuses on the ORAM eviction process where sequences of datablocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases.
+
+\iffalse
+%% If comparision between initial thought and what is needed
+\begin{privdef}{Eviction Old Security.}
+An ORAM eviction process is considered secure if an adversary cannot distinguish after eviction the location of any specific record. 
+\end{privdef}
+\fi
 
 \begin{privdef}
-An ORAM system is considered private if an adversary cannot distinguish after eviction whether a specific record has been retrieved. 
+An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been retrieved.\\
+That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have,
+$$ \forall i \in \llbracket 1, n \rrbracket,\ Pr(index_i \text{ was retrieved} ) = \frac{s}{n} + \epsilon$$
 \end{privdef}
 
-This guarantees encryption and permutation...
-
 \subsection{Costs}
-We denote the communication costs by $C_o$ for the number of \emph{bits} sent by the ORAM, $C_{c}$ by the client, and by $C_{m}$ sent by the mixes. 
-We will call $C_p$ the computation cost derived from the eviction and $C_a$ from the database accesses.
+We denote the communication costs by $C_{com,o}$ for the number of \emph{bits} sent by the ORAM, $C_{com,c}$ by the client, and by $C_{com,m}$ sent by the mixes. 
+We will call $C_{cmp}$ the computation cost derived from the eviction.
 
 \subsection{Cryptographic Primitives}
 
 \subsubsection{PRG \& Seeds}
-A pseudorandom generator (PRG) is a deterministic function that produces pseudorandom strings. It can be instanticiated with a seed to produce the same sequence of characters anywhere provided the machines have the samed function version.
-PRGs are commonly used for permuting randomly sequences of number, which is at the core of ORAM eviction process. However because of the uncommutability of the Symmetric group $\mathbb{S}_b$, composing seeds is proved to be impractical.
-In the case of ORAM client-server classic configuration, the client has stored the previous seed and the new one and has to permute obviously the records such that the new ordering is not revealed.
-With the introduction of the mixnet, we have a shift of paradigm: the seeds are known by their corresponding permuter, possibly the adversary, and the client. The database cannot be reconfigured from one ordering to another directly without information leakage. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.
+A pseudorandom generator (PRG) is a deterministic function that produces pseudorandom strings, it can be instanticiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latters have functions with the same versions.
+ORAM designs frequently uses PRGs during the eviction algorithm to shuffle the array and store the mapping between indexes.
+In the case of classic client-server configuration, the client has stored the previous seed and the new one and has to permute obviously the records such that the new ordering is not revealed. This can be done easily thanks to the user storage: the user can download the whole database, sort it thanks to the indexes, reencrypt it and upload it back.
+With the introduction of the mixnet, we have a shift of paradigm: the permutations are now executed by the untrusted mixnet. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.
+For the user to remember as little information as possible, we could find seed combinations resulting in a simple result. However, because the symmetric group is not commutative and the seeds space isn't structured, finding such combinations can only be done through heavy computation.
+That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.
 
 \subsubsection{Encryption}
 
-AES counter model
-Futhermore, AES-CTR presents symmetric and invertible/commutative operations for the encryption and decryption. Such property can be used to inverse the order of operations not to reveal the record plaintext.
+ORAM designs heavily rely on encryption mechanism to obfuscate the database records. Every record that is fetched must be reencrypted before uploading it back to the database 
+which implies encryption cost of the order of $\mathcal{O} \left ( n \right )$ for the eviction process and of variable orders, usually between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$, for the sole access.\\
+Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700MB/s per thread on recent CPUs such as the Intel Core i3 or the AMD's models APU and FX.
+Futhermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commmutative. AES-CTR can thus help in the eviction process with reencrypting with a new layer the datablocks before decrypting the former one such that the plaintext is never revealed.
 
 \section{Mix-ORAM}
 \label{Mix-ORAM}
@@ -444,6 +458,7 @@ In order to lower the eviction costs sustained by the mixnet, optimizations on e
  \item Multiuser oram
  \item Lowering the eviction cost
  \item Fetching $k$ items to postpone the eviction
+ \item Differentially private oblivious shuffle
 \end{itemize}
 
 \subsection{Mixnet: ads \& cons}
