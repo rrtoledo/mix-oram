@@ -438,44 +438,28 @@ $i \gets 0$;\\
 
 In order to lower the eviction costs sustained by the mix-net, optimizations on each side of the channel can be done.
 
-\raphael{subsections here or in discussion?}
+\raphael{Differentially private oblivious shuffle}
 
 \section{Evaluation}
+\subsection{Implementation and Benchmark}
+\subsection{Performances}
+\subsection{Comparison}
 
 \section{Discussion}
 \label{Discussion}
-\begin{itemize}
- \item Ads and Cons of mix-nets
- \item Using proof of shuffle and proof of work to counter injection attacks.
- \item Using a reputation system alongside to dismiss mixes more quickly.
- \item Multi-user ORAM
- \item Lowering the eviction cost
- \item Fetching $k$ items to postpone the eviction
- \item Differentially private oblivious shuffle
-\end{itemize}
 
-\subsection{Mix-net: ads \& cons}
-Two different methods can be applied for the eviction process depending on the mix-net architecture, in both cases eviction rely on repeatedly fetching $k$ records, refreshing and permuting them before updating them back in the ORAM.
-If the mix-net is a cascade network, the first mix outputs the resulting array to next mix while repeating the process for distinct records, otherwise, in the mesh case, the mixes fetch in parallel the records.
-The cascade case is more advantageous in time as the outputs and inputs of the mixes coincide, hence the communication cost is roughly divided by two. There is furthermore no synchronization needed between the mixes to process different records at the same time.
-However what is gain in duration is loose in resilience as any mix failure in the cascade mix-net would compromise the whole system. Moreover an attack specific to cascade mix-net also needs to be taken into account: if the first mix and the database are both corrupted, the permutation could be done only on a subset of records
-so that the adversary knows the positions of a non trivial number of records, as they were not permuted, without the honest mixes and the client realizing it. To counter it, the first mix query should be sent along the records to all the mixes together with an identification proof.
+\subsection{Active Adversary}
+Randomized Partial Checking
+Reputation system
 
+\subsection{Lowering the eviction costs through the access method}
 
-The computation cost of the eviction would thus be of the order of $m\cdot n \cdot \log(n)$ while the communication cost will be either $4\cdot m \cdot n \log(n)$ or $2\cdot(m+1) \cdot n \log(n)$ depending on the mix-net architecture.
+\noindent\textbf{Changing the access method.}The client, to lower the eviction costs, could instead of fetching only the requested record query retrieve $k-1$ other dummy records and permuting all of them before updating them back to the ORAM.
+Doing so, we can progress further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mix-net performing cheaper and weaker permutations.
+What's more, requesting more records, and doing so on different servers, can help in hiding the access pattern as discussed in~\cite{toledo2016lower}.\\
 
-
-\subsection{Lowering the eviction costs}
-
-The client, to lower the eviction costs, could instead of fetching only the requested record query $k-1$ other dummy records. Doing so, we can advance further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mix-net performing cheaper and weaker permutations.
-What's more, requesting more records can help in hiding the access pattern to the adversary has discussed in~\cite{toledo2016lower}.
-
-For instance if $n=10^4,\ k=\log(n)=4$ and the stash has a size of $\sqrt(n)=100$, without considering fake accesses, we need 25 accesses before evicting the stash.\\
-
-\noindent\textbf{Considering fake access.}
-
-When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
-These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
+\noindent\textbf{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
+These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.\\
 
 \begin{secthm}
 In the case of a uniform distribution access we have an average number 0 of fake access for $s<<n$.\\
@@ -491,10 +475,7 @@ The average number of fake access is $ \frac{v0}{v1}$.
 \end{proof}
 \end{secthm}
 
-
-\subsection{Delaying the eviction}
-
-The client could replace elements of the stash when querying items to delay the eviction process, i.e. setting $k_in=k_out$.
+\noindent\textbf{Delaying the eviction.} When querying an item, in the Square Root solution, the user writes in the stash the retrieved record and put at its location in the database a dummy. Instead of writing dummies in the database, the client could write records from the stash and put at their location dummies. In that case, the size of the stash doesn't increase and we can delay even more the eviction process.
 
 
 \section{Acknowledgement}
@@ -506,6 +487,8 @@ Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP
 \begin{itemize}
  \item New ORAM with mix-net
  \item amortizable eviction
+ \item can fetch while eviction running
+ \item multi-user friendly as all the secrets are on the server
 \end{itemize}
 
 \bibliography{mix_oram}
