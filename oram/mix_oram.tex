@@ -226,7 +226,19 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 \end{adjustbox}
 \caption{A simple Mix-ORAM} \label{fig:ASMO}
 \end{figure} 
-%\subsection{Parallelizing the Eviction process.}
+%
+
+\noindent\textbf{Message Format.}
+In order to reduce to as much as possible the mix message size, we choose to derive the AES keys and the permutation seeds from the shared secret, $s_i$ for $mix_i$, calculated in a Diffie-Hellman assumption as in~\cite{XXXsphinx}. \iffalse\\
+Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
+We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
+The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
+\fi
+We finally create the AES key and the seed with the HKDF function~\cite{XXXHKDF}.
+The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}(s_i,\ s_i'),\ ...,\ E_{pub,\ mix_m}(s_m,\ s_m'),\ E(DB)}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+2\cdot 8 \cdot 32 \cdot m + n$. 
+
+
+\subsection{Parallelizing the Eviction process.}
 In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
 
@@ -433,6 +445,16 @@ $i \gets 0$;\\
 \caption{Index Lookup}
 \label{alg:IAS}
 \end{algorithm}
+
+\noindent\textbf{Message Format.}
+In order to reduce to as much as possible the mix message size, we choose to derive the AES keys and the permutation seeds from the shared secret, $s_i$ for $mix_i$, calculated in a Diffie-Hellman assumption as in~\cite{XXXsphinx}. \iffalse\\
+Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
+We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
+The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
+\fi
+We create the AES key and the private seed with the HKDF function~\cite{XXXHKDF}. The public seed is created by the user.
+The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}(S_{pub},\ s_i),\ records}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+2\cdot 8 \cdot 32 + n$. 
+
 
 \subsection{Lowering Eviction Costs}
 
