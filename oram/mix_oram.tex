@@ -157,7 +157,7 @@ An ORAM eviction process is considered secure if an adversary cannot distinguish
 \begin{privdef}
 An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been retrieved.\\
 That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have,
-$$ \forall i \in \llbracket 1, n \rrbracket,\ Pr(index_i \text{ was retrieved} ) = \frac{s}{n} + \epsilon$$
+$$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
 \end{privdef}
 %
 \subsection{Costs}
@@ -171,7 +171,7 @@ ORAM designs frequently uses PRGs during the eviction algorithm to shuffle the a
 In the case of classic client-server configuration, the client has stored the previous seed and the new one and has to permute obviously the records such that the new ordering is not revealed. This can be done easily thanks to the user storage: the user can download the whole database, sort it thanks to the indexes, re-encrypt it and upload it back.
 With the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.
 For the user to remember as little information as possible, we could find seed combinations resulting in a simple result. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation.
-That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.
+That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.\\
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records. Every record that is fetched must be re-encrypted before uploading it back to the database, 
@@ -229,14 +229,15 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 %
 
 \noindent\textbf{Message Format.}
-In order to reduce to as much as possible the mix message size, we choose to derive the AES keys and the permutation seeds from the shared secret, $s_i$ for $mix_i$, calculated in a Diffie-Hellman assumption as in~\cite{XXXsphinx}. \iffalse\\
+To reduce to as much as possible the message size, we choose to derive the AES keys and the permutation seeds from the shared secret calculated in a Diffie-Hellman assumption as in Sphinx~\cite{XXXsphinx} with the HKDF function~\cite{XXXHKDF}. The mixnet however produces twice more shared keys than usual for the wrapping and unwrapping phases. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
-We finally create the AES key and the seed with the HKDF function~\cite{XXXHKDF}.
-The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}(s_i,\ s_i'),\ ...,\ E_{pub,\ mix_m}(s_m,\ s_m'),\ E(DB)}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+2\cdot 8 \cdot 32 \cdot m + n$. 
+The client only need to send to each mix session keys to access the database $(id,\ session_{key})$ and the client secrets used to compute the shared secret $( \alpha_{i,old},\ \alpha_{i,new} )$.
+The message format is then : $$addr_{mix_i},\ E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},\ \beta,\ \gamma \right )$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.
 
+\todo{Sec of mix format}
 
 \subsection{Parallelizing the Eviction process.}
 In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
@@ -426,34 +427,41 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 
 The client thus provides to each mix the $index$ and range $k=\frac{n}{m}$ for the record allocation, $ \frac{3}{2} \cdot m \cdot \log \left (\frac{n}{s} \right ) $ seeds in total and $ m \cdot \log \left (\frac{n}{s} \right )$ encryption keys and store in total $\mathcal{O}\left (m \cdot \log \left (\frac{n}{s}  \right) \right )$ bits. To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
 
-\begin{algorithm}
+\begin{figure}
+\centering
+\begin{minipage}[t]{0.5\textwidth}
+\begin{algorithm}[H]
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Seeds $new\_S_{pub},\ new\_S_{prv}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $n$;\\ \qquad number of rounds $r$;\\ \qquad Index to retrieve $index$;}
+\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
 $k \gets \frac{n}{m}$;\\
 $i \gets 0$;\\
 \While{$i < r$}
 {
 	$mix \gets \frac{index}{k} $;\\
-	$subindex \gets index\ \%\ k$;\\
-	$subindex \gets {\Pi}_new\_S_{prv, mix, i}(subindex) * $;\\
-	$index \gets {\Pi}_new\_S_{pub,j}(k*mix+subindex) *$;\\
+	$idx \gets index\ \%\ k$;\\
+	$idx \gets {\Pi}_{S_{prv, mix, i}}(idx) $;\\
+	$index \gets {\Pi}_{S_{pub, i}}(k*mix+idx)$;\\
 	$i\gets i+1$;
 }
 \KwOut{$index$}
-* These steps were simplified for easier reading.\\
 \caption{Index Lookup}
 \label{alg:IAS}
 \end{algorithm}
+\end{minipage}
+\end{figure}
+
 
 \noindent\textbf{Message Format.}
-In order to reduce to as much as possible the mix message size, we choose to derive the AES keys and the permutation seeds from the shared secret, $s_i$ for $mix_i$, calculated in a Diffie-Hellman assumption as in~\cite{XXXsphinx}. \iffalse\\
+We also use here Sphinx~\cite{XXXsphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
-We create the AES key and the private seed with the HKDF function~\cite{XXXHKDF}. The public seed is created by the user.
-The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}(S_{pub},\ s_i),\ records}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+2\cdot 8 \cdot 32 + n$. 
+We create the AES keys, the private and public seeds with the HKDF function~\cite{XXXHKDF}. The client only need to send to each mix session keys to access the database $(id,\ session_{key})$, the interval of records it has been attributed $(index_i,\ range)$ and the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$.
+The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}\left(id,\ session_{key},\ index_i,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub} \right )}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}. 
+
+\todo{Sec of mix format}
 
 
 \subsection{Lowering Eviction Costs}
