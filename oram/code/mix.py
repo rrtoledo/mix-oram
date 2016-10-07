@@ -60,7 +60,7 @@ class Mix():
 		''' Update the matadata for next node in the Cascade case '''
 
 		#Verify packet integrity
-		if !self.verify_meta(metadata):
+		if self.verify_meta(metadata) == False:
 			return ""
 
 		#Parse message
@@ -133,10 +133,9 @@ class Mix():
 	    return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64])
 
 
-	def computeSharedSecret(self, groupEl, pubk, setup):
+	def computeSharedSecret(self, groupEl):
 		''' Compute shared secret '''
-		G, o, g, o_bytes = setup
-		xysec = groupEl * pubk
+		shared = self.privk * groupEl
 		return shared 
 
 	def computeBinding(self, shared, setup):
