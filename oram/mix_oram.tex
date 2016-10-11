@@ -285,12 +285,15 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 \end{proof}
 \end{seccjt}
 %
-\subsubsection{Amortizable sort}
+\subsection{Parallel Mix-ORAM}
+\todo{eviction as in 3.2.3, new lookup, message format... }
 %
 We now consider the mix-net as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and provide them with lists of $\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ of private and public seeds and encryption keys.\\
 The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds.
-In the unwrapping phase as shown in the Algorithm.~\ref{alg:UAS}, the records are located in the database with the old public seeds, inversely permuted with the old private seeds and re-encrypted with the new encryption key. 
-In the wrapping phase as shown in the Algorithm.~\ref{alg:WAS}, the records from the attributed section of the database are download, permuted according to the new seeds, decrypted with the old encryption keys and uploaded to the database according to the new public seeds as shown in Fig.~\ref{fig:WAS}.\\
+At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds as shown in Fig.~\ref{fig:WAS}.
+As the permutation are done on a subset of elements, we cannot swap the encryption like before (first reencrypting before deciphering the previous encryption). 
+
+\todo{ATTACK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
 
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
@@ -498,14 +501,12 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \caption{Wrapping and corresponding unwrapping.}
 \end{figure} 
 
-\subsection{Parallel Mix-ORAM}
-\todo{eviction as in 3.2.3, new lookup, message format... }
-
-The client thus provides to each mix the $index$ and range $k=\frac{n}{m}$ for the record allocation, $ \frac{3}{2} \cdot m \cdot \log \left (\frac{n}{s} \right ) $ seeds in total and $ m \cdot \log \left (\frac{n}{s} \right )$ encryption keys and store in total $\mathcal{O}\left (m \cdot \log \left (\frac{n}{s}  \right) \right )$ bits. To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
+The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, $ 3 $ parameters to derive encryption keys and permutation seeds and the ips and ports of all mixes participating in the eviction.  
+To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
 
 \begin{figure}
 \centering
-\begin{minipage}[t]{0.5\textwidth}
+\begin{minipage}{0.5\textwidth}
 \begin{algorithm}[H]
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
