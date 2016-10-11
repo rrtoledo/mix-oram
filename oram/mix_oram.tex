@@ -18,6 +18,7 @@
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem{secthm}{Security Theorem}
+\newtheorem{seccjt}{Security Conjecture}
 \newtheorem{seclem}{Security Lemma}
 
 \newenvironment{subproof}[1][\proofname]{%
@@ -248,7 +249,9 @@ We first present the mixing time of $k$-RTS before introducing ORAM assumptions 
 Random Transposition Shuffles (RTS) are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
 These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.\\
 We can already see why RTS are natural candidates for amortized ORAMs : if they can be broke down in independent rounds which can be spread over several entities and time, so can a randomization process based on them. Furthermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
-Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards, to make the scheme more efficient.
+Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards, doing $k/2$ transpositions, to make the scheme more efficient. 
+
+\todo{Explaining that if k/2 transpositions of 2 elements and k-RTS seem similar, they are not equivalent as the ordering probabilities differ (to prove) .}
 
 \begin{secthm}
 \textbf{Mixing time of $k$-RTS.} A $k$-random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
@@ -259,6 +262,8 @@ E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1)
 \end{secthm}
 
 An oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.
+
+\todo{say that actually seeds do permutations and not transpositions, i.e. there might be more than k/2 transpositions done on the servers. We however keep this simple result as upperbound}
 %
 \subsubsection{Oblivious Merge}
 Before the eviction algorithm is run, the database can be divided in two sets of records depending on whether or not they were retrieved by the user. As such, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s, the accessed ones, and $n-s$ are 0s, the others.
@@ -269,22 +274,16 @@ We now consider the RTS process in that scenario and suppose the records (the bi
 
 \begin{secthm}
 An oblivious merge (OM) of 2 indistinguishable sets of respective size $n$ and $s$ elements requires $\tau$ rounds of 2-RTS such that any arranging is possible, with
-\begin{align*}
-\tau(\epsilon) &\geq \frac{1}{(\frac{n\cdot e}{s})^{\frac{s}{s-1}}-1} \log\left(\frac{1}{2 \epsilon} \right) &\\
-\tau(\epsilon) &\leq \frac{n}{2\cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] &\\
-\end{align*}
+$$\tau(\epsilon) \leq \frac{n}{2\cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] $$%&\\
 \end{secthm}
 
-\begin{secthm}
+\begin{seccjt}
 A $k$-oblivious Merge ($k$-OM) of 2 indistinguishable sets of respective size $n$ and $s$ requires $\tau$ rounds doing of $k$-RTS such that any arranging is possible, with
-\begin{align*}
-\tau(\epsilon) &\geq \frac{1}{k}  \cdot \frac{1}{(\frac{n\cdot e}{s})^{\frac{s}{s-1}}-1} \log\left(\frac{1}{2 \epsilon} \right) &\\
-\tau(\epsilon) &\leq \frac{n}{2\cdot k \cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] &\\
-\end{align*}
+$$ \tau(\epsilon) \leq \frac{n}{2\cdot k \cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] $$
 \begin{proof}
-We could see that the doing $k$ permutations in RTS decreased by a minimum factor of $\frac{1}{k}$, we make here the \textit{assumption} that this result is independent of the items to shuffle and is still relevant here.
+We could see that permuting $k$ elements in RTS decreased the mixing time by at least a factor $k$, and does so independently of the items to shuffle. Thereby the decrease should still be relevant here.
 \end{proof}
-\end{secthm}
+\end{seccjt}
 %
 \subsubsection{Amortizable sort}
 %
@@ -300,21 +299,93 @@ In the wrapping phase as shown in the Algorithm.~\ref{alg:WAS}, the records from
 \begin{algorithm}[H]
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
-$Idxs \gets {\Pi}_{S_{pub,old,j}}^{-1} [idx: idx +k]$;\\
-$Rcds \gets \{\}$;\\
-$i\gets 0$;\\
-\While{$i < k$}
+\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rec \gets []$;\\
+\If {$j=0 \ and \ i=1 $}
 {
-	$Rcds.append\left (get(Idxs[i])\right)$;\\
-	$i\gets i+1$;\\
+	$Rec \gets get\_range(idx+ik,idx+(i+1)k)$;\\
+	$return \  Rec$;\\
 }
-$Rcds \gets {\Pi}_{S_{priv,old,i,j}}^{-1} \left ( Rcds \right ) $;\\
+$index \gets {\Pi}_{S_{pub,old,j}} \llbracket 1, m*k\rrbracket $;\\
+$DB \gets []$;\\
+\ForAll {$u \in \llbracket 1, m \rrbracket$}
+{
+	$DB.extend([[]])$;\\
+	\ForAll {$v \in \llbracket 1, k \rrbracket$}
+	{
+		$r \gets index[u*k+v]$;\\
+		\If {$ r\in \llbracket i*k,(i+1)*k-1 \rrbracket$}
+		{
+			$DB[u].extend( r)$;\\
+		}
+	}
+}
+$sorted \gets []$;\\
+$records\gets []$;\\
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$sorted.extend(DB[l])$;\\
+	$records.extend(data[l])$;\\
+}
+$zipped \gets zip(sorted, records)$;\\
+$zipped.sort()$;\\
+$Rec \gets [zipped[x][1] \text{ for x} \in \llbracket 1, len(zipped) \rrbracket]$;\\
+$return \ Rec$;
+\caption{Sort in for mix $i$ during round $j$}
+\label{alg:UAS}
+\end{algorithm}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
+\If {$j=r\ and\ i=m$}
+{
+	$put\_range(idx+k*i, idx+k*(i+1), data)$;\\
+	$return$;\\
+}
+$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1, m*k \rrbracket$;\\
+$index \gets index[\llbracket i*k: (i+1)*k-1\rrbracket]$;\\
+$tosend \gets []$;\\
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$tosend.extend([[]])$;\\
+}
+\ForAll {$l \in \llbracket 1,k \rrbracket$}
+{
+	$tosend[index[l]/k].extend(data[l]))$;\\
+}
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$send(DB_l, tosend[l])$;\\
+}
+\caption{Sort out for mix $i$ during round $j$}
+\label{alg:WAS}
+\end{algorithm}
+\end{minipage}
+\caption{Amortizable sort, sort in and sort out algorithms.}
+\end{figure}
+
+
+\begin{figure}
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering 
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rcds \gets sort\_in(S_{pub,old,j}, data)$;\\
+$Rcds \gets {\Pi}_{S_{prv,old,i,j}}^{-1} (data)$;\\
 \ForAll{$r\in Rcds$}
 {
-	$r \gets encrypt_{Key_{new,i,j}}\left( r \right )$;
+	$r \gets encrypt_{Key_{new,i,j}}\left( r \right )$;\\
 }
-$put\_range \left(idx,idx+k, Rcds \right )$;\\
+$sort\_in(S_{pub,old,j}, data)$;\\
 $\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
 \caption{Unwrapping process for the mix $i$ during round $j$}
 \label{alg:UAS}
@@ -327,20 +398,14 @@ $\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
 \begin{algorithm}[H]
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
-$Rcds \gets get\_range\left (idx,\ idx+k\right)$;\\
-$Rcds \gets {\Pi}_{S_{priv,new,i,j}} \left ( Rcds \right ) $;\\
-\ForAll{$r \in Rcds$}
+\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rcds \gets sort\_in(S_{pub,new,j}, data)$;\\
+$Rcds \gets {\Pi}_{S_{prv,new,i,j}} (data)$;\\
+\ForAll{$r\in Rcds$}
 {
-	$r \gets decrypt_{Key_{old,i,j}}\left( r \right )$;
+	$r \gets encrypt_{Key_{old,i,j}}\left( r \right )$;\\
 }
-$Idxs \gets {\Pi}_{S_{pub,new,j}} [idx: idx +k]$;\\
-$i\gets 0$;\\
-\While{$i < k$}
-{
-	$put\left( Idxs[i],\ Rcds[i] \right )$;\\
-	$i\gets i+1$;
-}
+$sort\_in(S_{pub,new,j}, data)$;\\
 $\textbf{del } Key_{old,i,j}$;\\
 \caption{Wrapping process for the mix $i$ during round $j$}
 \label{alg:WAS}
@@ -348,7 +413,6 @@ $\textbf{del } Key_{old,i,j}$;\\
 \end{minipage}
 \caption{Amortizable sort, wrapping and unwrapping algorithms.}
 \end{figure}
-
 
 \begin{figure}
 \centering
