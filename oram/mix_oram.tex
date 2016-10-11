@@ -360,64 +360,76 @@ scale=0.5,
 block/.style={draw, fill=white, rectangle, font=\small}]
 
 
-\node[block, anchor = west, minimum height=12em, minimum width={width("$DB_{i+1}$")}] 		(0)		{$DB_i$};
 
-\node[block]				(B)[right of=0, xshift=5em]		{$mix_k$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		  [rotate=-90]{...};
-\node[draw=none, fill=none,]    		(Y)[below of=B, yshift=1em]		  [rotate=-90]{...};
-\node[block, anchor= north]		(A)[above of=B, yshift=1em]		{$mix_1$};
-\node[block, anchor = south]		(C)[below of=B, yshift=-1em]		{$mix_m$};
+\node[block, align=center]							(B)		{$\textbf{Mix}_k$ \\ $ S_{k,r}$};
+\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r}$};
+\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r}$};
 
-\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 5em]		{$DB_{i+1}$};
+\node[block, align=center]							(B')[left of=B, xshift=-5em]		{$\textbf{Mix}_k$ \\ $ S_{k,r-1}$};
+\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r-1}$};
+\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r-1}$};
+
+
+\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}_{i}$};
 
 
 \path[->, midway]
- ([yshift=-2ex]0.north east) edge node[sloped, above]{\small $S_1$} (A.west)
- (0) edge node[sloped, above]{\small $S_k$} (B.west)
- ([yshift=2ex]0.south east) edge node[sloped, above]{\small $S_m$} (C.west)
+ (A')		edge node[above,yshift=4ex]		{$S_{pub,r}$} 	(A.west)
+ (A')		edge node		{} 					(B.west)
+ (B')		edge node		{} 					(C.west)
+ (B') 		edge node		{} 					(A.west)
+ (C') 		edge node		{} 					(A.west)
+ (C') 		edge node		{} 					(C.west)
 
- (A.east) edge node[above,yshift=4ex]	{} 			(1)
- (A.east) edge node			{$S_{pub}$} 			([yshift=2ex]1.south west)
- (B.east) edge node			{} 	([yshift=-2ex]1.north west)
- (C.east) edge node			{} 			([yshift=8ex]1.south west)
- (C.east) edge node			{} 			(1);
+ (A.east) edge node[sloped, above]	{} 	([yshift=-2ex]1.north west)
+ (B.east) edge node[sloped, above]	{} 	(1)
+ (C.east) edge node[sloped, above]	{} 	([yshift=2ex]1.south west);
  
 \end{tikzpicture}
-\caption{Wrapping in a round of Amortizable sort} \label{fig:WAS}
+\caption*{Last rounds of Amortizable sort wrapping} \label{fig:WAS}
 \end{minipage}
 \hfill
 \begin{minipage}[t]{0.45\textwidth}
 \begin{tikzpicture}[->,
 auto,
-semithick, 
+thin, 
 scale=0.5,
 block/.style={draw, fill=white, rectangle, font=\small}]
 
 
-\node[block, anchor = west, minimum height=12em, minimum width={width("$DB_{i+1}$")}] 		(0)		{$DB_{i+1}$};
+\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}_i$};
 
-\node[block]				(B)[right of=0, xshift=5em]		{$mix_k$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		  [rotate=-90]{...};
-\node[draw=none, fill=none,]    		(Y)[below of=B, yshift=1em]		  [rotate=-90]{...};
-\node[block, anchor= north]		(A)[above of=B, yshift=1em]		{$mix_1$};
-\node[block, anchor = south]		(C)[below of=B, yshift=-1em]		{$mix_m$};
+\node[block, align=center]							(B)[right of=0, xshift=3em]		{$\textbf{Mix}_k$ \\ $ S_{k,r}^{-1}$};
+\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r}^{-1}$};
+\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r}^{-1}$};
 
-\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 5em]		{$DB_{i}$};
+\node[block, align=center]							(B')[right of=B, xshift=5em]		{$\textbf{Mix}_k$ \\ $ S_{k,r-1}^{-1}$};
+\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]	[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]	[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]	{$\textbf{Mix}_1$ \\ $ S_{1,r-1}^{-1}$};
+\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]	{$\textbf{Mix}_m$ \\ $ S_{m,r-1}^{-1}$};
 
 
 \path[->, midway]
- (0) 							edge node		{} 		(A.west)
- ([yshift=2ex]0.south east) 		edge node		{$S_{pub}^{-1}$} 		(A.west)
- ([yshift=-2ex]0.north east)		edge node		{} 		(B.west)
- ([yshift=8ex]0.south east) 		edge node		{} 		(C.west)
- (0)						 		edge node		{} 		(C.west)
+ ([yshift=-2ex]0.north east) edge node[sloped, above]{} (A.west)
+ (0) edge node[sloped, above]{} (B.west)
+ ([yshift=2ex]0.south east) edge node[sloped, above]{} (C.west)
 
- (A.east) edge node[sloped, above]			{$S_1^{-1}$} 			([yshift=-2ex]1.north west)
- (B.east) edge node[sloped, above]			{$S_k^{-1}$} 			(1)
- (C.east) edge node[sloped, above]			{$S_m^{-1}$} 			([yshift=2ex]1.south west);
+ (A.east) edge node[above,yshift=4ex]	{$S_{pub,r}^{-1}$} 	(A')
+ (A.east) edge node						{} 					(B')
+ (A.east) edge node						{} 					(C')
+ (B.east) edge node						{} 					(A')
+ (C.east) edge node						{} 					(B')
+ (C.east) edge node						{} 					(C');
  
 \end{tikzpicture}
-\caption{Unwrapping in a round of Amortizable sort} \label{fig:WAS}
+\caption*{First rounds of Amortizable sort unwrapping} \label{fig:UAS}
 \end{minipage}
 \caption{Wrapping and corresponding unwrapping.}
 \end{figure} 
