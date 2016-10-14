@@ -230,7 +230,7 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 %
 
 \noindent\textbf{Message Format.}
-To reduce to as much as possible the message size, we choose to derive the AES keys and the permutation seeds from the shared secret calculated in a Diffie-Hellman assumption as in Sphinx~\cite{XXXsphinx} with the HKDF function~\cite{XXXHKDF}. The mixnet however produces twice more shared keys than usual for the wrapping and unwrapping phases. \iffalse\\
+To reduce to as much as possible the message size, we choose to derive the AES keys and the permutation seeds from the shared secret calculated in a Diffie-Hellman assumption as in Sphinx~\cite{danezis2009sphinx} with the HKDF function~\cite{krawczyk2010cryptographic}. The mixnet however produces twice more shared keys than usual for the wrapping and unwrapping phases. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
@@ -529,22 +529,16 @@ $i \gets 0$;\\
 
 \noindent\textbf{Message Format.}
 The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
-We also use here Sphinx~\cite{XXXsphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. \iffalse\\
+We also use here Sphinx~\cite{danezis2009sphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
-We create the AES keys, the private and public seeds with the HKDF function~\cite{XXXHKDF}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ session_{key})$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$ and the ordered $(port,\ ip)$ of the mixes participating in the eviction.
+We create the AES keys, the private and public seeds with the HKDF function~\cite{krawczyk2010cryptographic}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ session_{key})$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$ and the ordered $(port,\ ip)$ of the mixes participating in the eviction.
 The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ (port,\ ip)^m \right )_{signed}\right )$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}. 
 
 \todo{Sec of mix format}
 
-
-\subsection{Lowering Eviction Costs}
-
-In order to lower the eviction costs sustained by the mix-net, optimizations on each side of the channel can be done.
-
-\raphael{Differentially private oblivious shuffle}
 
 \section{Evaluation}
 \subsection{Implementation and Benchmark}
@@ -557,6 +551,13 @@ In order to lower the eviction costs sustained by the mix-net, optimizations on 
 \subsection{Active Adversary}
 Randomized Partial Checking
 Reputation system
+
+
+
+\subsection{Differentially private Oblivious Shuffle}
+We could ask the mixes to process only a fraction of rounds $r \approx \frac{n}{2\cdot k }  \cdot \left( \log \left (\frac{n}{s}-0.5 \right)\right)$ to increase even more the efficiency of the eviction.
+
+In the worst case scenario where an adversary $\mathcal{A}$ controls all but one mixes, the probability  $\mathcal{A}$ knows where a record is at the end of the eviction is $\delta= \Pr \left ( \mathcal{A} \text{ knows a record index}\right ) = \left ( 1 - \frac{1}{m} \right )^r$ where is $r$ the number of rounds.
 
 \subsection{Lowering the eviction costs through the access method}
 
