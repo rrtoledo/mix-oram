@@ -183,7 +183,7 @@ Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations 
 \section{Mix-ORAM}\label{Mix-ORAM}
 After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 %
-\subsection{A simple Mix-ORAM}
+\subsection{A simple Mix-ORAM}\label{SMO}
 %
 We consider here the basic case where the whole database is sent through a cascade mix-net during the eviction process as shown in Fig.\ref{fig:ASMO}.
 Each of the mixes re-encrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
@@ -249,7 +249,7 @@ We first present the mixing time of $k$-RTS before introducing ORAM assumptions 
 Random Transposition Shuffles (RTS) are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
 These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.\\
 We can already see why RTS are natural candidates for amortized ORAMs : if they can be broke down in independent rounds which can be spread over several entities and time, so can a randomization process based on them. Furthermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
-Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards, doing $k/2$ transpositions, to make the scheme more efficient. 
+Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards to make the scheme more efficient. 
 
 \todo{Explaining that if k/2 transpositions of 2 elements and k-RTS seem similar, they are not equivalent as the ordering probabilities differ (to prove) .}
 
@@ -286,14 +286,13 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 \end{seccjt}
 %
 \subsection{Parallel Mix-ORAM}
-\todo{eviction as in 3.2.3, new lookup, message format... }
+\todo{new lookup, message format... \\}
 %
-We now consider the mix-net as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and provide them with lists of $\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ of private and public seeds and encryption keys.\\
+We now consider the mix-net as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and provide them with lists of private and public seeds and encryption keys.\\
 The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds.
-At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds as shown in Fig.~\ref{fig:WAS}.
-As the permutation are done on a subset of elements, we cannot swap the encryption like before (first reencrypting before deciphering the previous encryption). 
-
-\todo{ATTACK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
+At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds.\\
+As the permutation are done on a subset of elements, we cannot swap the encryption and decryption like in Section~\ref{SMO}. After the unwrapping, the database is now, and for every eviction, in a same ordering and encrypted only by the user's key. An adversary could use this invariant and observe changes in the encryption to guess which records were truly accessed (dummies can also be accessed) and discover, with a-priori knowledge, the matching between ciphers and plaintexts. 
+To detect if not prevent this attack, we propose to take advantage of AES-CTR commutativity and make the database server encrypt the records at the beginning of the eviction process and decrypt them at its end. Doing so, the mixes would not be able to distinguish which records were accessed without the database server's help. If the database server were to collude, which would break the independence assumption of the mixnet, the innocent mixes would detect abnormal delays and could inform the client which would then select new mixes for the next eviction.
 
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
@@ -335,7 +334,7 @@ $zipped.sort()$;\\
 $Rec \gets [zipped[x][1] \text{ for x} \in \llbracket 1, len(zipped) \rrbracket]$;\\
 $return \ Rec$;
 \caption{Sort in for mix $i$ during round $j$}
-\label{alg:UAS}
+\label{alg:SortIN}
 \end{algorithm}
 \end{minipage}
 \hfill
@@ -367,7 +366,7 @@ $tosend \gets []$;\\
 	$send(DB_l, tosend[l])$;\\
 }
 \caption{Sort out for mix $i$ during round $j$}
-\label{alg:WAS}
+\label{alg:SortOUT}
 \end{algorithm}
 \end{minipage}
 \caption{Amortizable sort, sort in and sort out algorithms.}
@@ -502,7 +501,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \end{figure} 
 
 The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, $ 3 $ parameters to derive encryption keys and permutation seeds and the ips and ports of all mixes participating in the eviction.  
-To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
+To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.\\
 
 \begin{figure}
 \centering
@@ -608,18 +607,18 @@ To first prove the upper bound and variance, we use Diaconis et al. results~\cit
 In a random transposition shuffle, the cards chosen by the right and left hands at time $t$ are respectively called $R_t$ and $L_t$. Assuming that when $t=0$, no card is marked, we mark $R_t$ if
 $R_t$ was unmarked before and either $L_t$ is marked or $L_t = R_t$. The variable $\tau$ represents the time when every card has been marked, we call it the stopping time.
 
-Let be $\tau_t$ the number of transpositions after the $t^{th}$ card is marked, up to and including when the $(t+1)^{th}$ is marked. $$\tau = \sum_{i=0}^{n-1} \tau_i$$.
+Let be $\tau_t$ the number of transpositions after the $t^{th}$ card is marked, up to and including when the $(t+1)^{th}$ is marked. $$\tau = \sum_{i=0}^{n-1} \tau_i$$
 The $\tau_t$ are independent geometric variables with probability of success $p_t$ as implied by the game rules.
 The probability of success corresponds to the probability of marking at least one card, one to $t$ cards exactly. To do so, the right cards must be chosen from the unmarked set, comprising $n-t$ cards at time $t$,
 and the left cards from the union of the marked set and the right cards.
 \begin{align*}
  p_t &= \sum_{i=1}^{min(k,n-t)} {k \choose i} \cdot {t+1 \choose i} \cdot {n-t \choose i}\cdot{n \choose i}^{-2}&\\
- &= k \frac{(t+1)\cdot(n-t)}{n^2} + \alpha_{n,t,k},\ 0 < \alpha_{n,t,k} = \mathcal{O}\left(n^{-k}\right )
+ &= \frac{1}{n^2} \cdot \left ( k \cdot (t+1)\cdot(n-t) + \alpha_{n,t,k}\right ),\ 0 < \alpha_{n,t,k} = \mathcal{O}\left(n^{-k}\right )
 \end{align*}
 
 We can thus rewrite $\tau$'s expectation as following.
 \begin{align*}
- E(\tau) &= \sum_{t=0}^{n-1} \frac{1}{p_{t}} = \sum_{t=0}^{n-1} \frac{n^2}{k \cdot (t+1)\cdot(n-t) + \frac{\alpha_{n,t,k}}{n^2}}&\\
+ E(\tau) &= \sum_{t=0}^{n-1} \frac{1}{p_{t}} = \sum_{t=0}^{n-1} \frac{n^2}{k \cdot (t+1)\cdot(n-t) + \alpha_{n,t,k}}&\\
  &< \sum_{t=0}^{n-1} \frac{n^2}{k \cdot (t+1)\cdot(n-t)}  &\\
  &< \frac{1}{k} \cdot \frac{n^2}{n+1} \cdot  \sum_{t=0}^{n-1} \left ( \frac{1}{t+1} + \frac{1}{n-t} \right ) &\\
 % &< \frac{2}{k} \cdot \frac{n^2}{n+1} \cdot H_n  \\
