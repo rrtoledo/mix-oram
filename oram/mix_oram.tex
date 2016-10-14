@@ -242,7 +242,7 @@ For 128-bit security, group elements can be expressed in just 32 bytes, we have 
 \todo{Sec of mix format}
 
 \subsection{Parallelizing the Eviction process.}
-In this section we present random transposition shuffles (RTS) and argue their use enable the eviction process to be amortized over time.
+In this section, we present random transposition shuffles (RTS) and argue their use make the eviction process parallelizable and amortizable.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
 
 \subsubsection{$k$-Random Transposition Shuffle.}
@@ -250,9 +250,7 @@ We first present the mixing time of $k$-RTS before introducing ORAM assumptions 
 Random Transposition Shuffles (RTS) are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
 These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.\\
 We can already see why RTS are natural candidates for amortized ORAMs : if they can be broke down in independent rounds which can be spread over several entities and time, so can a randomization process based on them. Furthermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
-Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and permutes locally $k$ distinct cards to make the scheme more efficient. 
-
-\todo{Explaining that if k/2 transpositions of 2 elements and k-RTS seem similar, they are not equivalent as the ordering probabilities differ (to prove) .}
+Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order of $n\log(n)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and transposes locally $k$ distinct cards to make the scheme more efficient. We stress the difference between doing successively $k/2$ transpositions and what we call $k$-RTS: in the first case, an element can be transposed several times in a row which leads to a different probability distribution. The result we present affirms that  $k$-RTS converges to the uniform distribution more rapidly than repeating normal RTS.  
 
 \begin{secthm}
 \textbf{Mixing time of $k$-RTS.} A $k$-random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
@@ -262,9 +260,10 @@ E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1)
 \end{align*}
 \end{secthm}
 
-An oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.
+PRG seeds actually do not ensure strict transpositions between elements but permutations, that is to say the number of transpositions done while using PRG seeds can be greater than the ones we considered. Hence, the uniform distribution is reached even more quickly. We thus consider that an oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(n\cdot \log(n)\right)$.\\
 
-\todo{say that actually seeds do permutations and not transpositions, i.e. there might be more than k/2 transpositions done on the servers. We however keep this simple result as upperbound}
+When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform $r = \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) $ rounds.
+
 %
 \subsubsection{Oblivious Merge}
 Before the eviction algorithm is run, the database can be divided in two sets of records depending on whether or not they were retrieved by the user. As such, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s, the accessed ones, and $n-s$ are 0s, the others.
