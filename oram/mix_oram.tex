@@ -293,6 +293,7 @@ The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds.\\
 As the permutation are done on a subset of elements, we cannot swap the encryption and decryption like in Section~\ref{SMO}. After the unwrapping, the database is now, and for every eviction, in a same ordering and encrypted only by the user's key. An adversary could use this invariant and observe changes in the encryption to guess which records were truly accessed (dummies can also be accessed) and discover, with a-priori knowledge, the matching between ciphers and plaintexts. 
 To detect if not prevent this attack, we propose to take advantage of AES-CTR commutativity and make the database server encrypt the records at the beginning of the eviction process and decrypt them at its end. Doing so, the mixes would not be able to distinguish which records were accessed without the database server's help. If the database server were to collude, which would break the independence assumption of the mixnet, the innocent mixes would detect abnormal delays and could inform the client which would then select new mixes for the next eviction.
+To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
 
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
@@ -500,8 +501,6 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \caption{Wrapping and corresponding unwrapping.}
 \end{figure} 
 
-The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, $ 3 $ parameters to derive encryption keys and permutation seeds and the ips and ports of all mixes participating in the eviction.  
-To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.\\
 
 \begin{figure}
 \centering
@@ -529,13 +528,14 @@ $i \gets 0$;\\
 
 
 \noindent\textbf{Message Format.}
+The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
 We also use here Sphinx~\cite{XXXsphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
-We create the AES keys, the private and public seeds with the HKDF function~\cite{XXXHKDF}. The client only need to send to each mix session keys to access the database $(id,\ session_{key})$, the interval of records it has been attributed $(index_i,\ range)$ and the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$.
-The message format is then : $${addr_{mix_i},E_{pub,\ mix_i}\left(id,\ session_{key},\ index_i,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub} \right )}$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}. 
+We create the AES keys, the private and public seeds with the HKDF function~\cite{XXXHKDF}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ session_{key})$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$ and the ordered $(port,\ ip)$ of the mixes participating in the eviction.
+The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ (port,\ ip)^m \right )_{signed}\right )$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}. 
 
 \todo{Sec of mix format}
 
