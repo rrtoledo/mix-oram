@@ -110,7 +110,7 @@ Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient vari
 \todo{} Tor~\cite{dingledine2004tor}. 
 We present here a new type of mix-net as the messages come from the same source and that the mix-net client needs to store some information to remember the output ordering.
 
-\subsection{Model}
+\subsection{Model}\label{Model}
 We consider on one side, an ORAM remote server, defined as follows, with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
 %
 \begin{privdef}{ORAM Security Definition.}\\
@@ -137,7 +137,7 @@ The remote server can additionally includes a small memory of capacity $\mathcal
 \end{itemize}
 \raphael{Not used so far.}
 %
-\subsection{Threat model and Security definition}
+\subsection{Threat model and Security definition}\label{Threat}
 
 The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
 The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plain text for further purposes such as selective data corruption or monitoring.
@@ -241,11 +241,11 @@ For 128-bit security, group elements can be expressed in just 32 bytes, we have 
 
 \todo{Sec of mix format}
 
-\subsection{Parallelizing the Eviction process.}
+\subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we present random transposition shuffles (RTS) and argue their use make the eviction process parallelizable and amortizable.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce even more the expected time to achieve randomness to the eyes of the adversary.
 
-\subsubsection{$k$-Random Transposition Shuffle.}
+\subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
 Random Transposition Shuffles (RTS) are widely used examples in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
 These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.\\
@@ -265,7 +265,7 @@ PRG seeds actually do not ensure strict transpositions between elements but perm
 When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform $r = \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) $ rounds.
 
 %
-\subsubsection{Oblivious Merge}
+\subsubsection{Oblivious Merge}\label{OM}
 Before the eviction algorithm is run, the database can be divided in two sets of records depending on whether or not they were retrieved by the user. As such, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s, the accessed ones, and $n-s$ are 0s, the others.
 We argue that in this representation, elements of the same sets are indistinguishable to the adversary thanks to prior encryptions and permutations and thus, less rounds are necessary to correctly shuffle the database.
 Indeed, this assumption significantly reduces the number of possible orderings in the adversarial view. We can prove, thanks to the Bars and Stripes theorem, that there now are ${n \choose s}$ orderings instead of $n!$.
@@ -285,7 +285,7 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 \end{proof}
 \end{seccjt}
 %
-\subsection{Parallel Mix-ORAM}
+\subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
 \todo{new lookup, message format... \\}
 %
 We now consider the mix-net as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and provide them with lists of private and public seeds and encryption keys.\\
@@ -540,38 +540,38 @@ The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ 
 \todo{Sec of mix format}
 
 
-\section{Evaluation}
-\subsection{Implementation and Benchmark}
-\subsection{Performances}
-\subsection{Comparison}
+\section{Evaluation}\label{Evaluation}
+\subsection{Implementation and Benchmark}\label{Implementation}
+\subsection{Performances}\label{Performance}
+\subsection{Comparison}\label{Comparison}
 
-\section{Discussion}
-\label{Discussion}
+\section{Discussion}\label{Discussion}
 
-\subsection{Active Adversary}
+\subsection{Active Adversary}\label{Active Adversary}
 Randomized Partial Checking
 Reputation system
 
 
 
-\subsection{Differentially private Oblivious Shuffle}
-We could ask the mixes to process only a fraction of rounds $r \approx \frac{n}{2\cdot k }  \cdot \left( \log \left (\frac{n}{s}-0.5 \right)\right)$ to increase even more the efficiency of the eviction.
+\subsection{Differentially Private Oblivious Shuffle}\label{DPOS}
+We could ask the mixes to process only a fraction of rounds $r \approx \frac{n}{2\cdot k }  \cdot \log \left (\frac{n}{s}-0.5 \right)$ to increase even more the efficiency of the eviction.
 
 In the worst case scenario where an adversary $\mathcal{A}$ controls all but one mixes, the probability  $\mathcal{A}$ knows where a record is at the end of the eviction is $\delta= \Pr \left ( \mathcal{A} \text{ knows a record index}\right ) = \left ( 1 - \frac{1}{m} \right )^r$ where is $r$ the number of rounds.
 
-\subsection{Lowering the eviction costs through the access method}
+To prevent such case, we can make each mix permute every allocated sections of the database and then begins the Oblivious Merge. We would thus add $2 \cdot m^2$ permutations for the whole eviction....
 
-\noindent\textbf{Changing the access method.}The client, to lower the eviction costs, could instead of fetching only the requested record query retrieve $k-1$ other dummy records and permuting all of them before updating them back to the ORAM.
-Doing so, we can progress further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mix-net performing cheaper and weaker permutations.
-What's more, requesting more records, and doing so on different servers, can help in hiding the access pattern as discussed in~\cite{toledo2016lower}.\\
+\subsection{Lowering the eviction costs through the access method}\label{AccessMethod}
+
+\noindent\textbf{Changing the access method.}The client, to lower the eviction costs, could instead of fetching only the requested record query retrieve $k-1$ other dummy records and permuting all of them before updating them back to the ORAM (not the shelter).
+Doing so, we can progress further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mix-net performing cheaper and weaker permutations. We would furthermore hide the accessed records in the unwrapping phase in the parallel Mix ORAM ( Section~\ref{parallelMixORAM}). Finally, requesting more records, and doing so on different servers, can help in hiding the access pattern as discussed in~\cite{toledo2016lower}.\\
 
 \noindent\textbf{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
-These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.\\
-
+These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
+%
 \begin{secthm}
-In the case of a uniform distribution access we have an average number 0 of fake access for $s<<n$.\\
+In the case of a uniform distribution access we have an average number 0 of fake access for $s<<n$.
 \end{secthm}
-
+%
 However it is well known that the frequency access of records is not uniform, in that case we can count a strictly positive number of fake accesses.
 \begin{secthm}
 Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
@@ -589,8 +589,7 @@ The average number of fake access is $ \frac{v0}{v1}$.
 Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
 
 
-\section{Conclusion}
-\label{Conclusion}
+\section{Conclusion}\label{Conclusion}
 \begin{itemize}
  \item New ORAM with mix-net
  \item amortizable eviction
