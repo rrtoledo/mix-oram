@@ -188,7 +188,7 @@ After looking at a simple but impractical Mix-ORAM we will look closely at the e
 We consider here the basic case where the whole database is sent through a cascade mix-net during the eviction process as shown in Fig.\ref{fig:ASMO}.
 Each of the mixes re-encrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
 
-To do so, because the symmetric group is not commutative, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering. We also consider reversing the mix-net flow during the second step, the records now going from the last mix to the first before being uploaded on the database, to avoid unnecessary communication costs and private information transfer between mixes.\\
+To do so, because the symmetric group is not commutative, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) and encrypt with the new encryption keys $k'_i$ before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering and decrypting the previous eviction encryption with the $k_i$. We also consider reversing the mix-net flow during the second step, the records now going from the last mix to the first before being uploaded on the database, to avoid unnecessary communication costs and private information transfer between mixes.\\
 The security guarantees rely on the facts that no private information (seed, encryption key) is leaked between mixes and that the encryption is not deterministic.
 
 Alongside the database records, the user need to send the encrypted seeds and re-encryption keys. Hence if we denote by $x$ the size in bits of a seed and encryption key, the total communication cost is of the order $\mathcal{O}\left ( m\cdot N \right )$, more precisely $C_m=2mN + m\cdot(2m-\frac{1}{2})\cdot x$.
@@ -235,8 +235,9 @@ Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cycl
 We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i=g^{priv_i}\in \mathcal{G}^*$). We assume the existence of a PKI that publishes a list of all ($mix_i$,\ $pub_i$) pair.
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
-The client only need to send to each mix session keys to access the database $(id,\ session_{key})$ and the client secrets used to compute the shared secret $( \alpha_{i,old},\ \alpha_{i,new} )$.
-The message format is then : $$addr_{mix_i},\ E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},\ \beta,\ \gamma \right )$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.
+The client only need to send to the mixnet session keys to access the database $(id,\ session_{key})$, the client secrets used to compute the shared secret $( \alpha_{i,old},\ \alpha_{i,new} )$ and the signed next mix addresses $(ports,ips)_{signed}= \left (\ ...,\ E_{pub,\ mix_{i}}\left ((port_{mix_{i+1}}, ip_{mix_{i+1}})_{signed}\right),\ ...\right)$.
+The message format is then : $$E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},\ (ports,ips)_{signed} \right)$$ 
+For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.
 
 \todo{Sec of mix format}
 
