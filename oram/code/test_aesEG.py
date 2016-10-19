@@ -3,7 +3,7 @@ from aes_cbc import AES_CBC as cbc
 from eg import ECCEG as eg
 from random import getrandbits, randint
 from time import time
-from math import log, sqrt
+from math import log, sqrt, ceil
 
 # Comparison of AES-CTR and EG (petlib implementation for both)
 
@@ -11,7 +11,11 @@ block_size = 16*1024 #block size in B, choose between 512, 4096, 16kb, 32 kb...
 nb_rec = (1024**(4))/block_size #nb records in DB (needed to calculate tag size) by default 1 TB/ block size
 average = 10**3 #nb of operations to do to calculate average
 nb_mix = 25 # nb mixes
-rounds = nb_mix * log(sqrt(nb_rec))
+rounds = ceil(nb_mix * log(sqrt(nb_rec)))
+
+print "\nstarting"
+
+print nb_rec, block_size, nb_mix, rounds, average
 
 print "\ninit started"
 
@@ -76,7 +80,7 @@ for i in range(average):
  toeg[i]=a
  duration_EG_e+= time1-time0 
 duration_EG_e = duration_EG_e/average
-print "eg enc time: "+str(duration_EG_e/average)
+print "eg enc time: "+str(duration_EG_e)
 
 # Testing EG randomization
 duration_EG_r = 0
