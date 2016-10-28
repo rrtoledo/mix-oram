@@ -72,20 +72,16 @@ Mixing networks is a solution widely applied in Anonymity system to obliviously 
 For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using mix-net, methods to amortize the shuffle have to be taken into account to make ORAM practical.
 
-%
-\subsection{Contribution}\label{Contribution}
-%
 In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction to untrusted \raphael{semi-trusted?} third parties.
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
- \item We present the first ORAM eviction relying on a mix-net.
+ \item We present the first ORAM eviction relying on a mix-net (\raphael{and mixformat?}).
  \item We give a new security definition of ORAM's eviction. %indistiguishability between accessed and unretrieved elements
  \item We present an amortizable shuffle.
 \end{itemize}
-\todo{mixformat...}
-%
-\subsection{Content}\label{Content}
+
+
 After presenting the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Prelim}, we introduce Random Transposition Shuffles, how to use them in ORAM and together with a mixnet and discuss of various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation and compare the costs with several designs in Section~\ref{Evaluation}.
 We finally evaluate our schemes with standard ORAM model and discuss about the advantages and drawbacks of using mix-nets.
 %
@@ -157,8 +153,8 @@ That is to say, for the eviction of $s$ elements in an array of $n$ elements, an
 $$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
 \end{privdef}
 %
-\subsection{Costs}
-We denote the communication costs by $C_{com,o}$ for the number of \emph{bits} sent by the ORAM, $C_{com,c}$ by the client, and by $C_{com,m}$ sent by the mixes. 
+
+\noindent\textbf{Costs.} We denote the communication costs by $C_{com,o}$ for the number of \emph{bits} sent by the ORAM, $C_{com,c}$ by the client, and by $C_{com,m}$ sent by the mixes. 
 We will call $C_{cmp}$ the computation cost derived from the eviction.
 %
 \subsection{Cryptographic Primitives}
@@ -184,7 +180,8 @@ After looking at a simple but impractical Mix-ORAM we will look closely at the e
 We consider here the basic case where the whole database is sent through a cascade mix-net during the eviction process as shown in Fig.\ref{fig:ASMO}.
 Each of the mixes re-encrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
 
-To do so, because the symmetric group is not commutative, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) and encrypt with the new encryption keys $k'_i$ before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering and decrypting the previous eviction encryption with the $k_i$. We also consider reversing the mix-net flow during the second step, the records now going from the last mix to the first before being uploaded on the database, to avoid unnecessary communication costs and private information transfer between mixes.\\
+To do so, because the symmetric group is not commutative and AES-CTR depends on the order, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) and encryption ($k_i$), phase we call the unwrapping, before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering and encrypting  them with the $k_i'$, the wrapping. We also consider reversing the mix-net flow during the second step, the records now going from the last mix to the first, before being uploaded the records to the database, to avoid unnecessary communication costs and private information transfer between mixes.\\
+The adversary could find out which records were accessed by observing two consecutive evictions. Indeed, after unwrapping and deciphering the records, the database is in an invariant order and the plaintext is only protected by the user encryption which changes under user access. To prevent this attack, we propose to independently blind each record during the unwrapping and unblind them while wrapping up thanks to encrypted tags. Since the tags can be used for stamp attacks, we require $m$ rounds before and after each blinding so that the adversary cannot guess the database ordering. Furthermore, AES-CTR encryption is done while tagging so that the adversary cannot guess the blindings and an El Gamal threshold scheme is used to guarantee the unblinding is done at the right time.\\
 The security guarantees rely on the facts that no private information (seed, encryption key) is leaked between mixes and that the encryption is not deterministic.
 
 Alongside the database records, the user need to send the encrypted seeds and re-encryption keys. Hence if we denote by $x$ the size in bits of a seed and encryption key, the total communication cost is of the order $\mathcal{O}\left ( m\cdot N \right )$, more precisely $C_m=2mN + m\cdot(2m-\frac{1}{2})\cdot x$.
@@ -198,26 +195,38 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 \begin{adjustbox}{width=\textwidth}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 7em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90,minimum height=5ex,minimum width=3ex]    	(0)				  {};	
+\node[draw, cylinder, shape border rotate=90,minimum height=10ex,minimum width=3ex]    	(0)				  {};	
 \node[draw, rectangle]   		(A)[right of=0]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_{2}$};
-\node[draw=none, fill=none]    		(X)[right of=B]   {\small $...$};
-\node[draw, rectangle]    		(Z)[right of=X]   {\small $Mix_m$};
+\node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
+\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_m$};
+\node[draw, rectangle, minimum height=10ex]    		(T)[right of=B]   {\small $tag$};
+\node[draw, rectangle]    		(B')[right of=T]   {\small $Mix_m$};
+\node[draw=none, fill=none]    		(X')[right of=B']   {\small $...$};
+\node[draw, rectangle]   		(A')[right of=X']   {\small $Mix_{1}$};
 
 \path
 ([yshift=1ex]0.east) edge     	node{\small $DB_{k_{i=1..m}}^{S_j=1..m}$}    	([yshift=1ex]A.west)
 ([yshift=-1ex]A.west) edge     	node{\small $DB_{k'_{i=1..m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
 
-([yshift=1ex]A.east) edge     	node{\small $k_1',S_1^{-1}$}    	([yshift=1ex]B.west)
-([yshift=-1ex]B.west) edge     	node{\small $k_2,S_2'$}    	([yshift=-1ex]A.east)
+([yshift=1ex]A.east) edge     	node{\small $k_1,S_1^{-1}$}    	([yshift=1ex]X.west)
+([yshift=-1ex]X.west) edge     	node{\small $k_2',S_2'$}    	([yshift=-1ex]A.east)
 
-([yshift=1ex]B.east) edge     	node{\small $k_2',S_2^{-1}$}    	([yshift=1ex]X.west)
-([yshift=-1ex]X.west) edge     	node{\small $k_3,S_3'$}    	([yshift=-1ex]B.east)
+([yshift=1ex]X.east) edge     	node{\small $k_{m-1},S_{m-1}^{-1}$}    	([yshift=1ex]B.west)
+([yshift=-1ex]B.west) edge     	node{\small $k_{m}',S_{m}'$}    	([yshift=-1ex]X.east)
 
-([yshift=1ex]X.east) edge     	node{\small $k_{m-1}',S_{m-1}^{-1}$}    	([yshift=1ex]Z.west)
-([yshift=-1ex]Z.west) edge     	node{\small $k_m,S_m'$}    	([yshift=-1ex]X.east)
+([yshift=1ex]B.east) edge     	node{}    	([yshift=1ex]T.west)
+([yshift=-1ex]T.west) edge     	node{\small $k_{m}',S_{m}'$}    	([yshift=-1ex]B.east)
 
-(Z)    edge[loop right, dashed]    node{\small $k_m,S_m^{-1}$} (Z);
+([yshift=1ex]T.east) edge     	node{\small $k_{m},S_{m}^{-1}$}    	([yshift=1ex]B'.west)
+([yshift=-1ex]B'.west) edge     	node{}    	([yshift=-1ex]T.east)
+
+([yshift=1ex]B'.east) edge     	node{\small $k_{m+1},S_{m+1}^{-1}$}    	([yshift=1ex]X'.west)
+([yshift=-1ex]X'.west) edge     	node{\small $k_{m+1}',S_{m+1}'$}    	([yshift=-1ex]B'.east)
+
+([yshift=1ex]X'.east) edge     	node{\small $k_{2m-1},S_{2m-1}^{-1}$}    	([yshift=1ex]A'.west)
+([yshift=-1ex]A'.west) edge     	node{\small $k_{2m}',S_{2m}'$}    	([yshift=-1ex]X'.east)
+
+(A')    edge[loop right, dashed]    node{\small $k_{2m},S_{2m}^{-1}$} (A');
 
 \end{tikzpicture}
 \end{adjustbox}
@@ -232,7 +241,7 @@ We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
 The client only need to send to the mixnet session keys to access the database $(id,\ session_{key})$, the client secrets used to compute the shared secret $( \alpha_{i,old},\ \alpha_{i,new} )$ and the signed next mix addresses $(ports,ips)_{signed}= \left (\ ...,\ E_{pub,\ mix_{i}}\left ((port_{mix_{i+1}}, ip_{mix_{i+1}})_{signed}\right),\ ...\right)$.
-The message format is then : $$E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},\ (ports,ips)_{signed} \right)$$ 
+The message format is then : $$E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},,\ \alpha_{i,tag},\ (ports,ips)_{signed} \right)$$ 
 For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.\\
 
 We claim that this scheme is secure for an adversary willing to know which records were accessed. To do so, the adversary needs to have an invariant ordering, the one after wrapping up, and compare between successive evictions where the user's encryption has changed (or break the AES encryption of the uncompromised mixes). 
@@ -257,7 +266,7 @@ E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1)
 \sigma^2(\tau) &< \frac{4}{3} \cdot {\pi}^2 \cdot \left ( \frac{n}{k} \right )^2 &
 \end{align*}
 \begin{proof}
-The proof can be found in Annexe~\ref{proof:kRTS}.
+The proof can be found in Appendix~\ref{proof:kRTS}.
 \end{proof}
 \end{secthm}
 
@@ -277,7 +286,7 @@ We now consider the RTS process in that scenario and suppose the records (the bi
 An oblivious merge (OM) of 2 indistinguishable sets of respective size $n$ and $s$ elements requires $\tau$ rounds of 2-RTS such that any arranging is possible, with
 $$\tau(\epsilon) \leq \frac{n}{2\cdot s}  \cdot \left [ s \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - 2\log \left( 4 \cdot \epsilon\right) \right ] $$%&\\
 \begin{proof}
-The proof can be found in Annexe~\ref{proof:OM}.
+The proof can be found in Appendix~\ref{proof:OM}.
 \end{proof}
 \end{secthm}
 
@@ -295,8 +304,10 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 We now consider the mix-net as a collection of isolated mixes. When performing an eviction, we attribute to each mix  $k=\frac{n}{m}$ distinct indexes and provide them with lists of private and public seeds and encryption keys.\\
 The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds.
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds.\\
+
 As the permutation are done on a subset of elements, we cannot swap the encryption and decryption like in Section~\ref{SMO}. After the unwrapping, the database is now, and for every eviction, in a same ordering and encrypted only by the user's key. An adversary could use this invariant and observe changes in the encryption to guess which records were truly accessed (dummies can also be accessed) and discover, with a-priori knowledge, the matching between ciphers and plaintexts. 
-To detect if not prevent this attack, we propose to take advantage of AES-CTR commutativity and make the database server encrypt the records at the beginning of the eviction process and decrypt them at its end. Doing so, the mixes would not be able to distinguish which records were accessed without the database server's help. If the database server were to collude, which would break the independence assumption of the mixnet, the innocent mixes would detect abnormal delays and could inform the client which would then select new mixes for the next eviction.
+If the mixes do not collude with the database server, we could easily prevent this attack by taking advantage of AES-CTR commutativity and make the database server encrypt the records at the beginning of the eviction process and decrypt them at its end. 
+If the database server were to collude, we need the ORAM access method to be changed such that the user refresh all records. An example of which is discussed in Section~\ref{AccessMethod}.
 To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.\\
 
 \begin{figure}
@@ -376,8 +387,6 @@ $tosend \gets []$;\\
 \end{minipage}
 \caption{Amortizable sort, sort in and sort out algorithms.}
 \end{figure}
-
-
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
 \vspace{0pt}
@@ -420,7 +429,6 @@ $\textbf{del } Key_{old,i,j}$;\\
 \end{minipage}
 \caption{Amortizable sort, wrapping and unwrapping algorithms.}
 \end{figure}
-
 \begin{figure}
 \centering
 \begin{minipage}[t]{0.45\textwidth}
@@ -429,8 +437,6 @@ auto,
 semithick, 
 scale=0.5,
 block/.style={draw, fill=white, rectangle, font=\small}]
-
-
 
 \node[block, align=center]							(B)		{$\textbf{Mix}_k$ \\ $ S_{k,r}$};
 \node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
@@ -504,8 +510,6 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \end{minipage}
 \caption{Wrapping and corresponding unwrapping.}
 \end{figure} 
-
-
 \begin{figure}
 \centering
 \begin{minipage}{0.5\textwidth}
@@ -530,7 +534,6 @@ $i \gets 0$;\\
 \end{minipage}
 \end{figure}
 
-
 \noindent\textbf{Message Format.}
 The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
 We also use here Sphinx~\cite{danezis2009sphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. \iffalse\\
@@ -539,9 +542,9 @@ We suppose each mix owns a pair of keys ($\ priv_i \in \mathbb{Z}_{q}^*$, $pub_i
 The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the mix $mix_i$ the element $\alpha_i=g^{x\cdot b_i}$ with $b_i$ a binding factors, the shared secret is then $s_i=pub_i^{x\cdot b_i}$.
 \fi
 We create the AES keys, the private and public seeds with the HKDF function~\cite{krawczyk2010cryptographic}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ session_{key})$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub})$ and the ordered $(port,\ ip)$ of the mixes participating in the eviction.
-The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ (port,\ ip)^m \right )_{signed}\right )$$ For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}. 
+The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ (port,\ ip)^m \right )_{signed}\right )$$
 
-\todo{Sec of mix format}
+For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}.\todo{Sec of mix format}
 
 
 \section{Evaluation}\label{Evaluation}
@@ -552,9 +555,8 @@ The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ 
 \section{Discussion}\label{Discussion}
 
 \subsection{Active Adversary}\label{Active Adversary}
+As misbehaving mixes are already discarded in the eviction setup, we could integrate in the client a light-weight local mix reputation system.
 Randomized Partial Checking
-Reputation system
-
 
 
 \subsection{Differentially Private Oblivious Shuffle}\label{DPOS}
