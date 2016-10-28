@@ -80,19 +80,19 @@ class test():
 		print "init",
 		self.print_mes()
 		print "init Enc without tag"
-		self.EncPrm()
+		self.EncPrm() #done the first time the user uploads records
 		print "Enc done", 
-		print self.mes
+		print self.mes #mes for DB
 		print "Dec"
 		self.DecUnp(self.rounds/2)
 		print "Dec done",
-		print self.mes
+		print self.mes #adv attacks ?
 		print "Enc"
 		self.EncPrm(self.rounds/2)
-		print "Enc done",
-		print self.mes
+		print "Enc done", 
+		print self.mes #mes for DB
 		print "Verify user can read"
-		self.DecUnp()
+		self.DecUnp() #done by the user when accessing records
 		self.print_mes()
 
 	def tag_mes(self):
