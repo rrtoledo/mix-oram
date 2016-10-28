@@ -12,24 +12,25 @@ from eg import ECCEG as eg
 
 
 Keys = namedtuple('Keys', ['b', 'iv', 'kenc', 'seed'])
-Mix = namedtuple('Mix', ['name','privk', 'pkb', 'shared', 'sec'])
-Client = namedtuple('Client', ['privk', 'pkb','shared'])
-mes_len = 10
-privs = [Bn.from_binary(base64.b64decode("DCATXyhAkzSiKaTgCirNJqYh40ha6dcXPw3Pqw==")),  Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ==")), Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))]
-privkc = Bn.from_binary(base64.b64decode("/m8A5kOfWNhP4BMcUm7DF0/G0/TBs2YH8KAYzQ=="))
+Mix = namedtuple('Mix', ['name','privk', 'pkb', 'shared', 'sec']) #name, private key, public key, shared secrets with client, secret seed for tag blind creation
+Client = namedtuple('Client', ['privk', 'pkb','shared']) # private key, public key, shared secrets with all mixes used for public perm
+mes_len = 10 #message length
+privs = [Bn.from_binary(base64.b64decode("DCATXyhAkzSiKaTgCirNJqYh40ha6dcXPw3Pqw==")),  Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ==")), Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))] # Mix private keys
+privkc = Bn.from_binary(base64.b64decode("/m8A5kOfWNhP4BMcUm7DF0/G0/TBs2YH8KAYzQ==")) # client private key
 
 
 class test():
 
 	def __init__(self, nb_mix=3, nb_rounds=3, nb_ms=3):
 		self.mix = nb_mix
-		self.rounds = 2*nb_rounds
-		self.tag = False
+		self.rounds = 2*nb_rounds # we want to have 2 enc and 2 dec and the tags adddition/removal in between
+		self.tag = False # bool telling the tags have been added or not
 
-		self.mes = []
+		self.mes = [] # all messages 
 		for i in range(nb_ms*nb_mix):
 			self.mes.extend([petlib.pack.encode(chr(97+i)*mes_len)])
 
+		''' EC init '''
 		self.G = EcGroup(713)
 		self.o = self.G.order()
 		self.g = self.G.generator()
@@ -37,6 +38,13 @@ class test():
 		self.setup = self.G, self.o, self.g, self.o_bytes
 		self.group = (self.G, self.g, self.o)
 
+		self.e=eg(self.group, privkc, (privkc) * self.g)
+		self.randoms = [] # precomputation of El Gamal(zeros) to fasten tag randomization
+		for i in range(nb_ms*nb_mix):
+			zero = self.e.enc(0) 
+			self.randoms.extend([zero])
+
+		''' Mix and Client init '''
 		shared=[]
 		for i in range(self.rounds):
 			shared.extend([(privkc * self.create_random() ) * (privkc*self.g)])
@@ -53,25 +61,42 @@ class test():
 			mix = Mix("M"+str(i), p, p*self.g, shared, sec)
 			self.mixes.extend([mix])
 
-		self.e=eg(self.group, privkc, (privkc) * self.g)
-		self.randoms = []
-		for i in range(nb_ms*nb_mix):
-			zero = self.e.enc(0) 
-			self.randoms.extend([zero])
 
 	def run(self):
+		''' Run the program with tag'''
 		print "init",
 		self.print_mes()
 		print "Enc"
-		self.EncPrm(self.rounds/2)
+		self.EncPrm()
+		print "Enc done", 
+		print self.mes
+		print "Dec"
+		self.DecUnp()
+		print "Dec done",
+		self.print_mes()
+
+	def run_tag(self):
+		''' Run the program with tag'''
+		print "init",
+		self.print_mes()
+		print "init Enc without tag"
+		self.EncPrm()
 		print "Enc done", 
 		print self.mes
 		print "Dec"
 		self.DecUnp(self.rounds/2)
 		print "Dec done",
+		print self.mes
+		print "Enc"
+		self.EncPrm(self.rounds/2)
+		print "Enc done",
+		print self.mes
+		print "Verify user can read"
+		self.DecUnp()
 		self.print_mes()
 
 	def tag_mes(self):
+		''' Tag addition/removal function : Create (and encrypt) tag  and add blinds OR remove tags and blinds'''
 		text = "Adding tag"
 		if self.tag:
 			text = "Removing tags"
@@ -86,29 +111,34 @@ class test():
 			for j in range(self.mix):
 				b, iv, key, seed = self.KDF(self.mixes[j].sec.export())
 				random.seed(seed*tag)
-				blind = []
+				blind = [] #creating blind of a correct size
 				for m in range(len(temp)):
 					blind.extend([random.randint(0,255)])
-				temp = ''.join(chr(ord(a) ^ b) for a,b in zip(temp, blind))
+				temp = ''.join(chr(ord(a) ^ b) for a,b in zip(temp, blind)) # xor blind and cipher
 				if not self.tag:
-					self.mes[i]=[tag, temp]
+					self.mes[i]=[tag, temp] #save tag
 				else:
-					self.mes[i]=temp
+					self.mes[i]=temp #remove tag
 			if not self.tag:
-				self.mes[i]=[self.e.enc(tag), self.mes[i][1]]
+				self.mes[i]=[self.e.enc(tag), self.mes[i][1]] #encrypt tag after all blinds added
 
 		print "", "end"
 		print self.mes
 		self.tag= not self.tag				
 
 
-	def EncPrm(self, rnd):
-		for i in range(self.rounds):
-			# We encrypt and permute all message locally
-			
-			if i == rnd:
-				self.tag_mes()
+	def EncPrm(self, rnd=None):
+		''' Function to encrypt and shuffle messages'''
 
+
+		for i in range(self.rounds):
+			
+			# If tag asked at round rnd, remove tag and blind from messages 
+			if rnd != None:
+				if i == rnd:
+					self.tag_mes()
+
+			# We encrypt and permute all messages locally
 			for j in range(self.mix):
 				# The mix compute its key/seeds
 				b, iv, key, seed = self.KDF(self.mixes[j].shared[i].export())
@@ -148,11 +178,13 @@ class test():
 			random.shuffle(temp)
 			
 
-	def DecUnp(self, rnd):
+	def DecUnp(self, rnd=None):
 		for i in list(reversed(range(self.rounds))):
 			
-			if i == rnd:
-				self.tag_mes()
+			#If tags asked at round rnd, add blind and tags
+			if rnd != None:
+				if i == rnd:
+					self.tag_mes()
 
 			# We unpermute the message globally
 			b, iv, key, seed = self.KDF(self.client.shared[i].export())
@@ -200,6 +232,7 @@ class test():
 
 
 	def create_random(self):
+		''' Return random strong crypto. number'''
 		return self.o.random()
 
 	def KDF(self, element, idx="A"):
@@ -216,6 +249,7 @@ class test():
 		return output	
 				
 	def print_mes(self):
+		''' unpack and print messages'''
 		temp = []
 		for i in range(len(self.mes)):
 			temp.extend([petlib.pack.decode(self.mes[i])])
