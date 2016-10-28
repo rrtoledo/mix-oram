@@ -55,9 +55,12 @@ class test():
 			p = privs[i%len(privs)]
 			shared=[]
 			for j in range(self.rounds):
-				sec = (self.client.privk * self.create_random() ) * (p*self.g)
-				shared.extend([sec])
-			sec = (self.client.privk * self.create_random() ) * (p*self.g)
+				tempo  = (self.client.privk * self.create_random() ) * (p*self.g)
+				shared.extend([tempo])
+			sec = []
+			for j in range(self.mix+1):
+				tempo = (self.client.privk * self.create_random() ) * (p*self.g)
+				sec.extend([tempo])
 			mix = Mix("M"+str(i), p, p*self.g, shared, sec)
 			self.mixes.extend([mix])
 
@@ -109,7 +112,14 @@ class test():
 				tag = self.e.dec(temp[0])
 				temp = self.mes[i][1]
 			for j in range(self.mix):
-				b, iv, key, seed = self.KDF(self.mixes[j].sec.export())
+				# We encrypt the message
+				key_nb = ( j*(self.mix-1)+(i/self.mix)+1 ) % self.mix	
+				#nb so that mix0 uses k1 for c0, k2 for c1 ; mix1 uses k1 for c1 and so on, 
+				b, iv, key, seed = self.KDF(self.mixes[j].sec[key_nb].export())
+				temp = self.aes_enc_dec(key, iv, temp)
+
+				# we blind the message
+				b, iv, key, seed = self.KDF(self.mixes[j].sec[0].export())
 				random.seed(seed*tag)
 				blind = [] #creating blind of a correct size
 				for m in range(len(temp)):
@@ -121,6 +131,8 @@ class test():
 					self.mes[i]=temp #remove tag
 			if not self.tag:
 				self.mes[i]=[self.e.enc(tag), self.mes[i][1]] #encrypt tag after all blinds added
+
+		
 
 		print "", "end"
 		print self.mes
@@ -180,11 +192,6 @@ class test():
 
 	def DecUnp(self, rnd=None):
 		for i in list(reversed(range(self.rounds))):
-			
-			#If tags asked at round rnd, add blind and tags
-			if rnd != None:
-				if i == rnd:
-					self.tag_mes()
 
 			# We unpermute the message globally
 			b, iv, key, seed = self.KDF(self.client.shared[i].export())
@@ -226,7 +233,11 @@ class test():
 				
 				# Before sending them back
 				self.mes[j* len(self.mes)/self.mix:(j+1)* len(self.mes)/self.mix] = temp
-			
+
+			#If tags asked at round rnd, add blind and tags
+			if rnd != None:
+				if i == rnd:
+					self.tag_mes()
 			
 
 
