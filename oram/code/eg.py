@@ -9,12 +9,12 @@ import pytest
 
 class ECCEG():
 
-	def __init__(self, nid=713):
-		self.group = self.params_gen(nid)
+	def __init__(self, group, prv, pub):
+		self.group = group # self.params_gen(nid)
 		self.table = self.make_table()
-		keys = self.key_gen()
-		self.pub=keys[0]
-		self.prv=keys[1]
+		#keys = self.key_gen()
+		self.pub=pub
+		self.priv=prv
 
 	def params_gen(self, nid):
 		"""Generates the AHEG for an EC group nid"""
@@ -33,6 +33,7 @@ class ECCEG():
 	def enc(self, counter):
 		"""Encrypts the values of a small counter"""
 		assert -2**8 < counter < 2**8
+		
 		G, g, o = self.group
 
 		k = o.random()
@@ -67,6 +68,14 @@ class ECCEG():
 		zero = self.enc(0)
 		return self.add(c1, zero)
 
+	def randomize_(self, c1):
+		"""Rerandomize an encrypted counter"""
+		zero = self.enc(0)
+		tic = time()
+		temp = self.add(c1, zero)
+		toc = time()
+		return [temp, toc-tic]
+
 	def make_table(self):
 		"""Make a decryption table"""
 		_, g, o = self.group
@@ -79,7 +88,7 @@ class ECCEG():
 		"""Decrypt an encrypted counter"""
 		_, g, o = self.group
 		a, b = c1
-		plain = b + (-self.prv * a)
+		plain = b + (-self.priv * a)
 		return self.table[plain] 
 
 	def test(self):
