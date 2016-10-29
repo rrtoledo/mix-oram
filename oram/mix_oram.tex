@@ -72,7 +72,7 @@ Mixing networks is a solution widely applied in Anonymity system to obliviously 
 For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using mix-net, methods to amortize the shuffle have to be taken into account to make ORAM practical.
 
-In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction to untrusted \raphael{semi-trusted?} third parties.
+In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction to untrusted third parties.
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
@@ -132,13 +132,13 @@ The remote server can additionally includes a small memory of capacity $\mathcal
 \subsection{Threat model and Security definition}\label{Threat}
 
 The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
-The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plain text for further purposes such as selective data corruption or monitoring.
+The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plaintext for further purposes such as selective data corruption or monitoring. We consider here the adversary immediate goal as recognizing whether a record was accessed or not. 
 
 We assume that all communication between the different parties (user, ORAM server and mixes) may be intercepted as in the \textit{global passive adversary} assumption however only message timing, volume and size from honest parties can be known thanks to packet encryption.
 In addition, we assume the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve his goal.
 We will assume that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded until the Discussion section (c.f. Sec.~\ref{Discussion}) where we will examine packet injection, dropping and delaying.
 
-This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases.
+This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We thus presents a security game... \todo{} 
 
 \iffalse
 %% If comparision between initial thought and what is needed
@@ -148,7 +148,7 @@ An ORAM eviction process is considered secure if an adversary cannot distinguish
 \fi
 
 \begin{privdef}
-An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been retrieved.\\
+An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been accessed.\\
 That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have,
 $$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
 \end{privdef}
@@ -161,7 +161,7 @@ We will call $C_{cmp}$ the computation cost derived from the eviction.
 \noindent\textbf{PRG \& Seeds.}
 A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.
 ORAM designs frequently uses PRGs during the eviction algorithm to shuffle the array and store the mapping between indexes.
-In the case of classic client-server configuration, the client has stored the previous seed and the new one and has to permute obviously the records such that the new ordering is not revealed. This can be done easily thanks to the user storage: the user can download the whole database, sort it thanks to the indexes, re-encrypt it and upload it back.
+In the case of classic client-server configuration, the client has stored the previous seeds and the new ones and has to permute obviously the records such that the new ordering is not revealed. This can be done easily thanks to the user storage: the user can download the whole database, sort it thanks to the indexes, re-encrypt it and upload it back.
 With the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.
 For the user to remember as little information as possible, we could find seed combinations resulting in a simple result. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation.
 That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.\\
@@ -169,8 +169,12 @@ That is why every eviction process will now be split in two phases, the unwrappi
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records. Every record that is fetched must be re-encrypted before uploading it back to the database, 
 which implies encryption cost of the order of $\mathcal{O} \left ( n \right )$ for the eviction process and of variable orders, usually between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$, for the sole access.\\
-Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700MB/s per thread on recent CPUs such as the Intel Core i3 or the AMD's models APU and FX.
-Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative. AES-CTR can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption layer such that the plain text is never revealed.
+Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700MB/s per thread on recent CPUs such as the Intel Core i3 or the AMD's models APU and FX which makes it the ideal choice for ORAM block encryption.
+Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative. AES-CTR can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption layer such that the plain text is never revealed. However, as AES-CTR relies on the plaintext ordering, the practicality of its commutativity is greatly lessened. \\
+\todo{invariant ordering between the two, we need encryption to hide stuff. Tagging...} such as El-Gamal Encryption (EG)... . Pre-computing the required exponentiations can however lower the encryption duration to order similar to AES-CTR. Finally, we can make use of the threshold encryption scheme based on EG to restrict the cipher decryption at the participation of all mixes.
+Another way to make the eviction process is using AES-CBC encryption as following...\todo{}
+
+\todo{tagging scheme fig}
 
 \section{Mix-ORAM}\label{Mix-ORAM}
 After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
@@ -305,9 +309,8 @@ We now consider the mix-net as a collection of isolated mixes. When performing a
 The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds.
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds.\\
 
-As the permutation are done on a subset of elements, we cannot swap the encryption and decryption like in Section~\ref{SMO}. After the unwrapping, the database is now, and for every eviction, in a same ordering and encrypted only by the user's key. An adversary could use this invariant and observe changes in the encryption to guess which records were truly accessed (dummies can also be accessed) and discover, with a-priori knowledge, the matching between ciphers and plaintexts. 
-If the mixes do not collude with the database server, we could easily prevent this attack by taking advantage of AES-CTR commutativity and make the database server encrypt the records at the beginning of the eviction process and decrypt them at its end. 
-If the database server were to collude, we need the ORAM access method to be changed such that the user refresh all records. An example of which is discussed in Section~\ref{AccessMethod}.
+After the unwrapping, the database is now, and for every eviction, in a same ordering and encrypted only by the user's key. An adversary could use this invariant and observe changes in the encryption to guess which records were truly accessed (dummies can also be accessed) and discover, with a-priori knowledge, the matching between ciphers and plaintexts. 
+We use the same tagging process with El-Gamal threshold scheme to alleviate such problem.\todo{}\\
 To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.\\
 
 \begin{figure}
@@ -551,6 +554,8 @@ For 128-bit security, group elements can be expressed in just 32 bytes, we have 
 \subsection{Implementation and Benchmark}\label{Implementation}
 \subsection{Performances}\label{Performance}
 \subsection{Comparison}\label{Comparison}
+Comparison of CBC and tagging
+
 
 \section{Discussion}\label{Discussion}
 
