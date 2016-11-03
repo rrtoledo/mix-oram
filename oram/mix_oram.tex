@@ -58,17 +58,17 @@ We present in this paper an ORAM eviction relying on amortizable shuffle and mix
 %
 \section{Introduction}\label{Introduction}
 %
-Cloud technologies provide a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to guarantee the users that the data is protected, not only from external adversaries but also from itself, and doing so for reasonable costs. 
-Cryptographic functions are thus used among other things to create secure communication channels, to authenticate users, and to encrypt and check the data integrity.
+The cloud provides a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to guarantee the users that the data is protected, not only from external adversaries but also from itself, and doing so for reasonable costs. 
+Cryptographic functions are thus used to create secure communication channels, to authenticate users, and to encrypt and check the data integrity.
 These solutions however do not prevent the leakage of some information and its interception. One can for instance count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge, for instance the file size distribution, the file access frequency distribution, etc. .
 
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. In these designs, the access methods are made independent of the input, the sought records, to hide the access pattern. The data-blocks are also periodically randomized to mitigate the information leakage due to data retrieving.
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. In these designs, the access method is made independent of the input, the sought records, to hide the access pattern. The data-blocks are also periodically randomized to mitigate the information leakage due to data retrieving.
 If improvements have been made on the data retrieval costs thanks to structural change in the data representation, considering trees~\cite{stefanov2013path} or rings~\cite{ren2014ring}, and the shuffling algorithm, in particular with the introduction of dummies ~\cite{ohrimenko2014melbourne}, the eviction problem however still remain a challenge as the whole database has to be re-encrypted and sorted again frequently. The database is consequently unavailable for long periods of time during which the user processes heavy computing.
 In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where the eviction algorithm was delegated thanks to the use of several semi-trusted clouds. De Capitani di Vimercati in 2015~\cite{dithree} used dynamic distributed data allocation on three servers.
 However, the practicality of owning, managing and storing data on more than one server was not discussed in these papers.
 
 We propose here the use of an independent mix-net to execute the eviction algorithm without relying on any specific ORAM server design.
-Mixing networks is a solution widely applied in Anonymity system to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted and shuffled by each mix such that the output of one mix is the next one’s input.
+Mixing networks is a solution widely applied in Anonymity System to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted and shuffled by each mix such that the output of one mix is the next ones' input.
 For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using mix-net, methods to amortize the shuffle have to be taken into account to make ORAM practical.
 
@@ -76,9 +76,9 @@ In this work, we focus on the eviction algorithm. We present a new security defi
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
- \item We present the first ORAM eviction relying on a mix-net (\raphael{and mixformat?}).
+ \item We present the first ORAM eviction relying on a mix-net.
  \item We give a new security definition of ORAM's eviction. %indistiguishability between accessed and unretrieved elements
- \item We present an amortizable shuffle.
+ \item We present an oblivious amortizable shuffle.
 \end{itemize}
 
 
@@ -87,6 +87,7 @@ We finally evaluate our schemes with standard ORAM model and discuss about the a
 %
 \section{Preliminaries}\label{Prelim}
 %
+\subsection{Related Work}\label{Related}
 \noindent\textbf{ORAM.}
 ORAM technologies were first presented by Goldreich and Ostrovsky in 1990~\cite{ostrovsky1990efficient} to prevent reverse engineering and protect softwares thanks to shielded CPU.
 Since then, several types of enhancement have been proposed including data structures~\cite{goldreich1996software,stefanov2011towards,stefanov2013path,ren2014ring} with trees, partitions and hierarchichal solutions,
@@ -104,6 +105,9 @@ Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient vari
 \noindent\textbf{Mix-nets.}
 \todo{} Tor~\cite{dingledine2004tor}. 
 We present here a new type of mix-net as the messages come from the same source and that the mix-net client needs to store some information to remember the output ordering.
+
+Mix-nets were first presented for anonymous e-mailing by David Chaum in 1981~\cite{xxx}, as they became popular other applications such as Tor~\cite{dingledine2004tor} appeared. Mix-net's main goal is to give users some anonymity by hiding the correspondence between the users's packet and. To do so, 
+
 
 \subsection{Model}\label{Model}
 We consider on one side, an ORAM remote server, defined as follows, with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
@@ -159,20 +163,106 @@ We will call $C_{cmp}$ the computation cost derived from the eviction.
 %
 \subsection{Cryptographic Primitives}
 \noindent\textbf{PRG \& Seeds.}
-A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.
-ORAM designs frequently uses PRGs during the eviction algorithm to shuffle the array and store the mapping between indexes.
-In the case of classic client-server configuration, the client has stored the previous seeds and the new ones and has to permute obviously the records such that the new ordering is not revealed. This can be done easily thanks to the user storage: the user can download the whole database, sort it thanks to the indexes, re-encrypt it and upload it back.
-With the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.
-For the user to remember as little information as possible, we could find seed combinations resulting in a simple result. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation.
-That is why every eviction process will now be split in two phases, the unwrapping of the previous permutation and the wrapping to the next one.\\
+A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.\\
+ORAM designs frequently uses PRGs during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
+In the case of classic client-server configuration, the client just needs to retrieve the database, permute them locally according to a new seed and upload them back. Yet, with the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.\\
+To let the client remember as little information as possible, we could find seed combinations cancelling some of the permutations. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutations and the wrapping to the next ones each composed of $r$ rounds.\\\
+
+We will consider in this paper two different kinds of mix-nets. Cascade mix-nets consist of mixes positioned ones after the others in a fix order, with one entry and one exit. In the case of Parallel mix-nets, the mixes are positioned in parallel, and every mix is an entry and exit. The packets received by a mix are processed and then are distributed among all the mixes once again.
+
+\begin{figure}
+\centering
+\begin{minipage}[c]{0.475\textwidth}
+\vspace{0pt}
+\begin{adjustbox}{width=\textwidth}
+\centering 
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+
+\node[draw=none, fill=none]    		(X)   {};
+\node[draw, rectangle]   		(A)[right of=X]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_2$};
+\node[draw, rectangle]    		(C)[right of=B]   {\small $Mix_3$};
+\node[draw=none, fill=none]    		(Y)[right of=C]   {};
+
+\path
+(X.east) edge     	node{}    	(A.west)
+(A.east) edge     	node{}    	(B.west)
+(B.east) edge     	node{}    	(C.west)
+(C.east) edge     	node{}    	(Y.west);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{A Cascade mix-net} \label{fig:ASMO}
+\end{minipage}
+\hfill
+\begin{minipage}[T]{0.475\textwidth}
+\vspace{0pt}
+\centering 
+\begin{adjustbox}{width=\textwidth}
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+
+\node[draw=none, fill=none]    		(X)   {};
+\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_2$};
+\node[draw, rectangle]   		(A)[above of=B]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(C)[below of=B]   {\small $Mix_3$};
+\node[draw, rectangle]   		(A')[right of=A]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B')[right of=B]   {\small $Mix_2$};
+\node[draw, rectangle]    		(C')[right of=C]   {\small $Mix_3$};
+\node[draw, rectangle]   		(A'')[right of=A']   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B'')[right of=B']   {\small $Mix_2$};
+\node[draw, rectangle]    		(C'')[right of=C']   {\small $Mix_3$};
+\node[draw=none, fill=none]    		(Y)[right of=B'']   {};
+
+\path
+(X.east) edge     	node{}    	(A.west)
+(X.east) edge     	node{}    	(B.west)
+(X.east) edge     	node{}    	(C.west)
+(A.east) edge     	node{}    	(A'.west)
+(A.east) edge     	node{}    	(B'.west)
+(A.east) edge     	node{}    	(C'.west)
+(B.east) edge     	node{}    	(A'.west)
+(B.east) edge     	node{}    	(B'.west)
+(B.east) edge     	node{}    	(C'.west)
+(C.east) edge     	node{}    	(A'.west)
+(C.east) edge     	node{}    	(B'.west)
+(C.east) edge     	node{}    	(C'.west)
+(A'.east) edge     	node{}    	(A''.west)
+(A'.east) edge     	node{}    	(B''.west)
+(A'.east) edge     	node{}    	(C''.west)
+(B'.east) edge     	node{}    	(A''.west)
+(B'.east) edge     	node{}    	(B''.west)
+(B'.east) edge     	node{}    	(C''.west)
+(C'.east) edge     	node{}    	(A''.west)
+(C'.east) edge     	node{}    	(B''.west)
+(C'.east) edge     	node{}    	(C''.west)
+(A''.east) edge     	node{}    	(Y.west)
+(B''.east) edge     	node{}    	(Y.west)
+(C''.east) edge     	node{}    	(Y.west);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{A Parallel Mixnet} \label{fig:ASMO}
+\end{minipage}
+\end{figure} 
+%
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records. Every record that is fetched must be re-encrypted before uploading it back to the database, 
 which implies encryption cost of the order of $\mathcal{O} \left ( n \right )$ for the eviction process and of variable orders, usually between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$, for the sole access.\\
 Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700MB/s per thread on recent CPUs such as the Intel Core i3 or the AMD's models APU and FX which makes it the ideal choice for ORAM block encryption.
-Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative. AES-CTR can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption layer such that the plain text is never revealed. However, as AES-CTR relies on the plaintext ordering, the practicality of its commutativity is greatly lessened. \\
-\todo{invariant ordering between the two, we need encryption to hide stuff. Tagging...} such as El-Gamal Encryption (EG)... . Pre-computing the required exponentiations can however lower the encryption duration to order similar to AES-CTR. Finally, we can make use of the threshold encryption scheme based on EG to restrict the cipher decryption at the participation of all mixes.
-Another way to make the eviction process is using AES-CBC encryption as following...\todo{}
+Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative. AES-CTR can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption layer such that the plain text is never revealed. However, as it relies on the plaintext ordering, the practicality of its commutativity is greatly lessened. \\
+AES in CBC mode is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one, and offers speed of similar order to that of CTR.\\ 
+El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete log hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.\\\
+
+We will consider in this paper two ways to re-encrypt the database, independently of the mix-net structure. \\
+The first way is to decrypt the previous encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering changes and we cannot encrypt before deciphering the old layers. Futhermore, after the unwrapping -and the deciphering- is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive eviction can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we double the number of unwrapping and wrappings and at the middle of each phase we blind, and respectively unblind, the records as following.
+When the first unwrapping is done, the mix(es), besides encrypting the records with AES-CTR and permuting, tag each record with a unique id. The records are then sent in the mix-net organized in cascade where they are locally blinded with blinds generated from the records' tag and mix secrets. After passing through every mix and returning to the original one, the tag is encrypted with El Gamal encryption and the unwrapping resumes. Until the first wrapping ends, the tags' encryption is refreshed thanks to El Gamal additive homomorphism property by adding $E_{EG}(0)$ to the tags. To unblind the records, the mixes broadcast their EG secret share, to reconstruct the EG secret key and decipher the tag, and the records are sent through the mix-net in cascade again so that each mix unblind locally the records. The uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
+The user when retrieving a record will simply have to decipher the $2*r$ recent AES-CTR layers.\\
+The second way to re-encrypt the database consists in keeping encrypting the records with a variant of AES-CBC. The mixnet append to each record a token to generate an IV. The records are encrypted at each round with AES-CBC independently of each other thanks to these unique IVs. Before transfering the records to the next mix, the IV tokens are also encrypted with AES-CBC with an IV generated from the corresponding cipher.
+The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial \& error fashion : the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process. There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathbb{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, in this case we advise to change the access method: when a user access a record, he fetches $d$ other records, reencrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, the total deciphering duration is closed to constant so the timing attack mitigated. If the $d$ parameter is not high enough, the client only has to wait the maximum decryption time before rewriting the records.
+
 
 \todo{tagging scheme fig}
 
