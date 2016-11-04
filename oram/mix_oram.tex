@@ -12,7 +12,7 @@
 \usepackage[justification=centering]{subcaption}
 \captionsetup{compatibility=false}
 \usepackage{tikz}
-\usetikzlibrary{shapes}
+\usetikzlibrary{shapes, positioning}
 \usepackage{adjustbox}
 \usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
 
@@ -103,10 +103,8 @@ The Zig Zag sort~\cite{goodrich2014zig}, presented in 2014, is the deterministic
 Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of the bucket sort Algorithm relying on temporary arrays and dummies to hide the item redistribution.\\
 
 \noindent\textbf{Mix-nets.}
-\todo{} Tor~\cite{dingledine2004tor}. 
-We present here a new type of mix-net as the messages come from the same source and that the mix-net client needs to store some information to remember the output ordering.
-
-Mix-nets were first presented for anonymous e-mailing by David Chaum in 1981~\cite{xxx}, as they became popular other applications such as Tor~\cite{dingledine2004tor} appeared. Mix-net's main goal is to give users some anonymity by hiding the correspondence between the users's packet and. To do so, 
+Mix-nets were first presented for anonymous e-mailing by David Chaum in 1981~\cite{xxx}. As they became popular other applications such as Tor~\cite{dingledine2004tor} appeared. Mix-net's main goal is to give users some anonymity by hiding the correspondence between the incoming users' packets and the mix-nets output. To do so, the users' packets go through several mixes which permute them and refresh their encryption. Reencryption and onion encryption can both be used.
+In this work, we use a mix-net for its encryption and permutation functionalities. However, it accepts messages from a single user at a time. We do not seek anonymity, only packet unlinkability.
 
 
 \subsection{Model}\label{Model}
@@ -136,28 +134,32 @@ The remote server can additionally includes a small memory of capacity $\mathcal
 \subsection{Threat model and Security definition}\label{Threat}
 
 The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
-The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plaintext for further purposes such as selective data corruption or monitoring. We consider here the adversary immediate goal as recognizing whether a record was accessed or not. 
+The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plaintext. We consider here the adversary immediate goal as recognizing whether a record was accessed or not. 
 
 We assume that all communication between the different parties (user, ORAM server and mixes) may be intercepted as in the \textit{global passive adversary} assumption however only message timing, volume and size from honest parties can be known thanks to packet encryption.
 In addition, we assume the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve his goal.
 We will assume that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded until the Discussion section (c.f. Sec.~\ref{Discussion}) where we will examine packet injection, dropping and delaying.
 
-This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We thus presents a security game... \todo{} 
+This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We say a scheme is oblivious if it complies to the definition~\ref{deg:Oblivious} and evaluate it through the security game~\ref{def:Fame}.
 
+\begin{privdef}
+An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been accessed.\\
+That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have, $$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
+\label{def:Oblivious}
+\end{privdef}
+%
+\begin{privdef}
+An adversary gives to the user two same size ORAM query sequences $\text{seq}_k$ and $\text{seq}_k'$. The user chooses randomly one of the two, executes it and start the eviction. At the end of the eviction the adversary picks which ORAM query sequence was chosen. The adversary wins if he chose the right sequence with probability higher than $\Pr = \frac{1}{2}+\epsilon$, with $\epsilon<<\frac{1}{2}$.
+\label{def:Game}
+\end{privdef} 
+%
 \iffalse
 %% If comparision between initial thought and what is needed
 \begin{privdef}{Eviction Old Security.}
 An ORAM eviction process is considered secure if an adversary cannot distinguish after eviction the location of any specific record. 
 \end{privdef}
 \fi
-
-\begin{privdef}
-An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been accessed.\\
-That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have,
-$$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
-\end{privdef}
 %
-
 \noindent\textbf{Costs.} We denote the communication costs by $C_{com,o}$ for the number of \emph{bits} sent by the ORAM, $C_{com,c}$ by the client, and by $C_{com,m}$ sent by the mixes. 
 We will call $C_{cmp}$ the computation cost derived from the eviction.
 %
@@ -166,8 +168,7 @@ We will call $C_{cmp}$ the computation cost derived from the eviction.
 A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.\\
 ORAM designs frequently uses PRGs during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
 In the case of classic client-server configuration, the client just needs to retrieve the database, permute them locally according to a new seed and upload them back. Yet, with the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.\\
-To let the client remember as little information as possible, we could find seed combinations cancelling some of the permutations. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutations and the wrapping to the next ones each composed of $r$ rounds.\\\
-
+To let the client remember as little information as possible, we could find seed combinations cancelling some of the permutations. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutations and the wrapping to the next ones, of $r$ rounds each.\\
 We will consider in this paper two different kinds of mix-nets. Cascade mix-nets consist of mixes positioned ones after the others in a fix order, with one entry and one exit. In the case of Parallel mix-nets, the mixes are positioned in parallel, and every mix is an entry and exit. The packets received by a mix are processed and then are distributed among all the mixes once again.
 
 \begin{figure}
@@ -249,74 +250,51 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 %
 
 \noindent\textbf{Encryption.}
-ORAM designs heavily rely on encryption mechanism to obfuscate the database records. Every record that is fetched must be re-encrypted before uploading it back to the database, 
-which implies encryption cost of the order of $\mathcal{O} \left ( n \right )$ for the eviction process and of variable orders, usually between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$, for the sole access.\\
-Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700MB/s per thread on recent CPUs such as the Intel Core i3 or the AMD's models APU and FX which makes it the ideal choice for ORAM block encryption.
-Furthermore, AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative. AES-CTR can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption layer such that the plain text is never revealed. However, as it relies on the plaintext ordering, the practicality of its commutativity is greatly lessened. \\
-AES in CBC mode is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one, and offers speed of similar order to that of CTR.\\ 
-El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete log hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.\\\
+ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes, which implies computation cost of the order of $\mathcal{O} \left ( n \right )$ and between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$ usually.\\\
+Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3 which makes it the ideal choice for ORAM block encryption.\\
+AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one. 
+AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative, and can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption such that the plaintext is never revealed.\\
+El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete log hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.\\
 
-We will consider in this paper two ways to re-encrypt the database, independently of the mix-net structure. \\
-The first way is to decrypt the previous encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering changes and we cannot encrypt before deciphering the old layers. Futhermore, after the unwrapping -and the deciphering- is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive eviction can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we double the number of unwrapping and wrappings and at the middle of each phase we blind, and respectively unblind, the records as following.
-When the first unwrapping is done, the mix(es), besides encrypting the records with AES-CTR and permuting, tag each record with a unique id. The records are then sent in the mix-net organized in cascade where they are locally blinded with blinds generated from the records' tag and mix secrets. After passing through every mix and returning to the original one, the tag is encrypted with El Gamal encryption and the unwrapping resumes. Until the first wrapping ends, the tags' encryption is refreshed thanks to El Gamal additive homomorphism property by adding $E_{EG}(0)$ to the tags. To unblind the records, the mixes broadcast their EG secret share, to reconstruct the EG secret key and decipher the tag, and the records are sent through the mix-net in cascade again so that each mix unblind locally the records. The uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
-The user when retrieving a record will simply have to decipher the $2*r$ recent AES-CTR layers.\\
-The second way to re-encrypt the database consists in keeping encrypting the records with a variant of AES-CBC. The mixnet append to each record a token to generate an IV. The records are encrypted at each round with AES-CBC independently of each other thanks to these unique IVs. Before transfering the records to the next mix, the IV tokens are also encrypted with AES-CBC with an IV generated from the corresponding cipher.
-The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial \& error fashion : the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process. There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathbb{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, in this case we advise to change the access method: when a user access a record, he fetches $d$ other records, reencrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated. If the $d$ parameter is not high enough, the client only has to wait the maximum decryption time before rewriting the records.
+We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture, one keeping the number of encryption done by the user constant while the other not.\\
+The first case consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we double the number of phases and add a blinding phase between the two unwrapping ($U_1,\ U_2$) and wrapping ($W_2,\ W_1$) as depicted in Fig~\ref{fig:AES}.\\
+During the first blinding phase ($bind$), the mix(es), besides decrypting ($D_2$) the records with AES-CTR, tag each record with a unique id. The records are then sent in the mix-net organized in cascade where they are locally xored with blinds generated from the records' tag and mix secrets ($B$). After returning to the original mix, the tag is encrypted with El Gamal encryption and the unwrapping ($U_1$) resumes. Until the first wrapping ends, the tags' encryption is refreshed ($R$) thanks to El Gamal additive homomorphism property. To unblind the records, the mixes broadcast their EG secret share to reconstruct the EG secret key and decipher the tag. The records are then sent again through the mix-net in cascade so that each mix unblind them locally ($blind$).\\
+The uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
+The user when retrieving a record will simply have to decipher the $2*r$ recent AES-CTR layers.
 
-
-\begin{figure}
+\begin{figure}[h]
 \centering
-\vspace{0pt}
 \begin{adjustbox}{width=\textwidth}
 \centering 
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\begin{tikzpicture}[->, auto, semithick,  node distance = 6em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
-\node[draw, cylinder, shape border rotate=90,minimum height=10ex,minimum width=3ex]    	(X)				  {};
-\node[draw, rectangle]   		(A)[right of=X]   {\small $U_1, D_1$};
-\node[draw, rectangle]    		(0)[right of=A]   {\small $U', B$};
-\node[draw, rectangle]    		(B)[right of=0]   {\small $U_2, D_2$};
-\node[draw, rectangle]    		(C)[right of=B]   {\small $W_1, E_1$};
-\node[draw, rectangle]    		(1)[right of=C]   {\small $W', B$};
-\node[draw, rectangle]    		(D)[right of=1]   {\small $W_2, E_2$};
-\node[draw, cylinder, shape border rotate=90,minimum height=10ex,minimum width=3ex]    	(Y)[right of=D]				  {};
+\node[draw=none, fill=none]    	(X)				  {};
+\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $\mathbf{U_2}$\\$D_3$};
+\node[draw, rectangle, align=center]    		(0)[right of=A]   {\small \textbf{blind} \\ $D_2,\ B$};
+\node[draw, rectangle, align=center]    		(B)[right of=0]   {\small $\mathbf{U_1}$\\$D_1,\ R$};
+\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{W_1}$\\$E_1',\ R$};
+\node[draw, rectangle, align=center]    		(1)[right of=C]   {\small \textbf{blind}\\ $E_2',\ B$};
+\node[draw, rectangle, align=center]    		(D)[right of=1]   {\small $\mathbf{W_2}$\\$E_3'$};
+\node[draw=none,fill=none]    	(Y)[right of=D]	  {};
 
 \path
-(X.east) edge     	node{}    	(A.west)
-(A.east) edge     	node{}    	(0.west)
-(0.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(C.west)
-(C.east) edge     	node{}    	(1.west)
-(1.east) edge     	node{}    	(D.west)
-(D.east) edge     	node{}    	(Y.west);
+(X.east) edge     	node{\small $ E_{3}E_{2}E_{1}$}    	(A.west)
+(A.east) edge     	node{\small $ E_{2}E_{1}$}    	(0.west)
+(0.east) edge     	node{\small $B E_{1}$}    	(B.west)
+(B.east) edge     	node{\small $ B$}    	(C.west)
+(C.east) edge     	node{\small $E_{1}B$}    	(1.west)
+(1.east) edge     	node{\small $ E_{2}E_{1}$}    	(D.west)
+(D.east) edge     	node{\small $ E_{3}'E_{2}'E_{1}'$}    	(Y.west);
 
 \end{tikzpicture}
 \end{adjustbox}
-\caption{AES-CTR} \label{fig:ASMO}
+\caption{AES-CTR} \label{fig:AES}
 \end{figure}
-
-\begin{figure}
-\vspace{0pt}
-\centering 
-\begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw, cylinder, shape border rotate=90,minimum height=10ex,minimum width=3ex]    	(X)				  {};
-\node[draw, rectangle]   		(A)[right of=X]   {\small $U, E$};
-\node[draw, rectangle]    		(B)[right of=A]   {\small $W, E$};
-\node[draw, cylinder, shape border rotate=90,minimum height=10ex,minimum width=3ex]    	(Y)[right of=B]				  {};
-
-\path
-(X.east) edge     	node{}    	(A.west)
-(A.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(Y.west);
-
-\end{tikzpicture}
-\end{adjustbox}
-\caption{CBC} \label{fig:ASMO}
-\end{figure} 
 %
+The second way to re-encrypt the database consists in keeping encrypting the records with a variant of AES-CBC. The mixnet append to each record a token to generate an IV. The records are encrypted at each round with AES-CBC non-sequentially thanks to these unique IVs. Before transfering the records to the next mix(es), the IV tokens are also encrypted with AES-CBC with an IV generated from the corresponding cipher.
+The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial error fashion: the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process. \\
+There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, in this case we advise to change the access method: when a user access a record, he fetches $d$ other records, re-encrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated. If the $d$ parameter is not high enough, the client only has to wait the maximum decryption time before rewriting the records.
 
 \section{Mix-ORAM}\label{Mix-ORAM}
 After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
@@ -345,38 +323,80 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 \node[draw, rectangle]   		(A)[right of=0]   {\small $Mix_{1}$};
 \node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
 \node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_m$};
-\node[draw, rectangle, minimum height=10ex]    		(T)[right of=B]   {\small $tag$};
-\node[draw, rectangle]    		(B')[right of=T]   {\small $Mix_m$};
-\node[draw=none, fill=none]    		(X')[right of=B']   {\small $...$};
-\node[draw, rectangle]   		(A')[right of=X']   {\small $Mix_{1}$};
 
 \path
-([yshift=1ex]0.east) edge     	node{\small $DB_{k_{i=1..m}}^{S_j=1..m}$}    	([yshift=1ex]A.west)
-([yshift=-1ex]A.west) edge     	node{\small $DB_{k'_{i=1..m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
+([yshift=1ex]0.east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_j=1..m}$}    	([yshift=1ex]A.west)
+([yshift=-1ex]A.west) edge     	node{\small $DB_{k'_{i=1..4m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
 
-([yshift=1ex]A.east) edge     	node{\small $k_1,S_1^{-1}$}    	([yshift=1ex]X.west)
-([yshift=-1ex]X.west) edge     	node{\small $k_2',S_2'$}    	([yshift=-1ex]A.east)
+([yshift=1ex]A.east) edge     	node{\small $k_{2m+1},S_1^{-1}$}    	([yshift=1ex]X.west)
+([yshift=-1ex]X.west) edge     	node{\small $k_{4m}',S_2'$}    	([yshift=-1ex]A.east)
 
-([yshift=1ex]X.east) edge     	node{\small $k_{m-1},S_{m-1}^{-1}$}    	([yshift=1ex]B.west)
-([yshift=-1ex]B.west) edge     	node{\small $k_{m}',S_{m}'$}    	([yshift=-1ex]X.east)
+([yshift=1ex]X.east) edge     	node{\small $k_{3m-1},S_{m-1}^{-1}$}    	([yshift=1ex]B.west)
+([yshift=-1ex]B.west) edge     	node{\small $k_{3m+1}',S_{m}'$}    	([yshift=-1ex]X.east)
 
-([yshift=1ex]B.east) edge     	node{}    	([yshift=1ex]T.west)
-([yshift=-1ex]T.west) edge     	node{\small $k_{m}',S_{m}'$}    	([yshift=-1ex]B.east)
-
-([yshift=1ex]T.east) edge     	node{\small $k_{m},S_{m}^{-1}$}    	([yshift=1ex]B'.west)
-([yshift=-1ex]B'.west) edge     	node{}    	([yshift=-1ex]T.east)
-
-([yshift=1ex]B'.east) edge     	node{\small $k_{m+1},S_{m+1}^{-1}$}    	([yshift=1ex]X'.west)
-([yshift=-1ex]X'.west) edge     	node{\small $k_{m+1}',S_{m+1}'$}    	([yshift=-1ex]B'.east)
-
-([yshift=1ex]X'.east) edge     	node{\small $k_{2m-1},S_{2m-1}^{-1}$}    	([yshift=1ex]A'.west)
-([yshift=-1ex]A'.west) edge     	node{\small $k_{2m}',S_{2m}'$}    	([yshift=-1ex]X'.east)
-
-(A')    edge[loop right, dashed]    node{\small $k_{2m},S_{2m}^{-1}$} (A');
+(B)    edge[loop right, dashed]    node{\small $k_{3m},S_{2m}^{-1}$} (B);
 
 \end{tikzpicture}
 \end{adjustbox}
-\caption{A simple Mix-ORAM} \label{fig:ASMO}
+\caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO}
+\end{figure} 
+
+\begin{figure}
+\centering
+\begin{tikzpicture}[->, auto, semithick, node distance = 8em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+
+
+\node[draw, cylinder, shape border rotate=90,minimum height=3cm,minimum width=1cm, anchor=west]    	(0)				  {};	
+\node[draw, rectangle]   		(A)[right =of 0.north, anchor = north]   {\small $Mix_{1}$};
+\node[draw=none, fill=none] (a)[right of=0]{};
+\node[draw, rectangle]   		(A')[right=of 0.south, anchor = south]   {\small $Mix_{1}$};
+
+\node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
+\node[draw=none, fill=none]    		(x)[right of=a]   {};
+\node[draw=none, fill=none]    		(X')[right of=A']   {\small $...$};
+
+\node[draw, rectangle]    		(B)[right of= X]   {\small $Mix_m$};
+\node[draw=none, fill=none]    		(b)[right of=x]   {};
+\node[draw, rectangle]    		(B')[right of= X']   {\small $Mix_m$};
+
+\node[draw, rectangle, minimum height=3cm]    		(T)[right =of b]   {\small $tag$};
+
+\path 
+([yshift=0.975cm]0.north east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_j=1..2m}$}    	([yshift=1ex]A.west)
+
+([yshift=1ex]A.east) edge node{$k_{2m},\ S_{2m}^{-1}$}    	([yshift=1ex]X.west)
+
+([yshift=1ex]X.east) edge node{$k_{m+1},\ S_{m+1}^{-1}$}    	([yshift=1ex]B.west)
+
+([yshift=1ex]B.east) edge node{$k_{m},\ S_{m}^{-1}$}     (T.north west)
+
+([yshift=-2ex]T.north west) edge    node{}  ([yshift=-1ex]B.east)
+
+([yshift=-1ex]B.west) edge    node{$k_{m-1},\ S_{m-1}^{-1}$}  ([yshift=-1ex]X.east)
+
+([yshift=-1ex]X.west) edge    node{$k_{2},\ S_{2}^{-1}$}  ([yshift=-1ex]A.east)
+
+([yshift=-1ex]A.west) edge[bend right] node{$k_{1},\ S_{1}^{-1}$} ([yshift=1ex]A'.west)
+
+
+([yshift=1ex]A'.east) edge node{$k_{1}',\ S_{1}'$}    	([yshift=1ex]X'.west)
+
+([yshift=1ex]X'.east) edge node{$k_{m-1}',\ S_{m-1}'$}    	([yshift=1ex]B'.west)
+
+([yshift=1ex]B'.east) edge node{}     ([yshift=3.5ex]T.south west)
+
+([yshift=1.5ex]T.south west) edge    node{$k_{m}',\ S_{m}'$}  ([yshift=-1ex]B'.east)
+
+([yshift=-1ex]B'.west) edge    node{$k_{m+1}',\ S_{m+1}'$}  ([yshift=-1ex]X'.east)
+
+([yshift=-1ex]X'.west) edge    node{$k_{2m-1}',\ S_{2m-1}'$}  ([yshift=-1ex]A'.east)
+
+([yshift=-1ex]A'.west) edge node{\small $DB_{k_{i=1..2m}'}^{S_{j=1..2m}'}$} ([yshift=-0.8cm]0.south east);
+
+
+\end{tikzpicture}
+\caption{A simple Mix-ORAM: AES-CTR} \label{fig:ASMO}
 \end{figure} 
 %
 
