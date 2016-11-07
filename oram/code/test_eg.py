@@ -9,12 +9,12 @@ import pytest
 
 class ECCEG():
 
-	def __init__(self, nid=713 ):
-		self.group = self.params_gen(nid)
+	def __init__(self, group, prv, pub):
+		self.group = group # self.params_gen(nid)
 		self.table = self.make_table()
-		keys = self.key_gen()
-		self.pub=keys[0]
-		self.priv= keys[1]
+		#keys = self.key_gen()
+		self.pub=pub
+		self.priv=prv
 
 	def params_gen(self, nid):
 		"""Generates the AHEG for an EC group nid"""

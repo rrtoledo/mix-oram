@@ -1,0 +1,28 @@
+starting
+262144 4096 3 19.0 1000
+
+init started
+  calculating values
+init finished
+aes ctr time: 6.80387020111e-05
+aes cbc enc time: 3.60200405121e-05
+aes cbc dec time: 5.60309886932e-05
+eg enc time: 0.00263748311996
+eg rand time: 0.00264148497581
+eg rand pre comp time: 1.60074234009e-05
+eg dec time: 0.00140479063988
+
+total encryption 9243.50366667s
+total decryption 368.2574375s
+total crypt 9611.76110417s
+DAYS:HOURS:MIN:SEC
+0:2:40:11
+
+total crypt with precomp 893.887395833s
+DAYS:HOURS:MIN:SEC
+0:0:14:53
+
+total crypt only AES 487.513765275s
+DAYS:HOURS:MIN:SEC
+0:0:8:7
+
