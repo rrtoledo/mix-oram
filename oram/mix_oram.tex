@@ -292,7 +292,23 @@ The user when retrieving a record will simply have to decipher the $2*r$ recent 
 %
 The second way to re-encrypt the database consists in keeping encrypting the records with AES-CBC. Before uploading the records to the cloud, the user append to them a token to generate an IV. The records are then encrypted by the mixes with AES-CBC non-sequentially thanks to these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also encrypted with AES-CBC with an IV generated from the corresponding cipher.
 The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial error fashion: the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process.\\
-There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, we advise to change the access method: when a user access a record, he fetches $d$ other records, re-encrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated. The client can also to wait the maximum decryption time before rewriting the records.
+There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, we advise to change the access method: when a user access a record, he fetches $d$ other records, re-encrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated. The client can also to wait the maximum decryption time before rewriting the records.\\
+\noindent\textit{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
+These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
+%
+\begin{secthm}
+In the case of a uniform distribution access we have an average number 0 of fake access for $s<<n$.
+\end{secthm}
+%
+However it is well known that the frequency access of records is not uniform, in that case we can count a strictly positive number of fake accesses.
+\begin{secthm}
+Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
+The average number of fake access is $ \frac{v0}{v1}$.
+\begin{proof}
+ The volume under such line represents the number of real accesses a user does while the volume above it represents accesses in the stash which leads to fake accesses.
+ When the number of accesses is great, the access frequency approaches the average number of accesses.
+\end{proof}
+\end{secthm}
 
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
@@ -562,8 +578,12 @@ The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,
 \noindent\textbf{Using AES-CTR.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. At the middle of the wrapping and unwrapping phases, we add a blinding phase where the mix generate and append, or remove, tags to each block. The tags are encrypted, decrypted and refreshed as said in Section~\ref{Arch}.\\
-To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.\\
+\iffalse
+To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
+\fi
+\\
 
+\iffalse
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
 \vspace{0pt}
@@ -709,6 +729,7 @@ $i \gets 0$;\\
 \end{algorithm}
 \end{minipage}
 \end{figure}
+\fi
 
 \noindent\textbf{Message Format.}
 The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
@@ -766,31 +787,6 @@ We could ask the mixes to process only a fraction of rounds $r \approx \frac{n}{
 In the worst case scenario where an adversary $\mathcal{A}$ controls all but one mixes, the probability  $\mathcal{A}$ knows where a record is at the end of the eviction is $\delta= \Pr \left ( \mathcal{A} \text{ knows a record index}\right ) = \left ( 1 - \frac{1}{m} \right )^r$ where is $r$ the number of rounds.
 
 To prevent such case, we can make each mix permute every allocated sections of the database and then begins the Oblivious Merge. We would thus add $2 \cdot m^2$ permutations for the whole eviction....
-
-\subsection{Lowering the eviction costs through the access method}\label{AccessMethod}
-
-\noindent\textbf{Changing the access method.}The client, to lower the eviction costs, could instead of fetching only the requested record query retrieve $k-1$ other dummy records and permuting all of them before updating them back to the ORAM (not the shelter).
-Doing so, we can progress further towards the uniform distribution before the eviction process, measure the distance between the two distributions and reduce the database shuffling cost by having the mix-net performing cheaper and weaker permutations. We would furthermore hide the accessed records in the unwrapping phase in the parallel Mix ORAM ( Section~\ref{parallelMixORAM}). Finally, requesting more records, and doing so on different servers, can help in hiding the access pattern as discussed in~\cite{toledo2016lower}.\\
-
-\noindent\textbf{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks: an adversary having observed the record access frequency beforehand and knowing the average access per day would be able to guess which records are in the stash by not observing accesses which should happen.
-These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
-%
-\begin{secthm}
-In the case of a uniform distribution access we have an average number 0 of fake access for $s<<n$.
-\end{secthm}
-%
-However it is well known that the frequency access of records is not uniform, in that case we can count a strictly positive number of fake accesses.
-\begin{secthm}
-Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
-The average number of fake access is $ \frac{v0}{v1}$.
-\begin{proof}
- The volume under such line represents the number of real accesses a user does while the volume above it represents accesses in the stash which leads to fake accesses.
- When the number of accesses is great, the access frequency approaches the average number of accesses.
-\end{proof}
-\end{secthm}
-
-\noindent\textbf{Delaying the eviction.} When querying an item, in the Square Root solution, the user writes in the stash the retrieved record and put at its location in the database a dummy. Instead of writing dummies in the database, the client could write records from the stash and put at their location dummies. In that case, the size of the stash doesn't increase and we can delay even more the eviction process.
-
 
 \section{Acknowledgement}
 Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
