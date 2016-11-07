@@ -34,7 +34,7 @@
 
 \begin{document}
 
-\title{Mix-ORAM,\\ Towards a delegated shuffle}
+\title{Mix-ORAM: Towards a delegated shuffle}
 %
 \titlerunning{Mix-ORAM}  % abbreviated title (for running head)
 %                                     also used for the TOC unless
@@ -51,28 +51,24 @@
 \maketitle              % typeset the title of the contribution
 
 \begin{abstract}
-Oblivious RAM systems suffer of impracticality, notably due to the cost of the randomization process in the eviction phase.
-We present in this paper an ORAM eviction relying on amortizable shuffle and mix-net technologies to make it more usable.
-\keywords{privacy, mixnet, ORAM}
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.
+\keywords{privacy, mix-net, ORAM}
 \end{abstract}
 %
 \section{Introduction}\label{Introduction}
 %
-The cloud provides a range of services using remote servers, including website hosting, computation, and data storage. One of the main issues for the storage providers is to guarantee the users that the data is protected, not only from external adversaries but also from itself, and doing so for reasonable costs. 
-Cryptographic functions are thus used to create secure communication channels, to authenticate users, and to encrypt and check the data integrity.
-These solutions however do not prevent the leakage of some information and its interception. One can for instance count the number of packets exchanged by two parties, even when using anonymity systems \cite{murdoch2005}, and guess which file was accessed thanks to a-priori knowledge, for instance the file size distribution, the file access frequency distribution, etc. .
+The cloud provides a range of services using remote servers, including website hosting, computation, and data storage. In the last case, data integrity must be preserved and the content hidden not only from external adversaries but also from the cloud itself.
+Cryptography is thereby used for secure communication channels, user authentication, data encryption and integrity checking.
+These, however, do not prevent the leakage of meta data. The storage server owner can for instance watch which records were fetched and deduce from it the data content and the user activities. 
 
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, are key technologies to answer such problem. In these designs, the access method is made independent of the input, the sought records, to hide the access pattern. The data-blocks are also periodically randomized to mitigate the information leakage due to data retrieving.
-If improvements have been made on the data retrieval costs thanks to structural change in the data representation, considering trees~\cite{stefanov2013path} or rings~\cite{ren2014ring}, and the shuffling algorithm, in particular with the introduction of dummies ~\cite{ohrimenko2014melbourne}, the eviction problem however still remain a challenge as the whole database has to be re-encrypted and sorted again frequently. The database is consequently unavailable for long periods of time during which the user processes heavy computing.
-In 2013, Stefanov and Shi~\cite{stefanov2013} proposed a multi-cloud oblivious storage where the eviction algorithm was delegated thanks to the use of several semi-trusted clouds. De Capitani di Vimercati in 2015~\cite{dithree} used dynamic distributed data allocation on three servers.
-However, the practicality of owning, managing and storing data on more than one server was not discussed in these papers.
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the real record access, and do so by creating virtual indices and frequently randomizing the data blocks. In these schemes, the remote records are permuted in a certain order, and the matching between remote and local indices is saved locally. When the user requests a particular record, the local client  computes its remote index and fetch the corresponding block. After a number of accesses, the database is then rerandomized, that is to say reencrypted and sorted in a different order, during the eviction process. 
 
-We propose here the use of an independent mix-net to execute the eviction algorithm without relying on any specific ORAM server design.
-Mixing networks is a solution widely applied in Anonymity System to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted and shuffled by each mix such that the output of one mix is the next ones' input.
+We argue that the very eviction process is one if not the main bottleneck of ORAM. Indeed, during the rerandomization, every record must be reencrypted and permuted, whereas the client memory may be greatly lesser than the cloud. That is why, we propose here to delegate the eviction to a semi trusted third party without relying on any specific ORAM server design.
+Mix networks is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted, or decrypted, and shuffled by each mix such that the output of one mix is the next ones' input.
 For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using mix-net, methods to amortize the shuffle have to be taken into account to make ORAM practical.
 
-In this work, we focus on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction to untrusted third parties.
+In this work, we would present full designs on the eviction algorithm. We present a new security definition for the oblivious sorting algorithm and suggest to leave the eviction to semi-trusted third parties.
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
@@ -82,12 +78,11 @@ The advantages of such practices are the delegation of the shuffling, the possib
 \end{itemize}
 
 
-After presenting the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Prelim}, we introduce Random Transposition Shuffles, how to use them in ORAM and together with a mixnet and discuss of various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation and compare the costs with several designs in Section~\ref{Evaluation}.
+We present the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Related} and ~\ref{Prelim}, we introduce Random Transposition Shuffles, how to use them in ORAM and together with a mixnet and discuss various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation and compare the costs with several designs in Section~\ref{Evaluation}.
 We finally evaluate our schemes with standard ORAM model and discuss about the advantages and drawbacks of using mix-nets.
 %
-\section{Preliminaries}\label{Prelim}
-%
-\subsection{Related Work}\label{Related}
+
+\section{Related Work}\label{Related}
 \noindent\textbf{ORAM.}
 ORAM technologies were first presented by Goldreich and Ostrovsky in 1990~\cite{ostrovsky1990efficient} to prevent reverse engineering and protect softwares thanks to shielded CPU.
 Since then, several types of enhancement have been proposed including data structures~\cite{goldreich1996software,stefanov2011towards,stefanov2013path,ren2014ring} with trees, partitions and hierarchichal solutions,
@@ -97,27 +92,21 @@ As we stated before the eviction process is one of the principal problem of ORAM
 
 \noindent\textbf{Shuffling and Sorting.}
 Shuffle and sorting algorithms are a thoroughly researched subject central to ORAM for the randomization process. However most of them are not oblivious in that the memory accesses done by algorithm depends on the input.
-Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKS~\cite{ajtai19830} which were proved to be impractical because of their number of I/Os, Batchers using $\mathcal{O}\left ( n \log n \right)$ I/Os and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
+Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKS~\cite{ajtai19830} which were proved to be impractical because of the number of I/Os, Batchers using $\mathcal{O}\left ( n \log n \right)$ I/Os and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
 The randomized Shellsort ~\cite{goodrich2010randomized} is an elegant simple data-oblivious version of the Shellsort algorithm running in $\mathcal{O}\left ( n \log n \right)$ time that sort with high probability.
 The Zig Zag sort~\cite{goodrich2014zig}, presented in 2014, is the deterministic data-oblivious variant of the Shellsort with running time of $\mathcal{O}\left ( n \log n\right)$.
 Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of the bucket sort Algorithm relying on temporary arrays and dummies to hide the item redistribution.\\
 
 \noindent\textbf{Mix-nets.}
 Mix-nets were first presented for anonymous e-mailing by David Chaum in 1981~\cite{xxx}. As they became popular other applications such as Tor~\cite{dingledine2004tor} appeared. Mix-net's main goal is to give users some anonymity by hiding the correspondence between the incoming users' packets and the mix-nets output. To do so, the users' packets go through several mixes which permute them and refresh their encryption. Reencryption and onion encryption can both be used.
-In this work, we use a mix-net for its encryption and permutation functionalities. However, it accepts messages from a single user at a time. We do not seek anonymity, only packet unlinkability.
-
-
-\subsection{Model}\label{Model}
-We consider on one side, an ORAM remote server, defined as follows, with memory capacity of $\mathcal{O}\left(n\right)$ $b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$.
+This work is inspired by mix-net and its encryption and permutation functionalities. Our design however only accept messages from a single user at a time to reach only packet unlinkability.\todo{reencryption mixnet see Jens groth work, mixmaste, mixminion, minx, sphinx, survey...}
 %
-\begin{privdef}{ORAM Security Definition.}\\
-Let $\text{seq}_k=((\text{op}_1, \text{addr}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{addr}_k, \text{data}_k))$ denote a query sequence of length $k$, where $op$ denotes a read or write operation and $data$ the block to write else $
-\perp$.
-We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM process with input $seq_k$.
-The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computationally indistinguishable if $k=k'$.
-\end{privdef}
-
-We consider here the use of ORAM on the cloud. As such, the cloud primitives are available at the server side:
+\section{Preliminaries}\label{Prelim}
+%
+\subsection{Model}\label{Model}
+We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s<<n$. The remote server can additionally includes a small memory of capacity $\mathcal{O}(m)$ to store extra information as the permutation seeds and encyrption keys.\\\
+%
+We consider here the use of ORAM on the cloud. As such, the cloud primitives are available at the server side. 
 \begin{itemize}
  \item get(index): Returns the record located at $index$.
  \item get\_range($index_i$, $index_j$): Returns the records comprised between $index_i$ and $index_j$.
@@ -125,20 +114,22 @@ We consider here the use of ORAM on the cloud. As such, the cloud primitives are
  \item put\_range($index_i$, $index_j$, data\_blocks): Writes the data blocks between $index_i$ and $index_j$, returns an error if the data block are too large.
 \end{itemize}
 
-The remote server can additionally includes a small memory of capacity $\mathcal{O}(m)$ to store the seeds and shuffle status. In that case, the following operations are available at the client :
-\begin{itemize}
- \item shuffle\_db(seeds, mixes, rounds, (delay)): Shuffles the database with the given parameters and overwrite them on the first blocks of the ORAM.
- \item get\_shuffle(): Get shuffle parameters.
-\end{itemize}
 %
 \subsection{Threat model and Security definition}\label{Threat}
 
 The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
 The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plaintext. We consider here the adversary immediate goal as recognizing whether a record was accessed or not. 
 
+\begin{privdef}
+Let $\text{seq}_k=((\text{op}_1, \text{addr}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{addr}_k, \text{data}_k))$ denote a query sequence of length $k$, where $op$ denotes a read or write operation and $data$ the block to write else $
+\perp$.
+We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM process with input $seq_k$.
+The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computationally indistinguishable if their lengths are equal ($k=k'$).
+\end{privdef}
+
 We assume that all communication between the different parties (user, ORAM server and mixes) may be intercepted as in the \textit{global passive adversary} assumption however only message timing, volume and size from honest parties can be known thanks to packet encryption.
 In addition, we assume the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve his goal.
-We will assume that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded until the Discussion section (c.f. Sec.~\ref{Discussion}) where we will examine packet injection, dropping and delaying.
+We will assume that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded \raphael{until the Discussion section (c.f. Sec.~\ref{Discussion}) where we will examine packet injection, dropping and delaying}.
 
 This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We say a scheme is oblivious if it complies to the definition~\ref{deg:Oblivious} and evaluate it through the security game~\ref{def:Fame}.
 
@@ -160,18 +151,30 @@ An ORAM eviction process is considered secure if an adversary cannot distinguish
 \end{privdef}
 \fi
 %
-\noindent\textbf{Costs.} We denote the communication costs by $C_{com,o}$ for the number of \emph{bits} sent by the ORAM, $C_{com,c}$ by the client, and by $C_{com,m}$ sent by the mixes. 
+\noindent\textbf{Costs.} We denote the communication costs by $C_{oram}$ for the number of \emph{bits} sent by the ORAM, $C_{client}$ by the client, and by $C_{mix}$ sent by the mixes. 
 We will call $C_{cmp}$ the computation cost derived from the eviction.
 %
 \subsection{Cryptographic Primitives}
 \noindent\textbf{PRG \& Seeds.}
-A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.\\
-ORAM designs frequently uses PRGs during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
+A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.\todo{use standard definition}\\
+\noindent\textbf{Encryption.}
+ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes, which implies computation cost of the order of $\mathcal{O} \left ( n \right )$ and between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$ usually.\\\
+Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3 which makes it the ideal choice for ORAM block encryption.\\
+AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one. 
+AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative, and can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption such that the plaintext is never revealed.\\
+El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete log hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.
+%
+\section{Mix-ORAM}\label{Mix-ORAM}
+After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
+%
+\subsection{Architecture \& Encryption}\label{Arch}
+%
+\noindent\textbf{Permuting.} ORAM designs frequently uses PRGs during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
 In the case of classic client-server configuration, the client just needs to retrieve the database, permute them locally according to a new seed and upload them back. Yet, with the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the untrusted mix-net. Thereby, seeds are provided to each mix without any information about the indexes so that the adversaries only have a partial view of the permutation process.\\
 To let the client remember as little information as possible, we could find seed combinations cancelling some of the permutations. However, because the symmetric group is not commutative and the seeds space is not structured, finding such combinations can only be done through heavy computation. That is why every eviction process will now be split in two phases, the unwrapping of the previous permutations and the wrapping to the next ones, of $r$ rounds each.\\
-We will consider in this paper two different kinds of mix-nets. Cascade mix-nets consist of mixes positioned ones after the others in a fix order, with one entry and one exit. In the case of Parallel mix-nets, the mixes are positioned in parallel, and every mix is an entry and exit. The packets received by a mix are processed and then are distributed among all the mixes once again.
+We will consider in this paper two different kinds of mix-nets. Cascade mix-nets consist of mixes positioned ones after the others in a fix order, with one entry and one exit. In the case of Parallel mix-nets, the mixes are positioned in parallel, and every mix is an entry and exit. The packets received by a mix are processed and then are distributed among all the mixes once again.\\
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \begin{minipage}[c]{0.475\textwidth}
 \vspace{0pt}
@@ -249,14 +252,7 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 \end{figure} 
 %
 
-\noindent\textbf{Encryption.}
-ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes, which implies computation cost of the order of $\mathcal{O} \left ( n \right )$ and between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$ usually.\\\
-Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3 which makes it the ideal choice for ORAM block encryption.\\
-AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one. 
-AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative, and can thus help in the eviction process with re-encrypting the data-blocks with a new key before decrypting the older encryption such that the plaintext is never revealed.\\
-El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete log hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.\\
-
-We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture, one keeping the number of encryption done by the user constant while the other not.\\
+\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture, one keeping the number of encryption done by the user constant while the other not.\\
 The first case consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we double the number of phases and add a blinding phase between the two unwrapping ($U_1,\ U_2$) and wrapping ($W_2,\ W_1$) as depicted in Fig~\ref{fig:AES}.\\
 During the first blinding phase ($bind$), the mix(es), besides decrypting ($D_2$) the records with AES-CTR, tag each record with a unique id. The records are then sent in the mix-net organized in cascade where they are locally xored with blinds generated from the records' tag and mix secrets ($B$). After returning to the original mix, the tag is encrypted with El Gamal encryption and the unwrapping ($U_1$) resumes. Until the first wrapping ends, the tags' encryption is refreshed ($R$) thanks to El Gamal additive homomorphism property. To unblind the records, the mixes broadcast their EG secret share to reconstruct the EG secret key and decipher the tag. The records are then sent again through the mix-net in cascade so that each mix unblind them locally ($blind$).\\
 The uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
@@ -296,23 +292,11 @@ The second way to re-encrypt the database consists in keeping encrypting the rec
 The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial error fashion: the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process. \\
 There is $k_i \cdot r$, $k\in \mathbb{N}$, encryption layer for each record $rec_i$. If the record access frequency distribution was close to uniform the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$s are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, in this case we advise to change the access method: when a user access a record, he fetches $d$ other records, re-encrypt all of the records as previously and rewrite them at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated. If the $d$ parameter is not high enough, the client only has to wait the maximum decryption time before rewriting the records.
 
-\section{Mix-ORAM}\label{Mix-ORAM}
-After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
-%
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the basic case where the whole database is sent through a cascade mix-net during the eviction process as shown in Fig.\ref{fig:ASMO}.
-Each of the mixes re-encrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
+We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
 
-To do so, because the symmetric group is not commutative and AES-CTR depends on the order, the mixes first undo the previous permutation (executing $\Pi_{S_m^{-1} \circ .... \circ S_1^{-1}}$) and encryption ($k_i$), phase we call the unwrapping, before sorting the records (executing $\Pi_{S_1' \circ .... \circ S_m'}$) to the new ordering and encrypting  them with the $k_i'$, the wrapping. We also consider reversing the mix-net flow during the second step, the records now going from the last mix to the first, before being uploaded the records to the database, to avoid unnecessary communication costs and private information transfer between mixes.\\
-The adversary could find out which records were accessed by observing two consecutive evictions. Indeed, after unwrapping and deciphering the records, the database is in an invariant order and the plaintext is only protected by the user encryption which changes under user access. To prevent this attack, we propose to independently blind each record during the unwrapping and unblind them while wrapping up thanks to encrypted tags. Since the tags can be used for stamp attacks, we require $m$ rounds before and after each blinding so that the adversary cannot guess the database ordering. Furthermore, AES-CTR encryption is done while tagging so that the adversary cannot guess the blindings and an El Gamal threshold scheme is used to guarantee the unblinding is done at the right time.\\
-The security guarantees rely on the facts that no private information (seed, encryption key) is leaked between mixes and that the encryption is not deterministic.
-
-Alongside the database records, the user need to send the encrypted seeds and re-encryption keys. Hence if we denote by $x$ the size in bits of a seed and encryption key, the total communication cost is of the order $\mathcal{O}\left ( m\cdot N \right )$, more precisely $C_m=2mN + m\cdot(2m-\frac{1}{2})\cdot x$.
-The computation cost is of the order $\mathcal{O}\left(mN\right)$, the encryption process comprising most of it.
-
-This scheme is not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, $2\cdot m$ encryption per element is necessary to achieve perfect security. The whole database also has to be passed through every node twice which incur severe delays. Parallelization could help increase the efficiency of the mix-net by distributing the workload among mixes, however the cascade configuration would have to change.
-We can try to limit the number of seeds and encryption keys the user has to store thanks to reuse. However doing so, an adversary can discover in some cases, the probability depending on the number of compromised mixes and number of reuse, what permutations or encryptions was done by brute-forcing on a small universe of orderings.
+\noindent\textbf{Using AES-CBC.} Each of the mixes re-encrypts and permutes every record...
 
 \begin{figure}
 \centering
@@ -340,6 +324,9 @@ We can try to limit the number of seeds and encryption keys the user has to stor
 \end{adjustbox}
 \caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO}
 \end{figure} 
+
+
+\noindent\textbf{Using AES-CTR mixnet.} Each of the mixes re-encrypts and permutes every record in a way such that the user only has to remember a constant amount of information, that is to say $\mathcal{O}\left ( m \right )$ permutation seeds ($S_i$) and encryption keys ($k_j$).
 
 \begin{figure}
 \centering
@@ -410,9 +397,11 @@ The client only need to send to the mixnet session keys to access the database $
 The message format is then : $$E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},,\ \alpha_{i,tag},\ (ports,ips)_{signed} \right)$$ 
 For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.\\
 
-We claim that this scheme is secure for an adversary willing to know which records were accessed. To do so, the adversary needs to have an invariant ordering, the one after wrapping up, and compare between successive evictions where the user's encryption has changed (or break the AES encryption of the uncompromised mixes). 
+We claim that these schemes secure for an adversary willing to know which records were accessed. To do so, the adversary needs to have an invariant ordering, the one after wrapping up, and compare between successive evictions where the user's encryption has changed (or break the AES encryption of the uncompromised mixes). 
 The adversary could replace the $\alpha_{i+1,new}$ of the innocent mixes with $\alpha_{i+1, old}$ however the user would detect the attack as the index lookup would fail and change of mixes for the next eviction.
-The user could check for additional security when creating the $\alpha$ that no AES keys and IV are the same between successive evictions however the probability it happens is extremely low.
+The user could check for additional security when creating the $\alpha$ that no AES keys and IV are the same between successive evictions however the probability it happens is extremely low. \todo{just ensure keys are different}
+
+These scheme are not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, at least $2\cdot m$ encryption per element are necessary to achieve perfect security. The whole database also has to be passed through every node several times which incur severe delays. Parallelization could help increase the efficiency of the mix-net by distributing the workload among mixes, however the cascade configuration would have to change.
 %
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we present random transposition shuffles (RTS) and argue their use make the eviction process parallelizable and amortizable.
