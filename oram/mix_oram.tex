@@ -17,6 +17,7 @@
 \usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
 
 \newtheorem{privdef}{Privacy Definition}
+\newtheorem*{secgme}{Security Game}
 \newtheorem{secthm}{Security Theorem}
 \newtheorem{seccjt}{Security Conjecture}
 \newtheorem{seclem}{Security Lemma}
@@ -131,18 +132,20 @@ We assume that all communication between the different parties (user, ORAM serve
 In addition, we assume the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve his goal.
 We will assume that the compromised machines present a \textit{honest but curious} behaviour in that every operation is correctly performed but passively recorded \raphael{until the Discussion section (c.f. Sec.~\ref{Discussion}) where we will examine packet injection, dropping and delaying}.
 
-This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We say a scheme is oblivious if it complies to the definition~\ref{deg:Oblivious} and evaluate it through the security game~\ref{def:Fame}.
-
+This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Partition cases. We  evaluate it through the security game~\ref{def:Fame}.
+%
+\iffalse
 \begin{privdef}
 An ORAM eviction process is considered oblivious if an adversary cannot distinguish after eviction whether a specific record has been accessed.\\
 That is to say, for the eviction of $s$ elements in an array of $n$ elements, and with $\epsilon =\mathcal{O}\left ( \frac{1}{n} \right )$, we have, $$ \forall i \in \llbracket 1, n \rrbracket,\ |\Pr(index_i \text{ was not retrieved} ) - \Pr(index_i \text{ was retrieved} )| \leq \epsilon$$
 \label{def:Oblivious}
 \end{privdef}
+\fi
 %
-\begin{privdef}
+\begin{secgme}
 An adversary gives to the user two same size ORAM query sequences $\text{seq}_k$ and $\text{seq}_k'$. The user chooses randomly one of the two, executes it and start the eviction. At the end of the eviction the adversary picks which ORAM query sequence was chosen. The adversary wins if he chose the right sequence with probability higher than $\Pr = \frac{1}{2}+\epsilon$, with $\epsilon<<\frac{1}{2}$.
 \label{def:Game}
-\end{privdef} 
+\end{secgme} 
 %
 \iffalse
 %% If comparision between initial thought and what is needed
@@ -156,7 +159,8 @@ We will call $C_{cmp}$ the computation cost derived from the eviction.
 %
 \subsection{Cryptographic Primitives}
 \noindent\textbf{PRG \& Seeds.}
-A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions.\todo{use standard definition}\\
+A pseudo-random generator (PRG) is a deterministic function that produces pseudo-random strings, it can be instantiated with a small size parameters, the seeds, to produce the same sequence of characters on any machine provided the latter have functions with the same versions \todo{use standard definition}.\\\
+
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes, which implies computation cost of the order of $\mathcal{O} \left ( n \right )$ and between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$ usually.\\\
 Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3 which makes it the ideal choice for ORAM block encryption.\\
@@ -197,7 +201,7 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 
 \end{tikzpicture}
 \end{adjustbox}
-\caption{A Cascade mix-net} \label{fig:ASMO}
+\caption{A Cascade mix-net} \label{fig:ASMO_cas}
 \end{minipage}
 \hfill
 \begin{minipage}[T]{0.475\textwidth}
@@ -247,7 +251,7 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 
 \end{tikzpicture}
 \end{adjustbox}
-\caption{A Parallel Mixnet} \label{fig:ASMO}
+\caption{A Parallel Mixnet} \label{fig:ASMO_par}
 \end{minipage}
 \end{figure} 
 %
@@ -310,7 +314,7 @@ We consider here the basic cases where the whole database is sent through a casc
 
 \path
 ([yshift=1ex]0.east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_j=1..m}$}    	([yshift=1ex]A.west)
-([yshift=-1ex]A.west) edge     	node{\small $DB_{k'_{i=1..4m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
+([yshift=-1ex]A.west) edge     	node{\small $DB_{k_{i=1..4m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
 
 ([yshift=1ex]A.east) edge     	node{\small $k_{2m+1},S_1^{-1}$}    	([yshift=1ex]X.west)
 ([yshift=-1ex]X.west) edge     	node{\small $k_{4m}',S_2'$}    	([yshift=-1ex]A.east)
@@ -322,7 +326,7 @@ We consider here the basic cases where the whole database is sent through a casc
 
 \end{tikzpicture}
 \end{adjustbox}
-\caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO}
+\caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO_CBC}
 \end{figure} 
 
 
@@ -383,7 +387,7 @@ We consider here the basic cases where the whole database is sent through a casc
 
 
 \end{tikzpicture}
-\caption{A simple Mix-ORAM: AES-CTR} \label{fig:ASMO}
+\caption{A simple Mix-ORAM: AES-CTR} \label{fig:ASMO_CTR}
 \end{figure} 
 %
 
@@ -396,10 +400,6 @@ The client randomly chooses $x\in_\mathcal{R} \mathbb{Z}_q^*$ and sends to the m
 The client only need to send to the mixnet session keys to access the database $(id,\ session_{key})$, the client secrets used to compute the shared secret $( \alpha_{i,old},\ \alpha_{i,new} )$ and the signed next mix addresses $(ports,ips)_{signed}= \left (\ ...,\ E_{pub,\ mix_{i}}\left ((port_{mix_{i+1}}, ip_{mix_{i+1}})_{signed}\right),\ ...\right)$.
 The message format is then : $$E_{pub,\ mix_i}\left(id,\ session_{key},\ \alpha_{i,old},\ \alpha_{i,new},,\ \alpha_{i,tag},\ (ports,ips)_{signed} \right)$$ 
 For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $+XXX + 2 \cdot 8 \cdot 32 + XXX$ \todo{}.\\
-
-We claim that these schemes secure for an adversary willing to know which records were accessed. To do so, the adversary needs to have an invariant ordering, the one after wrapping up, and compare between successive evictions where the user's encryption has changed (or break the AES encryption of the uncompromised mixes). 
-The adversary could replace the $\alpha_{i+1,new}$ of the innocent mixes with $\alpha_{i+1, old}$ however the user would detect the attack as the index lookup would fail and change of mixes for the next eviction.
-The user could check for additional security when creating the $\alpha$ that no AES keys and IV are the same between successive evictions however the probability it happens is extremely low. \todo{just ensure keys are different}
 
 These scheme are not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, at least $2\cdot m$ encryption per element are necessary to achieve perfect security. The whole database also has to be passed through every node several times which incur severe delays. Parallelization could help increase the efficiency of the mix-net by distributing the workload among mixes, however the cascade configuration would have to change.
 %
@@ -581,8 +581,9 @@ $\textbf{del } Key_{old,i,j}$;\\
 \label{alg:WAS}
 \end{algorithm}
 \end{minipage}
-\caption{Amortizable sort, wrapping and unwrapping algorithms.}
+\caption{Amortizable sort, wrapping and unwrapping algorithms.\todo{add blinding}}
 \end{figure}
+\iffalse
 \begin{figure}
 \centering
 \begin{minipage}[t]{0.45\textwidth}
@@ -664,6 +665,8 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \end{minipage}
 \caption{Wrapping and corresponding unwrapping.}
 \end{figure} 
+\fi
+
 \begin{figure}
 \centering
 \begin{minipage}{0.5\textwidth}
@@ -700,10 +703,16 @@ The message format is then : $$E_{pub,\ mix_i}\left (\left(id,\ session_{key},\ 
 
 For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}.\todo{Sec of mix format}
 
+\section{Security Proof}\label{Security}
+We claim that these schemes secure for an adversary willing to know which records were accessed. To do so, the adversary needs to have an invariant ordering, the one after wrapping up, and compare between successive evictions where the user's encryption has changed (or break the AES encryption of the uncompromised mixes). 
+The adversary could replace the $\alpha_{i+1,new}$ of the innocent mixes with $\alpha_{i+1, old}$ however the user would detect the attack as the index lookup would fail and change of mixes for the next eviction.
+The user could check for additional security when creating the $\alpha$ that no AES keys and IV are the same between successive evictions however the probability it happens is extremely low. \todo{just ensure keys are different}
+
 
 \section{Evaluation}\label{Evaluation}
 \subsection{Implementation and Benchmark}\label{Implementation}
 \subsection{Performances}\label{Performance}
+performance per enc, performance per design, performance with implementation
 \subsection{Comparison}\label{Comparison}
 Comparison of CBC and tagging
 
