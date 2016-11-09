@@ -585,19 +585,17 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \noindent\textbf{Using AES-CBC.} In this case, the mixes keep encrypting the records with the appended IVs during $r$ rounds of wrapping and unwrapping.\\
 
 \noindent\textbf{Message Format.}
-The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
-The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ (port	s,\ ips)_{signed}\right )$$
+The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, the number of rounds $r$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
+The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ r,\ (port	s,\ ips)_{signed}\right )$$
 
 \noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$ and $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
 
 \noindent\textbf{Using AES-CTR.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
-At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. At the middle of the wrapping and unwrapping phases, we add a blinding phase where the mix generate and append, or remove, tags to each block. The tags are encrypted, decrypted and refreshed as said in Section~\ref{Arch}.\\
+At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and old key.\\
 \iffalse
 To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
 \fi
-\\
-
 \iffalse
 \begin{figure}
 \begin{minipage}[t]{0.475\textwidth}
@@ -747,8 +745,7 @@ $i \gets 0$;\\
 \fi
 
 \noindent\textbf{Message Format.}
-The client send the same data as in the AES-CBC case together with the El Gamal secret share $sec$.
-The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ sec,\ (ports,\ ips)_{signed}\right )$$
+The client send the same data as in the AES-CBC case. The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ r,\ (ports,\ ips)_{signed}\right )$$
 
 \noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot (r+m) \cdot c_{CTR} $, $c_{client}=x$, $c_{mix}= (2r+m)\cdot n$. The total communication cost is $c_{com}= (2r+m)\cdot n + c_{client}$.
 
