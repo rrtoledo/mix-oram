@@ -16,6 +16,10 @@
 \usetikzlibrary{shapes, positioning}
 \usepackage{adjustbox}
 \usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
+\usepackage{array}
+\usepackage{booktabs}
+\setlength{\heavyrulewidth}{1.5pt}
+\setlength{\abovetopsep}{4pt}
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem*{secgme}{Security Game}
@@ -94,7 +98,7 @@ Shuffle and sorting algorithms are a thoroughly researched subject central to OR
 Examples of oblivious sorting algorithms include sorting networks such as Batcher's~\cite{batcher1968sorting} and the ones based on AKS~\cite{ajtai19830} which were proved to be impractical because of the number of I/Os, Batchers using $\mathcal{O}\left ( n \log n \right)$ I/Os and AKS having a high constant factor, but also more recent and efficient ones~\cite{paterson1990improved}.
 The randomized Shellsort ~\cite{goodrich2010randomized} is an elegant simple data-oblivious version of the Shellsort algorithm running in $\mathcal{O}\left ( n \log n \right)$ time that sort with high probability.
 The Zig Zag sort~\cite{goodrich2014zig}, presented in 2014, is the deterministic data-oblivious variant of the Shellsort with running time of $\mathcal{O}\left ( n \log n\right)$.
-Lastly, the Melbourne shuffle~\cite{ohrimenko2014melbourne} is an efficient variant of the bucket sort Algorithm relying on temporary arrays and dummies to hide the item redistribution.\\
+Lastly, the bucket sort Algorithm was both studied in Melbourne shuffle~\cite{ohrimenko2014melbourne} where a user rely on temporary arrays and dummies and in \cite{goodrich2012anonymous} with the use of a parallel mixnet.\\
 
 \noindent\textbf{Mix-nets.}
 Mix-nets were first presented for anonymous e-mailing by David Chaum in 1981~\cite{chaum1981untraceable}. As they became popular many improvements were made over the years~\cite{moller2003mixmaster,danezis2003mixminion,danezis2004minx,danezis2009sphinx} and new applications such as anonymous web browsing with Tor~\cite{dingledine2004tor} appeared. Mix-net's main goal is to give users some anonymity by hiding the correspondence between the incoming users' packets and the mix-nets output. To do so, the users' packets go through several mixes which permute them and refresh their encryption. Either reencryption~\cite{wikstrom2006adaptively} and onion encryption can be used, proofs of shuffle~\cite{groth2007verifiable,groth2007non,bayer2012efficient} and Randomized Partial Checking~\cite{jakobsson2002making} can help verify the shuffle correctness.\\
@@ -284,29 +288,25 @@ The average number of fake access is $ \frac{v0}{v1}$.
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
 \node[draw=none, fill=none]    	(X)				  {};
-\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $\mathbf{U_2}$\\$D_3$};
-\node[draw, rectangle, align=center]    		(0)[right of=A]   {\small \textbf{blind} \\ $D_2,\ B$};
-\node[draw, rectangle, align=center]    		(B)[right of=0]   {\small $\mathbf{U_1}$\\$D_1,\ R$};
-\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{W_1}$\\$E_1',\ R$};
-\node[draw, rectangle, align=center]    		(1)[right of=C]   {\small \textbf{blind}\\ $E_2',\ B$};
-\node[draw, rectangle, align=center]    		(D)[right of=1]   {\small $\mathbf{W_2}$\\$E_3'$};
+\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $\mathbf{U}$\\$D_1$};
+\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $\mathbf{E}$\\$E_2'$};
+\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{D}$\\ $D_2,\ B$};
+\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $\mathbf{W}$\\$E_1'$};
 \node[draw=none,fill=none]    	(Y)[right of=D]	  {};
 
 \path
-(X.east) edge     	node{\small $ E_{3}E_{2}E_{1}$}    	(A.west)
-(A.east) edge     	node{\small $ E_{2}E_{1}$}    	(0.west)
-(0.east) edge     	node{\small $B E_{1}$}    	(B.west)
-(B.east) edge     	node{\small $ B$}    	(C.west)
-(C.east) edge     	node{\small $E_{1}B$}    	(1.west)
-(1.east) edge     	node{\small $ E_{2}E_{1}$}    	(D.west)
-(D.east) edge     	node{\small $ E_{3}'E_{2}'E_{1}'$}    	(Y.west);
+(X.east) edge     	node{\small $ E_{2}E_{1}$}    	(A.west)
+(A.east) edge     	node{\small $ E_{2}$}    	(B.west)
+(B.east) edge     	node{\small $ E_{2}'E_{2}$}    	(C.west)
+(C.east) edge     	node{\small $ E_{2}'$}    	(D.west)
+(D.east) edge     	node{\small $ E_{2}'E_{1}'$}    	(Y.west);
 \end{tikzpicture}
 \end{adjustbox}
 \caption{AES-CTR} \label{fig:AES}
 \end{figure}
 \squeezeup
-The second method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR and an El Gamal threshold encryption scheme. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity and have to decrypt in the exact reverse order of the previous encryption. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we make the client distribute to each mix a secret EG share with the corresponding public key and double the number of phases adding a blinding phase~\ref{fig:TAG} between the two unwrapping ($U_1,\ U_2$) and wrapping ($W_2,\ W_1$) as depicted in Fig~\ref{fig:AES}. \\
-During the first blinding phase ($bind$), the mix(es), besides decrypting ($D_2$) the records with AES-CTR, tag each record with a unique id. The records are then sent through the mix-net organized in cascade where they are locally xored with blinds generated from the records' tag and mix secrets ($B$). After returning to the original mix, the tag is encrypted with El Gamal encryption and the unwrapping ($U_1$) resumes. Until the first wrapping ($W_1$) ends, the tags' encryption is refreshed ($R$) thanks to El Gamal additive homomorphism property. To unblind the records, the mixes broadcast their EG secret share to reconstruct the EG secret key and decipher the tag. The records are then sent again through the mix-net in cascade so that each mix recompute the blinds locally and xor them with the cipher ($blind$).
+The second method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity and have to decrypt in the exact reverse order of the previous encryption. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we add two additional phases between the unwrapping ($U$) and wrapping ($W$) where the every mix encrypts ($E$) and decrypts ($D$) the records with unchanged order (to use AES-CTR commutativity) as depicted in Fig~\ref{fig:AES}. 
+\iffalse
 \squeezeup
 \begin{figure}[H]
 \centering
@@ -342,15 +342,14 @@ During the first blinding phase ($bind$), the mix(es), besides decrypting ($D_2$
 \caption{Blind} \label{fig:TAG}
 \end{figure}
 \squeezeup
-
-The scheme relies on the commutativity of the xor operation used in AES-CTR, and on impossibility to decrypt the tags beforehand thanks to the threshold encryption scheme. 
+\fi
 %
 
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
 We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
 
-\noindent\textbf{Using AES-CBC.} In this scheme, each mix re-encrypts the whole database, and remove or add a permutation layer depending on the phase, before sending it to the next mix as depicted in Fig.~\ref{fig:ASMO_CBC}.\\
+\noindent\textbf{Using AES-CBC.} In this scheme, each mix re-encrypts the whole database, and remove or add a permutation layer depending on the phase, before sending it to the next mix as depicted in Fig~\ref{fig:ASMO_CBC}.\\
 %
 \begin{figure}
 \centering
@@ -385,62 +384,49 @@ The client provides to each mix the old shared secret $\alpha_{old}$ to unwrap t
 $$E_{pub,\ mix_i}\left ( id,\ token,\ (ports,\ ips)_{signed},\ \alpha_{i,\ old},\ \alpha_{i,\ new} \right) $$
 
 \noindent\textbf{Costs.}
-We have $c_{cmp} \approx 2\cdot m \cdot c_{CBC}$, $c_{client}= x$, $c_{oram}=n$, $c_mix=n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
+We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\cdot m \cdot n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
 
-\noindent\textbf{Using AES-CTR.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, each phase consisting of $2 \cdot m$ rounds and at the middle of each phase, a blinding patch is done as depicted in Fig.~\ref{fig:ASMO_CTR}.
+\noindent\textbf{Using AES-CTR.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, each phase consisting of $2 \cdot m$ rounds and at the middle of each phase, a blinding patch is done as depicted in Fig~\ref{fig:ASMO_CTR}.\\
 
 \begin{figure}
 \centering
-\begin{tikzpicture}[->, auto, semithick, node distance = 8em]
+\begin{tikzpicture}[->, auto, semithick, node distance = 8em, every loop/.style={<-}]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
 
 \node[draw, cylinder, shape border rotate=90,minimum height=3cm,minimum width=1cm, anchor=west]    	(0)				  {};	
 \node[draw, rectangle]   		(A)[right =of 0.north, anchor = north]   {\small $Mix_{1}$};
-\node[draw=none, fill=none] (a)[right of=0]{};
-\node[draw, rectangle]   		(A')[right=of 0.south, anchor = south]   {\small $Mix_{1}$};
+\node[draw, rectangle] (A')[right of=0]{\small $Mix_{1}$};
+\node[draw, rectangle]   		(A'')[right=of 0.south, anchor = south]   {\small $Mix_{1}$};
 
 \node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
-\node[draw=none, fill=none]    		(x)[right of=a]   {};
 \node[draw=none, fill=none]    		(X')[right of=A']   {\small $...$};
+\node[draw=none, fill=none]    		(X'')[right of=A'']   {\small $...$};
 
 \node[draw, rectangle]    		(B)[right of= X]   {\small $Mix_m$};
-\node[draw=none, fill=none]    		(b)[right of=x]   {};
-\node[draw, rectangle]    		(B')[right of= X']   {\small $Mix_m$};
-
-\node[draw, rectangle, minimum height=3cm]    		(T)[right =of b]   {\small $blind$};
+\node[draw, rectangle]    		(B')[right of=X']   {\small $Mix_{m}$};
+\node[draw, rectangle]    		(B'')[right of= X'']   {\small $Mix_m$};
 
 \path 
-([yshift=0.975cm]0.north east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_j=1..2m}$}    	([yshift=1ex]A.west)
+([yshift=0.85cm]0.north east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_{j=1..m}}$}    	(A.west)
 
-([yshift=1ex]A.east) edge node{$k_{2m},\ S_{2m}^{-1}$}    	([yshift=1ex]X.west)
+(A.east) edge node{$k_{1},\ S_{1}^{-1}$}    	(X.west)
 
-([yshift=1ex]X.east) edge node{$k_{m+1},\ S_{m+1}^{-1}$}    	([yshift=1ex]B.west)
+(X.east) edge node{$k_{m-1},\ S_{m-1}^{-1}$}    	(B.west)
 
-([yshift=1ex]B.east) edge node{$k_{m},\ S_{m}^{-1}$}     (T.north west)
+(B.east) edge[bend left] node{$k_{m},\ S_{m}^{-1}$} ([yshift=1ex]B'.east)
 
-([yshift=-2ex]T.north west) edge    node{}  ([yshift=-1ex]B.east)
+([yshift=1ex]B'.west) edge[align=center] node[above]{$k_{2m}'$} node[below]{$k_{2m-1}$}    	([yshift=1ex]X'.east)
 
-([yshift=-1ex]B.west) edge    node{$k_{m-1},\ S_{m-1}^{-1}$}  ([yshift=-1ex]X.east)
+([yshift=1ex]X'.west) edge[align=center] node[above]{$k_{m+2}'$} node[below]{$k_{m+1}$}    	([yshift=1ex]A'.east)
 
-([yshift=-1ex]X.west) edge    node{$k_{2},\ S_{2}^{-1}$}  ([yshift=-1ex]A.east)
+([yshift=-1ex]A'.east) edge[align=center] node[above]{$k_{2m}$} node[below]{$k_{m+1}'$} (B''.west)
 
-([yshift=-1ex]A.west) edge[bend right] node{$k_{1},\ S_{1}^{-1}$} ([yshift=1ex]A'.west)
+([yshift=-1ex]B''.west) edge    node{$k_{m}',\ S_{m}'$}  ([yshift=-1ex]X''.east)
 
+([yshift=-1ex]X''.west) edge    node{$k_{2}',\ S_{2}'$}  ([yshift=-1ex]A''.east)
 
-([yshift=1ex]A'.east) edge node{$k_{1}',\ S_{1}'$}    	([yshift=1ex]X'.west)
-
-([yshift=1ex]X'.east) edge node{$k_{m-1}',\ S_{m-1}'$}    	([yshift=1ex]B'.west)
-
-([yshift=1ex]B'.east) edge node{}     ([yshift=3.5ex]T.south west)
-
-([yshift=1.5ex]T.south west) edge    node{$k_{m}',\ S_{m}'$}  ([yshift=-1ex]B'.east)
-
-([yshift=-1ex]B'.west) edge    node{$k_{m+1}',\ S_{m+1}'$}  ([yshift=-1ex]X'.east)
-
-([yshift=-1ex]X'.west) edge    node{$k_{2m-1}',\ S_{2m-1}'$}  ([yshift=-1ex]A'.east)
-
-([yshift=-1ex]A'.west) edge node{\small $DB_{k_{i=1..2m}'}^{S_{j=1..2m}'}$} ([yshift=-0.8cm]0.south east);
+([yshift=-1ex]A''.west) edge node{\small $DB_{k_{i=1..2m}'}^{S_{j=1..m}'}$} ([yshift=-0.8cm]0.south east);
 
 
 \end{tikzpicture}
@@ -458,7 +444,7 @@ The client only need to send to the mixnet session keys to access the database $
 The message format is then : $$E_{pub,\ mix_i}\left(id,\ token,\ \alpha_{i,old},\ \alpha_{i,new},\ sec,\ (ports,ips)_{signed} \right)$$ 
 
 
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes. We have $c_{cmp} \approx n \cdot  \left ( m \cdot  \left ( 6\cdot c_{CTR} + 2 \cdot c_{EG_r} \right ) + c_{EG_e} + c_{EG_d}\right ) $, $c_{client}=  x$, $c_{oram}=n$, $c_{mix}=n$. The total communication cost is $c_{com}=(6\cdot m-4)\cdot n + m\cdot c_{client}$.\\
+\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes. We have $c_{cmp} = 3 \cdot m \cdot n \cdot c_{CTR} $, $c_{client}=  x$, $c_{mix}=3n$. The total communication cost is $c_{com}=3 \ cdot m \cdot n + c_{client}$.\\
 
 
 These schemes are not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, at least $2\cdot m$ encryption per element are necessary to achieve perfect security. The whole database also goes through every node twice which incur severe delays. To increase the mix-net efficiency, we study in the following sectin parallelization to distributing the workload among mixes.
@@ -487,7 +473,7 @@ The proof can be found in Appendix~\ref{proof:kRTS}.
 
 PRG seeds actually do not ensure strict transpositions between elements but permutations, that is to say the number of transpositions done while using PRG seeds can be greater than the ones we considered. Hence, the uniform distribution is reached even more quickly. We thus consider that an oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(\frac{n}{k}\cdot \log(n)\right)$.\\
 
-When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform the maximum number of  rounds.
+When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform $2 m\log n$ rounds.
 
 %
 \subsubsection{Oblivious Merge}\label{OM}
@@ -505,7 +491,7 @@ The proof can be found in Appendix~\ref{proof:OM}.
 \end{proof}
 \end{secthm}
 
-\begin{seccjt}
+\begin{seccjt}\label{sec:kOM}
 A $k$-oblivious Merge ($k$-OM) of 2 indistinguishable sets of respective size $n$ and $s$ requires $\tau$ rounds doing of $k$-RTS such that any arranging is possible, with
 $$ \tau(\epsilon) \leq \frac{n}{2\cdot k}  \cdot \left [ \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - \frac{2}{s} \log \left( 4 \cdot \epsilon\right) \right ] $$
 \begin{proof}
@@ -514,9 +500,8 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 \end{seccjt}
 %
 \subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
-\todo{new lookup, message format... \\}
 %
-We now consider the mix-net as a collection of isolated mixes. The unwrapping and wrapping phases consist of $r=\mathcal{O}\left ( m \cdot \log \left (\frac{n}{s} \right ) \right )$ rounds as depicted in Fig.~\ref{fig:Par}.\\
+We now consider the mix-net as a collection of isolated mixes. The unwrapping and wrapping phases consist of $r= \frac{m}{2} \cdot \log \left (\frac{n}{s} \right ) $ rounds as depicted in Fig~\ref{fig:Par}.\\
 
 \begin{figure}
 \centering
@@ -600,20 +585,17 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
 \end{figure} 
 
-\noindent\textbf{Using AES-CBC.}
+\noindent\textbf{Using AES-CBC.} In this case, the mixes keep encrypting the records with the appended IVs during $r$ rounds of wrapping and unwrapping.\\
 
 \noindent\textbf{Message Format.}
-The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
-We also use here Sphinx~\cite{danezis2009sphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. 
-We create the AES keys, the private and public seeds with the HKDF function~\cite{krawczyk2010cryptographic}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
+The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
 The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ (port	s,\ ips)_{signed}\right )$$
 
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} \approx n \cdot \left ( (4r+2m) \cdot c_{CTR} + 2 r \cdot c_{EG_r}) + c_{EG_e}+ c_{EG_d} \right ) $, $c_{client}= x$, $c_{oram}=n$, $c_{mix}\approx\frac{4nr}{m}$. The total communication cost is $c_{com}\approx 2n\cdot (2\cdot r+m+1) + m\cdot c_{client}$.\\\todo{ mix format}\\
-
+\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$. The total communication cost is $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
 
 \noindent\textbf{Using AES-CTR.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
-At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation as shown in the Algorithm.~\ref{alg:UAS} : the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. At the middle of the wrapping and unwrapping phases, we add a blinding phase where the mix generate and append, or remove, tags to each block. The tags are encrypted, decrypted and refreshed as said in Section~\ref{Arch}.\\
+At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping as shown in the Algorithm.~\ref{alg:WAS}, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. At the middle of the wrapping and unwrapping phases, we add a blinding phase where the mix generate and append, or remove, tags to each block. The tags are encrypted, decrypted and refreshed as said in Section~\ref{Arch}.\\
 \iffalse
 To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
 \fi
@@ -768,12 +750,10 @@ $i \gets 0$;\\
 \fi
 
 \noindent\textbf{Message Format.}
-The client thus provides to each mix session keys to access the database, the first record index $index$ of the data to shuffle and the number $k=\frac{n}{m}$ of elements allocated per mix, three parameters to derive encryption keys and permutation seeds and the ordered ips and ports of all mixes participating in the eviction.\\
-We also use here Sphinx~\cite{danezis2009sphinx} construction to compute the seeds, however each mix uses blinding functions to derivate locally their own successive keys and seeds. 
-We create the AES keys, the private and public seeds with the HKDF function~\cite{krawczyk2010cryptographic}. The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, the EG secret share $sec$ and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
+The client send the same data as in the AES-CBC case together with the El Gamal secret share $sec$.
 The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ sec,\ (ports,\ ips)_{signed}\right )$$
 
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$ \todo{}.\todo{ mix format}
+\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot (r+m) \cdot c_{CTR} $, $c_{client}=x$, $c_{mix}= (2r+m)\cdot n$. The total communication cost is $c_{com}= (2r+m)\cdot n + c_{client}$.
 
 \section{Security Proof}\label{Security}
 
@@ -787,9 +767,9 @@ The client has sent to each mix private, and potentially public, group elements 
 In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the uncompromised mixes. \\
 
 \noindent\textbf{Parallel mixnet.}
-In this architecture, chunks of the database are exchanged between mixes. The adversary can benefit of it as some records may never go to uncompromised mixes. If we denote by $m_a$ the number of compromised mixes, the probability a record remain in the sets of compromised mixes is $p = \left ( \frac{m_a}{m}\right )^r$ with $r\approx m\log n$.
-For $n=10^6$, $m \leq 10$ and $m_a=m-1$, we have $p$ of the order of $10^{-7}$, that is to say the average number of record which will stay in the adversarial mix set is $\#rec = 0.1$.
-The adversary can moreover only ask the user to access at most $s$ records per sequence of queries, that is $2s$ in the game in total. The probability that there is a record which remains in the adversarial mix set and that this record was chosen in one of the two sequences is then reduced to $p = \frac{2s}{n}\cdot\left (\frac{m_a}{m}\right )^r$. For $s=\sqrt n$, $p$ falls to $10^{-9}$, and $\#rec$ to $10^{-3}$.
+In this architecture, chunks of the database are exchanged between mixes. The adversary can benefit of it as some records may never go to uncompromised mixes.\\
+Goodrich in 2012 ~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. If we note by $p(i,t)$ the probability the adversary thinks that the a particular card is at index $i$ at round $t$, $m-m_a$ the number of uncorrupted server(s) and by $\Phi(t)= \sum_{i}^{n}\left (p(i,t) - 1/n \right)^2$ the sum of squares metric, we have that $$E[\Phi(t)] = \left (1 - (m-m_a) \cdot \frac{k-1}{n-1}\right )^{t}$$\\
+To have $\Phi(t) \leq n^{-c}$ with $m-m_a=1$, we need $cm \log n \leq r \leq 2cm \log(n)$, the upper bound being the value we propose in Section~\ref{kRTS}. The value we propose in Theorem~\ref{sec:kOM}, $\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$, accounts for the indistinguishability assumption we made: we do not want to hide the position of every record, only the position of $s$ of them (the accessed ones). ?
 
 \subsection{In Search of the Lost Key.}
 We assume here the adversary knows the invariant position of some of the records he asked the user to query. 
@@ -808,6 +788,36 @@ uncompromised mix blindings are never known by the adversary as the records are 
 performance per enc, performance per design, performance with implementation
 \subsection{Comparison}\label{Comparison}
 Comparison of CBC and tagging
+
+\begin{table}
+\centering
+\begin{tabular}{*4c}
+\toprule
+    				& $C_{comp}$  	 & $C_{comm}$		& $C_{access}$\\
+\midrule
+Cascade - CBC   &  17.5 		& 19.1   		& 17.5  \\
+Cascade - CTR   &  11.8 		& 12.7   		& 29.3  \\
+Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
+Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
+\bottomrule
+\end{tabular}
+\caption{Cost comparison of designs.}
+\end{table}
+\quad
+\begin{table}
+\centering
+\begin{tabular}{*4c}
+\toprule
+    				& $m=3$  	 & $m=5$		& $m=7$\\
+\midrule
+Cascade - CBC   &  17.5 		& 19.1   		& 17.5  \\
+Cascade - CTR   &  11.8 		& 12.7   		& 29.3  \\
+Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
+Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
+\bottomrule
+\end{tabular}
+\caption{Time comparison of designs,\\with $n=\frac{1024^3}{4\cdot 1024}$, $s=\sqrt n$.}
+\end{table}
 
 
 \section{Discussion}\label{Discussion}
