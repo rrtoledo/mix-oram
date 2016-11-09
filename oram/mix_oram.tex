@@ -168,8 +168,7 @@ A distribution $\mathcal{D}$ over strings of length $l$ is said pseudorandom if 
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes, which implies computation cost of the order of $\mathcal{O} \left ( n \right )$ and between $\mathcal{O} \left ( 1 \right )$ and $\mathcal{O} \left ( \log n \right )$ usually.\\\
 Advanced Encryption Standard (AES) was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3 which makes it the ideal choice for ORAM.\\
 AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one. 
-AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative.\\
-El-Gamal Encryption (EG) is an asymmetric encryption relying on the discrete logarithm hardness assumption. It has the interesting properties of being an additively homomorphism, and allowing pre-computation to reach speed to order similar to AES-CTR. Finally, as any public encryption, a threshold encryption scheme can be based on it to restrict the decryption to a specific timing.
+AES in Counter mode (AES-CTR) encryption and decryption operations are commutable and commutative.
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
 After looking at a simple but impractical Mix-ORAM we will look closely at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
@@ -260,6 +259,7 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 %
 
 \noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. The first method increases the number of decryption done by the user, the second keeps this number constant at the cost of higher computation.\\
+
 In the first method, we simply let the mix keep encrypting the records with AES-CBC. Before uploading the records to the cloud, the user append to them a token to generate an IV. The records are then encrypted by the mixes with AES-CBC and these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also obfuscated thanks to AES-ECB and the mix private key.
 The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial error fashion: the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process.\\
 There is in total $k_i \cdot r$, $k\in \mathbb{N}$, encryption layers per record $rec_i$. If the record access frequency distribution was close to uniform, the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$ are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, we advise to change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated.\\
@@ -462,10 +462,7 @@ Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time 
 
 \begin{secthm}
 \textbf{Mixing time of $k$-RTS.} A $k$-random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
-\begin{align*}
-E(\tau) &< \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) &\\
-\sigma^2(\tau) &< \frac{4}{3} \cdot {\pi}^2 \cdot \left ( \frac{n}{k} \right )^2 &
-\end{align*}
+$$E(\tau) < \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) $$
 \begin{proof}
 The proof can be found in Appendix~\ref{proof:kRTS}.
 \end{proof}
@@ -474,11 +471,11 @@ The proof can be found in Appendix~\ref{proof:kRTS}.
 PRG seeds actually do not ensure strict transpositions between elements but permutations, that is to say the number of transpositions done while using PRG seeds can be greater than the ones we considered. Hence, the uniform distribution is reached even more quickly. We thus consider that an oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(\frac{n}{k}\cdot \log(n)\right)$.\\
 
 When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform $2 m\log n$ rounds.
-
 %
 \subsubsection{Oblivious Merge}\label{OM}
 Before the eviction algorithm is run, the database can be divided in two sets of records depending on whether or not they were retrieved by the user. As such, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s, the accessed ones, and $n-s$ are 0s, the others.
-We argue that in this representation, elements of the same sets are indistinguishable to the adversary thanks to prior encryptions and permutations and thus, less rounds are necessary to correctly shuffle the database.
+We argue that in this representation, elements of the same sets are indistinguishable to the adversary thanks to prior encryptions and permutations and thus, less rounds are necessary to correctly shuffle the database.\\
+
 Indeed, this assumption significantly reduces the number of possible orderings in the adversarial view. We can prove, thanks to the Bars and Stripes theorem, that there now are ${n \choose s}$ orderings instead of $n!$.
 
 We now consider the RTS process in that scenario and suppose the records (the bits) are re-encrypted before being permuting such that the merge of the two sets is oblivious to the adversary.
@@ -591,7 +588,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
 The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ (port	s,\ ips)_{signed}\right )$$
 
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$. The total communication cost is $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
+\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$ and $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
 
 \noindent\textbf{Using AES-CTR.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
