@@ -1,30 +1,32 @@
-\documentclass[USenglish,oneside,twocolumn]{article}
+\documentclass{llncs}
 
 \usepackage{etex}
-\usepackage[big]{dgruyter_NEW}
+\usepackage{amsmath}
+\let\proof\relax
+\let\endproof\relax
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{stmaryrd}
 \usepackage[justification=centering]{caption}
 \usepackage[justification=centering]{subcaption}
 \captionsetup{compatibility=false}
-\usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
-\usepackage{adjustbox}
-\usepackage{amsfonts}
-\usepackage{stmaryrd}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{amsthm}
-\usepackage{color}
 \usepackage{float}
-
 \usepackage{tikz}
 \usetikzlibrary{shapes, positioning}
+\usepackage{adjustbox}
+\usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
+\usepackage{array}
+\usepackage{booktabs}
+\setlength{\heavyrulewidth}{1.5pt}
+\setlength{\abovetopsep}{4pt}
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem*{secgme}{Security Game}
 \newtheorem{secthm}{Security Theorem}
 \newtheorem{seccjt}{Security Conjecture}
 \newtheorem{seclem}{Security Lemma}
-\newtheorem{lemma}{Lemma}
-\newtheorem{theorem}{Theorem}
+\newtheorem{thm}{Theorem}
 
 
 \newenvironment{subproof}[1][\proofname]{%
@@ -34,46 +36,32 @@
   \end{proof}%
 }
 
-\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
 \newcommand{\raphael}[1]{\textcolor{blue}{Raphael: #1}}
 \newcommand{\george}[1]{\textcolor{green}{George: #1}}
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\squeezeup}{\vspace{-0.25cm}}
 
-\cclogo{\includegraphics{by-nc-nd.pdf}}
-  
 \begin{document}
- 
-\author[1]{Raphael R. Toledo}
 
-\author[2]{George Danezis}
+\title{Mix-ORAM: Using delegated shuffles}
+%
+\titlerunning{Mix-ORAM}  % abbreviated title (for running head)
+%                                     also used for the TOC unless
+%                                     \toctitle is used
+%
+\author{Raphael R. Toledo\inst{1} \and George Danezis\inst{1}}
+%
+\authorrunning{Raphael R. Toledo et al.} % abbreviated author list (for running head)
+%
+%
+\institute{University College London, United Kingdom,\\
+\email{r.toledo@cs.ucl.ac.uk}, \email{g.danezis@ucl.ac.uk}}
 
-\affil[1]{University College London (r.toledo@cs.ucl.ac.uk)}
+\maketitle              % typeset the title of the contribution
 
-\affil[2]{University College London (g.danezis@ucl.ac.uk)}
-
-  \title{Mix-ORAM: Using delegated shuffles.}
-
-  \begin{abstract}
-{
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.
-}
+\begin{abstract}
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.\todo{Add results}
 \end{abstract}
-  \keywords{Oblivious RAM, Mix-net, Private Queries}
-%  \classification[PACS]{}
-%  \communicated{...}
-%  \dedication{...}
-
-\journalname{Proceedings on Privacy Enhancing Technologies}
-%\DOI{10.1515/popets-2016-0035}
-%\startpage{1}
-%\received{2016-02-29}
-%\revised{2016-06-02}
-%\accepted{2016-06-02}
-
-%\journalyear{2016}
-%\journalvolume{2016}
-%\journalissue{4}
-
-\maketitle
 %
 \section{Introduction}\label{Introduction}
 %
@@ -97,7 +85,7 @@ The advantages of such practices are the delegation of the shuffling, the possib
 \end{itemize}
 
 We present the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Related} and~\ref{Prelim}, we use random transposition shuffles them in ORAM and together with a mixnet and discuss various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation and compare the costs with several designs in Section~\ref{Evaluation}.
-We finally evaluate our schemes and discuss about the advantages and drawbacks of using mix-nets.\raphael{todo at the end}
+We finally evaluate our schemes and discuss about the advantages and drawbacks of using mix-nets.\todo{}
 %
 
 \section{Related Work}\label{Related}
@@ -188,14 +176,13 @@ AES in Counter mode (AES-CTR) encryption and decryption operations are commutati
 We first present a simple but impractical Mix-ORAM before looking at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 %
 \subsection{Architecture \& Encryption}\label{Arch}
-
 %
 \noindent\textbf{Permuting.} ORAM designs frequently uses PRGs\cite{ohrimenko2014melbourne} during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
 In the case of classic client-server configuration, the client just needs to retrieve the database, permute it locally according to a new seed and upload it back. Yet, with the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the semi-trusted mix-net\todo{}. Thereby, only private permutation seeds are provided to each mix so that the adversaries only have a partial view of the permutation process and cannot figure out the matching between remote and real indices.\\
 \\
 We will consider in this paper two different kinds of mix-nets. Cascade mix-nets, as shown in Fig.~\ref{fig:mix_cas}, consist of mixes positioned ones after the others in a fix order ($r=m$), with one entry and one exit. Parallel mix-nets, shown in Fig.~\ref{fig:mix_par}, comprise mixes are positioned in parallel, with every mix being an entry and exit. During one round, the packets received by a mix are processed and then distributed among all the mixes once again.\\
-%
-\begin{figure*}[t]
+
+\begin{figure}[t]
 \centering
 \begin{minipage}[c]{0.475\textwidth}
 \vspace{0pt}
@@ -230,8 +217,8 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 
 \node[draw=none, fill=none]    		(X)   {};
 \node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_2$};
-\node[draw, rectangle]   		(A)[above=2em of B]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(C)[below=2em of B]   {\small $Mix_3$};
+\node[draw, rectangle]   		(A)[above of=B]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(C)[below of=B]   {\small $Mix_3$};
 \node[draw, rectangle]   		(A')[right of=A]   {\small $Mix_{1}$};
 \node[draw, rectangle]    		(B')[right of=B]   {\small $Mix_2$};
 \node[draw, rectangle]    		(C')[right of=C]   {\small $Mix_3$};
@@ -270,89 +257,9 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 \end{adjustbox}
 \caption{A Parallel Mixnet} \label{fig:mix_par}
 \end{minipage}
-\end{figure*}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rec \gets []$;\\
-$index \gets {\Pi}_{S_{pub,old,j}} \llbracket 1, m*k\rrbracket $;\\
-$DB \gets []$;\\
-\ForAll {$u \in \llbracket 1, m \rrbracket$}
-{
-	$DB.extend([[]])$;\\
-	\ForAll {$v \in \llbracket 1, k \rrbracket$}
-	{
-		$r \gets index[u*k+v]$;\\
-		\If {$ r\in \llbracket i*k,(i+1)*k-1 \rrbracket$}
-		{
-			$DB[u].extend( r)$;\\
-		}
-	}
-}
-$sorted \gets []$;\\
-$records\gets []$;\\
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$sorted.extend(DB[l])$;\\
-	$records.extend(data[l])$;\\
-}
-$zipped \gets zip(sorted, records)$;\\
-$zipped.sort()$;\\
-$Rec \gets [zipped[x][1] \text{ for x} \in \llbracket 1, len(zipped) \rrbracket]$;\\
-$return \ Rec$;
-\caption{Sort in for mix $i$ during round $j$}
-\label{alg:SortIN}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
-\If {$j=r\ and\ i=m$}
-{
-	$put\_range(idx+k*i, idx+k*(i+1), data)$;\\
-	$return$;\\
-}
-$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1, m*k \rrbracket$;\\
-$index \gets index[\llbracket i*k: (i+1)*k-1\rrbracket]$;\\
-$tosend \gets []$;\\
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$tosend.extend([[]])$;\\
-}
-\ForAll {$l \in \llbracket 1,k \rrbracket$}
-{
-	$tosend[index[l]/k].extend(data[l]))$;\\
-}
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$send(DB_l, tosend[l])$;\\
-}
-\caption{Sort out for mix $i$ during round $j$}
-\label{alg:SortOUT}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
-$k \gets \frac{n}{m}$;\\
-$i \gets 0$;\\
-\While{$i < r$}
-{
-	$mix \gets \frac{index}{k} $;\\
-	$idx \gets index\ \%\ k$;\\
-	$idx \gets {\Pi}_{S_{prv, mix, i}}(idx) $;\\
-	$index \gets {\Pi}_{S_{pub, i}}(index)$;\\
-	$i\gets i+1$;
-}
-\KwOut{$index$}
-\caption{Index Lookup}
-\label{alg:IAS}
-\end{algorithm}
+\end{figure} 
 %
+
 \noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. The first method increases the number of decryption done by the user, the second keeps this number constant at the cost of higher computation.\\
 
 In the first method, we simply let the mix keep encrypting the records with AES-CBC. Before uploading the records to the cloud, the user append to them a token to generate an IV. The records are then encrypted by the mixes with AES-CBC and these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also obfuscated thanks to AES-ECB and the mix private key.
@@ -361,32 +268,31 @@ There is in total $k_i \cdot r$, $k\in \mathbb{N}$, encryption layers per record
 
 \noindent\textit{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks. These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
 %
-\begin{theorem}
+\begin{thm}
 In the case of a uniform distribution access we have an average number 0 of fake access for $s\ll n$.
-\end{theorem}
+\end{thm}
 %
 However it is well known that the frequency access of records is not uniform, in that case we can count a strictly positive number of fake accesses.
-\begin{theorem}
+\begin{thm}
 Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
 The average number of fake access is $ \frac{v0}{v1}$.
 \begin{proof}
 The volume under such line represents the number of real accesses a user does while the volume above it represents accesses in the stash which leads to fake accesses.
 When the number of accesses is great, the access frequency approaches the average number of accesses.
 \end{proof}
-\end{theorem}
-%
-The second method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity and have to decrypt in the exact reverse order of the previous encryption. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we add two additional phases between the unwrapping ($U$) and wrapping ($W$) where the every mix encrypts ($E$) and decrypts ($D$) the records with unchanged order (to use AES-CTR commutativity) as depicted in Fig~\ref{fig:AES}.
+\end{thm}
 
-\begin{figure}[h]
-\begin{minipage}{0.475\textwidth}
+\begin{figure}[t]
+\centering
 \begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\centering 
+\begin{tikzpicture}[->, auto, semithick,  node distance = 6em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
 \node[draw=none, fill=none]    	(X)				  {};
 \node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $\mathbf{U}$\\$D_1$};
 \node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $\mathbf{E}$\\$E_2'$};
-\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{D}$\\ $D_2$};
+\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{D}$\\ $D_2,\ B$};
 \node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $\mathbf{W}$\\$E_1'$};
 \node[draw=none,fill=none]    	(Y)[right of=D]	  {};
 
@@ -398,51 +304,57 @@ The second method consists in decrypting the old encryption layers and encryptin
 (D.east) edge     	node{\small $ E_{2}'E_{1}'$}    	(Y.west);
 \end{tikzpicture}
 \end{adjustbox}
-\centering
 \caption{AES-CTR} \label{fig:AES}
-\end{minipage}
 \end{figure}
+\squeezeup
+The second method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity and have to decrypt in the exact reverse order of the previous encryption. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we add two additional phases between the unwrapping ($U$) and wrapping ($W$) where the every mix encrypts ($E$) and decrypts ($D$) the records with unchanged order (to use AES-CTR commutativity) as depicted in Fig~\ref{fig:AES}. 
+\iffalse
+\squeezeup
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{width=\textwidth}
+\centering
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rcds \gets sort\_in(S_{pub,old,j}, data)$;\\
-$Rcds \gets {\Pi}_{S_{prv,old,i,j}}^{-1} (data)$;\\
-\ForAll{$r\in Rcds$}
-{
-	$r \gets encrypt_{Key_{new,i,j}}\left( r \right )$;\\
-}
-$sort\_in(S_{pub,old,j}, data)$;\\
-$\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
-\caption{Unwrapping process for the mix $i$ during round $j$}
-\label{alg:UAS}
-\end{algorithm}
+\node[draw=none, fill = none]    	(Z)				  {};
+\node[draw=none, fill = none]    	(Z')[right of= Z]				  {};
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rcds \gets sort\_in(S_{pub,new,j}, data)$;\\
-$Rcds \gets {\Pi}_{S_{prv,new,i,j}} (data)$;\\
-\ForAll{$r\in Rcds$}
-{
-	$r \gets encrypt_{Key_{old,i,j}}\left( r \right )$;\\
-}
-$sort\_in(S_{pub,new,j}, data)$;\\
-$\textbf{del } Key_{old,i,j}$;\\
-\caption{Wrapping process for the mix $i$ during round $j$}
-\label{alg:WAS}
-\end{algorithm}
+\node[draw, rectangle]    	(I)[right of= Z']				  {\small {$Mix_i$}};
+
+\node[draw=none, fill = none]    	(Y)[right of =I]				  {};
+\node[draw=none, fill = none]    	(Y')[right of =Y]				  {};
+
+\node[draw, rectangle]    	(A)[right of=Y']			  {\small {$Mix_{i+1}$}};
+\node[draw=none, fill = none]    	(X)[below of=A]				  {\small {...}};
+
+\node[draw, rectangle]    	(B)[below of=X]				  {\small {$Mix_{i-1}$}};
+
+\path
+([yshift=1ex]Z.east) edge[align=left]     	node{\small $(E_{EG}(tag_j)),\  rec_j$}    	([yshift=1ex]I.west)
+([yshift=-1ex]I.west) edge     	node[align=left] {\small $ E_{EG}(tag_j),$\\$ E_i(rec_j^{(m)})\oplus_{k=1}^m blind_{j,k}$}    	([yshift=-1ex]Z.east)
+
+([yshift=1ex]I.east) edge     	node {\small $ tag_j, E_i(rec_j)=rec_j'$}    	([yshift=1ex]A.west)
+(A.south) edge     	node[align=left] {\small $ tag_j,\ rec_j^{(2)}\oplus blind_{j,i+1}$}    	(X.north)
+(X.south) edge     	node[align=left] {\small $ tag_j,\ rec_j^{(m-1)} \oplus_{k \neq i-1}^{k \neq i} blind_{j,k}$}    	(B.north)
+(B.west) edge[bend right]     	node[align=right] {\small \\ $ tag_j,$\\$rec_j^{(m)}\oplus_{k \neq i} blind_{j,k}$}    	([yshift=-1ex]I.east);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Blind} \label{fig:TAG}
+\end{figure}
+\squeezeup
+\fi
 %
+
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
 We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
 
 \noindent\textbf{Using AES-CBC.} In this scheme, each mix re-encrypts the whole database, and remove or add a permutation layer depending on the phase, before sending it to the next mix as depicted in Fig~\ref{fig:ASMO_CBC}.\\
 %
-\begin{figure}[H]
-\begin{minipage}{0.475\textwidth}
+\begin{figure}
+\centering
 \begin{adjustbox}{width=\textwidth}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 7em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
@@ -465,9 +377,7 @@ We consider here the basic cases where the whole database is sent through a casc
 
 \end{tikzpicture}
 \end{adjustbox}
-\centering
 \caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO_CBC}
-\end{minipage}
 \end{figure} 
 
 \noindent\textbf{Message Format.}
@@ -479,10 +389,9 @@ $$E_{pub,\ mix_i}\left ( id,\ token,\ \alpha_{i,\ old},\ \alpha_{i,\ new},\ (por
 We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\cdot m \cdot n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
 
 \noindent\textbf{Using AES-CTR.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, each phase consisting of $2 \cdot m$ rounds and at the middle of each phase, a blinding patch is done as depicted in Fig~\ref{fig:ASMO_CTR}.\\
- %
-\begin{figure}[H]
-\begin{minipage}{0.475\textwidth}
-\begin{adjustbox}{width=\textwidth}
+
+\begin{figure}
+\centering
 \begin{tikzpicture}[->, auto, semithick, node distance = 8em, every loop/.style={<-}]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
@@ -523,12 +432,10 @@ We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\
 
 
 \end{tikzpicture}
-\end{adjustbox}
-\centering
 \caption{A simple Mix-ORAM: AES-CTR} \label{fig:ASMO_CTR}
-\end{minipage}
 \end{figure} 
 %
+
 \noindent\textbf{Message Format.}
 We derive the keys and seeds as previously however we produce twice more shared keys than usual for the wrapping and unwrapping phases. \iffalse\\
 Let $\kappa$ be the security parameter. We call $\mathcal{G}$ a prime order cyclic group satisfying the Decisional Diffie-Hellman Assumption. $\mathcal{G}^*$ is the set of non-identity elements of $\mathcal{G}$. The element $g$ is a generator of the group, and $q$ is the prime order of $\mathcal{G}$ with $q \approx 2^{2\kappa}$.\\
@@ -543,7 +450,7 @@ The message format is then: $$E_{pub,\ mix_i}\left(id,\ token,\ \alpha_{i,old},\
 
 
 These schemes are not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, at least $2\cdot m$ encryption per element are necessary to achieve perfect security. The whole database also goes through every node twice which incur severe delays. To increase the mix-net efficiency, we study in the following sectin parallelization to distributing the workload among mixes.
-% 
+%
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we use random transposition shuffles (RTS) to model the parallelization  and calculate the number of rounds needed to reach perfect security.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
@@ -595,9 +502,9 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 %
 We now consider the mix-net as a collection of isolated mixes. The unwrapping and wrapping phases consist of $r= \frac{m}{2} \cdot \log \left (\frac{n}{s} \right ) $ rounds as depicted in Fig~\ref{fig:Par}.\\
 
-\begin{figure*}
+\begin{figure}
 \centering
-\begin{minipage}[c]{0.475\textwidth}
+\begin{minipage}[t]{0.45\textwidth}
 \begin{tikzpicture}[->,
 auto,
 semithick, 
@@ -633,11 +540,10 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (C.east) edge node[sloped, above]	{} 	([yshift=2ex]1.south west);
  
 \end{tikzpicture}
-\centering
 \caption*{Last rounds of wrapping} \label{fig:WAS}
 \end{minipage}
 \hfill
-\begin{minipage}[c]{0.475\textwidth}
+\begin{minipage}[t]{0.45\textwidth}
 \begin{tikzpicture}[->,
 auto,
 thin, 
@@ -673,12 +579,10 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (C.east) edge node						{} 					(C');
  
 \end{tikzpicture}
-\centering
 \caption*{First rounds of unwrapping} \label{fig:UAS}
 \end{minipage}
-\centering
 \caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
-\end{figure*} 
+\end{figure} 
 
 \noindent\textbf{Using AES-CBC.} In this case, the mixes keep encrypting the records with the appended IVs during $r$ rounds of wrapping and unwrapping.\\
 
@@ -691,6 +595,156 @@ The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,
 \noindent\textbf{Using AES-CTR.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and old key.\\
+\iffalse
+To find the ORAM index of a precise record, the client performs the index lookup function written in Algorithm.~\ref{alg:IAS}.
+\fi
+\iffalse
+\begin{figure}
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering 
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rec \gets []$;\\
+\If {$j=0 \ and \ i=1 $}
+{
+	$Rec \gets get\_range(idx+ik,idx+(i+1)k)$;\\
+	$return \  Rec$;\\
+}
+$index \gets {\Pi}_{S_{pub,old,j}} \llbracket 1, m*k\rrbracket $;\\
+$DB \gets []$;\\
+\ForAll {$u \in \llbracket 1, m \rrbracket$}
+{
+	$DB.extend([[]])$;\\
+	\ForAll {$v \in \llbracket 1, k \rrbracket$}
+	{
+		$r \gets index[u*k+v]$;\\
+		\If {$ r\in \llbracket i*k,(i+1)*k-1 \rrbracket$}
+		{
+			$DB[u].extend( r)$;\\
+		}
+	}
+}
+$sorted \gets []$;\\
+$records\gets []$;\\
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$sorted.extend(DB[l])$;\\
+	$records.extend(data[l])$;\\
+}
+$zipped \gets zip(sorted, records)$;\\
+$zipped.sort()$;\\
+$Rec \gets [zipped[x][1] \text{ for x} \in \llbracket 1, len(zipped) \rrbracket]$;\\
+$return \ Rec$;
+\caption{Sort in for mix $i$ during round $j$}
+\label{alg:SortIN}
+\end{algorithm}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
+\If {$j=r\ and\ i=m$}
+{
+	$put\_range(idx+k*i, idx+k*(i+1), data)$;\\
+	$return$;\\
+}
+$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1, m*k \rrbracket$;\\
+$index \gets index[\llbracket i*k: (i+1)*k-1\rrbracket]$;\\
+$tosend \gets []$;\\
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$tosend.extend([[]])$;\\
+}
+\ForAll {$l \in \llbracket 1,k \rrbracket$}
+{
+	$tosend[index[l]/k].extend(data[l]))$;\\
+}
+\ForAll {$l \in \llbracket 1,m \rrbracket$}
+{
+	$send(DB_l, tosend[l])$;\\
+}
+\caption{Sort out for mix $i$ during round $j$}
+\label{alg:SortOUT}
+\end{algorithm}
+\end{minipage}
+\caption{Amortizable sort, sort in and sort out algorithms.}
+\end{figure}
+\begin{figure}
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering 
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rcds \gets sort\_in(S_{pub,old,j}, data)$;\\
+$Rcds \gets {\Pi}_{S_{prv,old,i,j}}^{-1} (data)$;\\
+\ForAll{$r\in Rcds$}
+{
+	$r \gets encrypt_{Key_{new,i,j}}\left( r \right )$;\\
+}
+$sort\_in(S_{pub,old,j}, data)$;\\
+$\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
+\caption{Unwrapping process for the mix $i$ during round $j$}
+\label{alg:UAS}
+\end{algorithm}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.475\textwidth}
+\vspace{0pt}
+\centering
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
+$Rcds \gets sort\_in(S_{pub,new,j}, data)$;\\
+$Rcds \gets {\Pi}_{S_{prv,new,i,j}} (data)$;\\
+\ForAll{$r\in Rcds$}
+{
+	$r \gets encrypt_{Key_{old,i,j}}\left( r \right )$;\\
+}
+$sort\_in(S_{pub,new,j}, data)$;\\
+$\textbf{del } Key_{old,i,j}$;\\
+\caption{Wrapping process for the mix $i$ during round $j$}
+\label{alg:WAS}
+\end{algorithm}
+\end{minipage}
+\caption{Amortizable sort, wrapping and unwrapping algorithms.\todo{add blinding}}
+\end{figure}
+
+
+
+\begin{figure}
+\centering
+\begin{minipage}{0.5\textwidth}
+\begin{algorithm}[H]
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
+$k \gets \frac{n}{m}$;\\
+$i \gets 0$;\\
+\While{$i < r$}
+{
+	$mix \gets \frac{index}{k} $;\\
+	$idx \gets index\ \%\ k$;\\
+	$idx \gets {\Pi}_{S_{prv, mix, i}}(idx) $;\\
+	$index \gets {\Pi}_{S_{pub, i}}(k*mix+idx)$;\\
+	$i\gets i+1$;
+}
+\KwOut{$index$}
+\caption{Index Lookup}
+\label{alg:IAS}
+\end{algorithm}
+\end{minipage}
+\end{figure}
+\fi
 
 \noindent\textbf{Message Format.}
 The client send the same data as in the AES-CBC case. The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ r,\ (ports,\ ips)_{signed}\right )$$
@@ -731,9 +785,7 @@ performance per enc, performance per design, performance with implementation
 \subsection{Comparison}\label{Comparison}
 Comparison of CBC and tagging
 
-\begin{table*}
-\begin{minipage}[t][][b]{.475\textwidth}
-\vspace{0pt}
+\begin{table}
 \centering
 \begin{tabular}{*4c}
 \toprule
@@ -745,12 +797,11 @@ Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
 Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
 \bottomrule
 \end{tabular}
-\centering
 \caption{Cost comparison of designs.}
-\end{minipage}
-\hfill
-\begin{minipage}[t][][b]{.475\textwidth}
-\vspace{0pt}
+\end{table}
+\quad
+\begin{table}
+\centering
 \begin{tabular}{*4c}
 \toprule
     				& $m=3$  	 & $m=5$		& $m=7$\\
@@ -761,10 +812,8 @@ Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
 Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
 \bottomrule
 \end{tabular}
-\centering
 \caption{Time comparison of designs,\\with $n=\frac{1024^3}{4\cdot 1024}$, $s=\sqrt n$.}
-\end{minipage}
-\end{table*}
+\end{table}
 
 
 \section{Discussion}\label{Discussion}
@@ -960,4 +1009,6 @@ We only want to calculate the first solution $S_1$ from the equation.
 As $s$ steps are required to fill the stash, we thus find the following inequality for the number of fake access $f$:
 $$ \frac{s \cdot (s+1)}{2 \cdot n} < f < \frac{s \cdot (s+1)}{2 \cdot (n+1-s)} $$
 \end{proof}
+
+
 \end{document}
