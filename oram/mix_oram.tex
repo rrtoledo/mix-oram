@@ -54,7 +54,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.\todo{add results}
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -77,16 +77,16 @@ Oblivious RAM is a key technology for securely storing data on untrusted storage
 %
 \section{Introduction}\label{Introduction}
 %
-In the cloud, data integrity must be preserved and both the data and metadata hidden not only from external adversaries but also from itself.
+In cloud storage, data integrity must be preserved and both the data content and associated meta data must be hidden not only from external adversaries but also from itself.
 Cryptography is thereby used for secure communication channels, user authentication, data encryption and integrity checking.
-These, however, do not prevent the leakage of metadata: the storage server owner can watch which records were fetched and deduce from it the data content and the user activities. 
+These, however, do not prevent the leakage of meta data: the storage server owner can watch which records were fetched and deduce from it the data content and the user activities. 
 
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the real record access. In these schemes, the remote records are permuted with a seed saved locally to remember the matching between remote and local indices. When the user requests a particular record, the local client  computes its remote index and fetch the corresponding block. After a number of accesses, the database is then reencrypted and shuffled.\\ 
-This randomization process, also called eviction, is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be reencrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to hide from the adversary the records' order. That is why, we propose here to delegate the eviction to semi trusted third parties without relying on any specific ORAM server design.\\
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the real record access. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
+This randomization is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be re-encrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to hide from the adversary the record indices. That is why, we propose here to delegate the eviction to semi trusted third parties.\\
 Mix networks\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted, or decrypted, and shuffled by each mix such that the output of one mix is the next ones' input. For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets inspired designs could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using those designs, methods to amortize the eviction must be taken into account to make ORAM practical.\\
 
-In this work, we present several designs inspired by mixnets for the eviction algorithm.
+In this work, we present several designs inspired by mix-nets for the eviction algorithm.
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
 
 \begin{itemize}
@@ -123,7 +123,10 @@ This work is inspired by mix-net and its encryption and permutation functionalit
 \section{Preliminaries}\label{Prelim}
 %
 \subsection{Model}\label{Model}
-We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s\ll n$. The remote server can additionally include a small memory of capacity $\mathcal{O}(m)$ to store extra information such as the permutation seeds and encryption keys. We consider here the use of ORAM on the cloud. As such, the cloud primitives are available at the server side. 
+
+In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process, how they are organized (the mix-net architecture), what type of encryption to use and secrets for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to the instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.
+
+We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s\ll n$. The remote server can additionally include a small memory of capacity $\mathcal{O}(m)$ to store extra information such as the permutation seeds and encryption keys.
 \iffalse
 \begin{itemize}
  \item get(index): Returns the record located at $index$.
@@ -138,7 +141,7 @@ We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bi
 The ORAM design assumes the existence of motivated adversaries trying to subvert the user's privacy and perhaps his data integrity.
 The adversaries might have different goals such as identifying a user data access or matching encrypted data-blocks with known plaintext. 
 \noindent We assume that all communication between the different parties (user, ORAM server and mixes) may be intercepted as in the \textit{global passive adversary} assumption however only message timing, volume and size from honest parties can be known thanks to packet encryption.
-In addition, we assume the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve their goal.
+In addition, the adversaries may have corrupted the ORAM server and a part of the mix-net to achieve their goal. Unless said otherwise, we assume that the adversary has compromised the ORAM server and all but one mix.
 We will assume that the compromised machines behave in a \textit{honest but curious} way in that every operation is correctly performed but passively recorded and shared with the adversaries.
 
 \begin{privdef}\label{def:Oram}
@@ -176,24 +179,24 @@ We will call $C_{cmp}$ the computation cost derived from the eviction.\todo{}
 %
 \subsection{Cryptographic Primitives}
 \noindent\textbf{PRG \& Seeds.}
-ORAM needs to periodically shuffle records to prevent the adversary from recognizing them. To do so, pseudorandom generators (PRG) and seeds are used to save the matching between remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudorandom if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A pseudo-random generator (PRG) is a deterministic algorithm that receives as an input a short random seed and stretches it into a long pseudorandom stream.\\\
+ORAM needs to periodically shuffle records to prevent the adversary from recognizing them. To do so, pseudo random generators (PRG) and seeds are used to save the matching between remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A pseudo-random generator (PRG) is a deterministic algorithm that receives as an input a short random seed and stretches it into a long pseudo random stream.\\\
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.\\
 Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3~\cite{mcwilliams2014hardware} which makes it the ideal choice for ORAM.\\
-AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the ciphertext of one message is needed for the encryption of the next one. 
+AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the cipher text of one message is needed for the encryption of the next one. 
 AES in Counter mode (AES-CTR) encryption and decryption operations are commutative.
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
 We first present a simple but impractical Mix-ORAM before looking at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 %
 \subsection{Architecture \& Encryption}\label{Arch}
+We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing different mix-net architecture and two re-encryption methods.
 
-%
 \noindent\textbf{Permuting.} ORAM designs frequently uses PRGs\cite{ohrimenko2014melbourne} during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
-In the case of classic client-server configuration, the client just needs to retrieve the database, permute it locally according to a new seed and upload it back. Yet, with the introduction of the mix-net, we have a shift of paradigm: the permutations are now executed by the semi-trusted mix-net\todo{}. Thereby, only private permutation seeds are provided to each mix so that the adversaries only have a partial view of the permutation process and cannot figure out the matching between remote and real indices.\\
+In the case of classic client-server configuration, the client just needs to retrieve the database, permute it locally according to a new seed and upload it back. With the delegation to the mix-net, we now have a shift of paradigm: the permutations are now executed by semi-trusted mixes, yet we still want the global permutation to be known by the user only. Thereby, private permutation seeds are provided to each mix so that the adversaries only have a partial view of the permutation process and the mixes do a sufficient number of permutations so that the adversary cannot figure out the matching between remote and real indices. Finally, in order to keep the number of permutations constant on the client side when retrieving records, the permutation will be divided in two parts, the first one where the mixes undo the previous permutations and the second where they shuffle the records to reach the desired ordering. \\
 \\
-We will consider in this paper two different kinds of mix-nets. Cascade mix-nets, as shown in Fig.~\ref{fig:mix_cas}, consist of mixes positioned ones after the others in a fix order ($r=m$), with one entry and one exit. Parallel mix-nets, shown in Fig.~\ref{fig:mix_par}, comprise mixes are positioned in parallel, with every mix being an entry and exit. During one round, the packets received by a mix are processed and then distributed among all the mixes once again.\\
+Two different architecture of mix-nets will be considered. Cascade mix-nets, as shown in Fig.~\ref{fig:mix_cas}, consist of mixes positioned ones after the others in a fix order ($r=m$), with one entry and one exit. Parallel mix-nets, shown in Fig.~\ref{fig:mix_par}, comprise mixes are positioned in parallel, with every mix being an entry and exit. During one round, the packets received by a mix are processed and then distributed among all the mixes once again.\\
 %
 \begin{figure*}[t]
 \centering
@@ -275,91 +278,99 @@ We will consider in this paper two different kinds of mix-nets. Cascade mix-nets
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rec \gets []$;\\
-$index \gets {\Pi}_{S_{pub,old,j}} \llbracket 1, m*k\rrbracket $;\\
-$DB \gets []$;\\
-\ForAll {$u \in \llbracket 1, m \rrbracket$}
+\KwIn{Seeds $S_{pub,old},\ S_{prv,old,i}$; \\ \qquad Number of records $n$; \\  \qquad Data $data$;}
+$index \gets {\Pi}^{-1}_{S_{pub,old,j-1}} \llbracket 1, n\rrbracket $;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1,n/k \rrbracket$}
 {
-	$DB.extend([[]])$;\\
-	\ForAll {$v \in \llbracket 1, k \rrbracket$}
-	{
-		$r \gets index[u*k+v]$;\\
-		\If {$ r\in \llbracket i*k,(i+1)*k-1 \rrbracket$}
-		{
-			$DB[u].extend( r)$;\\
-		}
-	}
+	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
 }
-$sorted \gets []$;\\
-$records\gets []$;\\
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$sorted.extend(DB[l])$;\\
-	$records.extend(data[l])$;\\
-}
-$zipped \gets zip(sorted, records)$;\\
-$zipped.sort()$;\\
-$Rec \gets [zipped[x][1] \text{ for x} \in \llbracket 1, len(zipped) \rrbracket]$;\\
-$return \ Rec$;
-\caption{Sort in for mix $i$ during round $j$}
+$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
+$data \gets \Pi^{-1}_{S_{prv,old,j}} \left ( data \right )$;\\
+%$data \gets \Pi^{-1}_{S_{pub,old,j}} \left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Parallel sort for mix $i$ during round $j$}
 \label{alg:SortIN}
 \end{algorithm}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;}
-\If {$j=r\ and\ i=m$}
+\KwIn{Seed $S_{pub,new,j},\ S_{prv,new,i,j}$; \\ \qquad Number of records $n$; \\ \qquad Number of record per mix $k$; \\ \qquad Data $data$;}
+$index \gets {\Pi}_{S_{pub,new,j-1}} \llbracket 1,n \rrbracket$;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
 {
-	$put\_range(idx+k*i, idx+k*(i+1), data)$;\\
-	$return$;\\
+	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
 }
-$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1, m*k \rrbracket$;\\
-$index \gets index[\llbracket i*k: (i+1)*k-1\rrbracket]$;\\
-$tosend \gets []$;\\
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$tosend.extend([[]])$;\\
-}
-\ForAll {$l \in \llbracket 1,k \rrbracket$}
-{
-	$tosend[index[l]/k].extend(data[l]))$;\\
-}
-\ForAll {$l \in \llbracket 1,m \rrbracket$}
-{
-	$send(DB_l, tosend[l])$;\\
-}
-\caption{Sort out for mix $i$ during round $j$}
+$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
+$data \gets \Pi_{S_{prv,new,i,j}}\left ( data \right )$;\\
+%$data \gets \Pi_{S_{pub,new,i,j}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Parallel permutation for mix $i$ during round $j$}
 \label{alg:SortOUT}
 \end{algorithm}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
-$k \gets \frac{n}{m}$;\\
-$i \gets 0$;\\
-\While{$i < r$}
+\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Number of records per mix $k$; \\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
+\ForAll{$i \in \llbracket 1,r \rrbracket$}
 {
-	$mix \gets \frac{index}{k} $;\\
-	$idx \gets index\ \%\ k$;\\
-	$idx \gets {\Pi}_{S_{prv, mix, i}}(idx) $;\\
-	$index \gets {\Pi}_{S_{pub, i}}(index)$;\\
-	$i\gets i+1$;
+	$mix \gets index / k $;\\
+	$idx \gets {\Pi}^{-1}_{S_{prv, mix, i}}(index\ \%\ k) $;\\
+	$index \gets {\Pi}^{-1}_{S_{pub, i}}(k\cdot mix + idx)$;\\
+
 }
 \KwOut{$index$}
-\caption{Index Lookup}
-\label{alg:IAS}
+\caption{Parallel Index Lookup}
+\label{alg:PIL}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Private seed $S_{old,i}$; \\ \qquad Data $data$;}
+$data \gets \Pi^{-1}_{S_{old,i}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Cascade sort for mix $i$}
+\label{alg:CSort}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Private seed $S_{new,i}$; \\ \qquad Data $data$;}
+$data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Cascade permutation for mix $i$}
+\label{alg:CPerm}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $S_{new}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Index to retrieve $index$;}
+$i \gets index$;\\
+\ForAll {$i \in \llbracket 1, m \rrbracket$}
+{
+	$index \gets {\Pi}_{S_{new, i}}(index) $;\\
+}
+\KwOut{$index$}
+\caption{Cascade Index Lookup}
+\label{alg:CIL}
 \end{algorithm}
 %
-\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. The first method increases the number of decryption done by the user, the second keeps this number constant at the cost of higher computation.\\
 
-In the first method, we simply let the mix keep encrypting the records with AES-CBC. Before uploading the records to the cloud, the user append to them a token to generate an IV. The records are then encrypted by the mixes with AES-CBC and these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also obfuscated thanks to AES-ECB and the mix private key.
-The user when retrieving a record will have to decipher all the AES-CBC encryption layers in a trial error fashion: the client will remove $r$ encryption, check if the record is only encrypted with the user encryption if not restart the process.\\
-There is in total $k_i \cdot r$, $k\in \mathbb{N}$, encryption layers per record $rec_i$. If the record access frequency distribution was close to uniform, the $k_i$ would follow a Binomial distribution $\mathcal{B}\left ( e, \frac{s}{n}\right )$ with $e$ the number of evictions done before and would be comprised in a relatively small interval. However, in reality, the frequency distribution is not uniform and the $k_i$ are more sparsely distributed. In any case, since the duration of the record decryption can be significantly different, a timing attack can occur. This is why, we advise to change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. The average and maximum time to decipher is thus reduced, with a large enough $d$ the total deciphering duration is closed to constant so the timing attack mitigated.\\
+\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. \\
 
-\noindent\textit{Considering fake access.} When a user wants to access a record which already is in the stash, a random database access is performed to hide potential frequency attacks. These fake accesses can be considered as free permutations as no fetched records need to remain in the stash, thus we can arbitrarily set $k_{in}=k_{out}$.
+In the piling up method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
+
+Before uploading the records to the cloud, the user  encrypt them and append to them tokens to generate IVs. During the eviction, the mixes then encrypt the records with AES-CBC and these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also encrypt thanks to AES-ECB and the mix private key.
+When retrieving a record, the user decrypts the IV first and uses it to decipher the record with the mixes shared secret. He repeat this operation in a trial error fashion to remove all AES-CBC encryption layers: the client will thus remove $r$ encryption layers, decrypt the record another time with his own key, check if the record is in plain text if not restart the process.\\
+Since the record decryption duration can vary significantly, a timing attack can occur. This is why, we change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. As the number of records accessed is increased, the average to decipher a record is thus reduced.\todo{check distribution of layers, check if sum is constant} \\
+
+\noindent\textit{Considering fake access.} When a user accesses a record, the latter is  updated back in a distinct array of the ORAM server. To prevent the adversary from seeing if the user accesses an already accessed record or not, a record is fetched from both of the arrays of the ORAM server resulting in fake accesses. The fake accesses can help in the decryption of the records. 
 %
 \begin{theorem}
 In the case of a uniform distribution access we have an average number 0 of fake access for $s\ll n$.
@@ -374,8 +385,11 @@ The volume under such line represents the number of real accesses a user does wh
 When the number of accesses is great, the access frequency approaches the average number of accesses.
 \end{proof}
 \end{theorem}
-%
-The second method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. Because the records are permuted at every round, the ordering keep changing, we cannot use AES-CTR commutativity and have to decrypt in the exact reverse order of the previous encryption. After the unwrapping and decryption is done, the records are only encrypted with the user encryption and are in an invariant ordering. The adversary looking at successive evictions can spot at this moment which records were accessed by simply observing which user encryption has changed. To prevent such attack, we add two additional phases between the unwrapping ($U$) and wrapping ($W$) where the every mix encrypts ($E$) and decrypts ($D$) the records with unchanged order (to use AES-CTR commutativity) as depicted in Fig~\ref{fig:AES}.
+
+The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
+The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
+To prevent the adversary from seeing the records in plain text between the phases, we make the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
+The renovation method can be be seen in Fig.\ref{fig:AES}. 
 
 \begin{figure}[h]
 \begin{minipage}{0.475\textwidth}
@@ -384,10 +398,10 @@ The second method consists in decrypting the old encryption layers and encryptin
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
 \node[draw=none, fill=none]    	(X)				  {};
-\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $\mathbf{U}$\\$D_1$};
-\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $\mathbf{E}$\\$E_2'$};
-\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $\mathbf{D}$\\ $D_2$};
-\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $\mathbf{W}$\\$E_1'$};
+\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $D_1$\\$P^{-1}$};
+\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $E_2'$};
+\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $D_2$};
+\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $E_1'$\\$P_1'$};
 \node[draw=none,fill=none]    	(Y)[right of=D]	  {};
 
 \path
@@ -406,15 +420,65 @@ The second method consists in decrypting the old encryption layers and encryptin
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,old,j}$;\\ \qquad Private seed $S_{prv,old,i,j}$; \\ \qquad Encryption key $Key_{new,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rcds \gets sort\_in(S_{pub,old,j}, data)$;\\
-$Rcds \gets {\Pi}_{S_{prv,old,i,j}}^{-1} (data)$;\\
-\ForAll{$r\in Rcds$}
+\KwIn{Encryption key $Key_{i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
+\ForAll{$r \in \llbracket 1,\ k \rrbracket$}
 {
-	$r \gets encrypt_{Key_{new,i,j}}\left( r \right )$;\\
+	$d[r].data \gets cbc_{Key_{i,j}}\left( d[r].IV,\ d[r].data \right )$;\\
+	$d[r].IV \gets cbc_{Key_{i,j}}\left( d[r].data,\ d[r].IV \right )$;\\
 }
-$sort\_in(S_{pub,old,j}, data)$;\\
-$\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
+\KwOut{data}
+\caption{Piling up for mix $i$ at round $j$}
+\label{alg:pile}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Encryption key $Key_{old,i,j},\ Key_{new,i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
+$key \gets Key_{old,i,j}$;\\
+\uIf{$j\leq r+m$}
+{
+	$key \gets Key_{new,i,j}$;\\
+}
+\uElseIf{$j\leq r+2m$}
+{
+	$key \gets Key_{old,i,j-m}$;\\
+}
+\uElse
+{
+	$key \gets Key_{new,i,j-r}$;\\
+}
+\ForAll {$r \in \llbracket 1,k \rrbracket$}
+{
+	$d[r] \gets ctr_{key}\left (d[r],\ r\right )$;\\
+}
+\KwOut{data}
+\caption{Renovating for the mix $i$ during round $j$}
+\label{alg:renov}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Number of records $n$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $data$;}
+$data \gets sort(data)$;\\
+$data \gets encrypt(data)$;\\
+
+$index \gets {\Pi}^{-1}_{S_{pub,old,j}} \llbracket 1,n \rrbracket$;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
+{
+	$rec[u] \gets [rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$;\\
+}
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
+{
+	$tosend \gets []$;\\
+	\ForAll{$v \in rec[u]$}
+	{
+		$tosend.expand(rec[u][v])$;\\
+	}
+	$send(Mix_u, tosend)$;\\
+}
 \caption{Unwrapping process for the mix $i$ during round $j$}
 \label{alg:UAS}
 \end{algorithm}
@@ -422,15 +486,25 @@ $\textbf{del } S_{pub,old,j},\ S_{priv,old,i,j}$;\\
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Public seed $S_{pub,new,j}$;\\ \qquad Private seed $S_{prv,new,i,j}$; \\ \qquad Encryption key $Key_{old,i,j}$; \\ \qquad Number of records $k$; \\ \qquad First index $idx$;\\ \qquad Data $data$;}
-$Rcds \gets sort\_in(S_{pub,new,j}, data)$;\\
-$Rcds \gets {\Pi}_{S_{prv,new,i,j}} (data)$;\\
-\ForAll{$r\in Rcds$}
+\KwIn{ Number of records $n$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $data$;}
+$data \gets permute(data)$;\\
+$data \gets encrypt(data)$;\\
+
+$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1,n \rrbracket$;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
 {
-	$r \gets encrypt_{Key_{old,i,j}}\left( r \right )$;\\
+	$rec[u] \gets [rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$;\\
 }
-$sort\_in(S_{pub,new,j}, data)$;\\
-$\textbf{del } Key_{old,i,j}$;\\
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
+{
+	$tosend \gets []$;\\
+	\ForAll{$v \in rec[u]$}
+	{
+		$tosend.expand(rec[u][v])$;\\
+	}
+	$send(Mix_u, tosend)$;\\
+}
 \caption{Wrapping process for the mix $i$ during round $j$}
 \label{alg:WAS}
 \end{algorithm}
@@ -439,7 +513,7 @@ $\textbf{del } Key_{old,i,j}$;\\
 %
 We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
 
-\noindent\textbf{Using AES-CBC.} In this scheme, each mix re-encrypts the whole database, and remove or add a permutation layer depending on the phase, before sending it to the next mix as depicted in Fig~\ref{fig:ASMO_CBC}.\\
+\noindent\textbf{Using AES-CBC.} In this scheme, the whole database is sent to a single mix, each mix permute and encrypts the whole database before sending it to the next mix as depicted in Fig~\ref{fig:ASMO_CBC}.\todo{}\\
 %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
