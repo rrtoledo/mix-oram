@@ -513,7 +513,7 @@ $rec \gets split(index,\ k)$;\\
 %
 We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
 
-\noindent\textbf{Using AES-CBC.} In this scheme, the whole database is sent to a single mix, each mix permute and encrypts the whole database before sending it to the next mix as depicted in Fig~\ref{fig:ASMO_CBC}.\todo{}\\
+\noindent\textbf{Using Cascade pile up.} Before the eviction process starts, the records are in the following state: permuted accordingly to the old seeds $S_i$ and encrypted under the keys $k_i$. The design refreshes the permutation and add new layers of AES-CBC encryption as shown in Fig~\ref{fig:ASMO_CBC}. The first time the database passes through a mix $m_i$, the mix undoes the permutation it has done in the previous eviction with the seed $S_i$ ($m_i$ performs $\Pi_{S_i}^{-1}$, denoted by $S_i^{-1}$ in the figure) and encrypt the records with the key $k_i$ as explained in Section~\ref{Arch}, the second time, it is permuted with the new seed $S_i'$ and encrypted with the new encryption key $k_{i}'$.\\
 %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
@@ -529,13 +529,13 @@ We consider here the basic cases where the whole database is sent through a casc
 ([yshift=1ex]0.east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_j=1..m}$}    	([yshift=1ex]A.west)
 ([yshift=-1ex]A.west) edge     	node{\small $DB_{k_{i=1..4m}}^{S'_{j=1..m}}$}    	([yshift=-1ex]0.east)
 
-([yshift=1ex]A.east) edge     	node{\small $k_{2m+1},S_1^{-1}$}    	([yshift=1ex]X.west)
-([yshift=-1ex]X.west) edge     	node{\small $k_{4m}',S_2'$}    	([yshift=-1ex]A.east)
+([yshift=1ex]A.east) edge     	node{\small $k_{1},S_1^{-1}$}    	([yshift=1ex]X.west)
+([yshift=-1ex]X.west) edge     	node{\small $k_{2}',S_2'$}    	([yshift=-1ex]A.east)
 
-([yshift=1ex]X.east) edge     	node{\small $k_{3m-1},S_{m-1}^{-1}$}    	([yshift=1ex]B.west)
-([yshift=-1ex]B.west) edge     	node{\small $k_{3m+1}',S_{m}'$}    	([yshift=-1ex]X.east)
+([yshift=1ex]X.east) edge     	node{\small $k_{m-1},S_{m-1}^{-1}$}    	([yshift=1ex]B.west)
+([yshift=-1ex]B.west) edge     	node{\small $k_{m}',S_{m}'$}    	([yshift=-1ex]X.east)
 
-(B)    edge[loop right, dashed]    node{\small $k_{3m},S_{2m}^{-1}$} (B);
+(B)    edge[loop right, dashed]    node{\small $k_{m},S_{m}^{-1}$} (B);
 
 \end{tikzpicture}
 \end{adjustbox}
@@ -545,9 +545,15 @@ We consider here the basic cases where the whole database is sent through a casc
 \end{figure} 
 
 \noindent\textbf{Message Format.}
-To reduce to as much as possible the message size, we choose to derive the AES keys and the permutation seeds from shared secrets calculated in a Diffie-Hellman assumption as in Sphinx~\cite{danezis2009sphinx} with the HKDF function~\cite{krawczyk2010cryptographic}.
-The client provides to each mix the old shared secret $\alpha_{old}$ to unwrap the permutation, the new shared secret $\alpha_{new}$ to encrypt and sort to the new permutation alongside with the signed list of mixes $(ports,\ ips)_{signed}$ and the database access information $id$ and token $token$
-$$E_{pub,\ mix_i}\left ( id,\ token,\ \alpha_{i,\ old},\ \alpha_{i,\ new},\ (ports,\ ips)_{signed}, \right) $$
+The client sends to each mix elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman assumption as in Sphinx~\cite{danezis2009sphinx}. From these elements are derived secrets shared by the mixes and the clients, from which the AES keys and the permutation seeds are extracted thanks to the HKDF function~\cite{krawczyk2010cryptographic}.
+The client provides to the mixes the old group element $\alpha_{old}$ to undo the old permutations, the new one $\alpha_{new}$ to perform the new permutations and the encryption ones $\beta$ alongside with the signed list of mixes $(ports,\ ips)_{signed}$ and the database access information $db$ consisting of the IP $ip$ and access token $token$. The client thus send to each mix $mix_i$:
+$$E_{pub,\ mix_i}\left ( db,\ \alpha_{i,\ old},\ \alpha_{i,\ new},\ \beta_{i},\ (ports,\ ips)_{signed} \right) $$
+
+
+\todo{client: create alpha, update beta (store original beta but send updated value with locally computed bindings)}
+\todo{mix: derive keys and seeds}
+
+\todo{packet header, mix ? no packet header ?}
 
 \noindent\textbf{Costs.}
 We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\cdot m \cdot n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
