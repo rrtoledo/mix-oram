@@ -189,179 +189,9 @@ AES in Counter mode (AES-CTR) encryption and decryption operations are commutati
 \section{Mix-ORAM}\label{Mix-ORAM}
 We first present a simple but impractical Mix-ORAM before looking at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 %
-\subsection{Architecture \& Encryption}\label{Arch}
-We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two mix-net architecture and two re-encryption methods.
-
-\noindent\textbf{Permuting.} ORAM designs frequently uses PRGs\cite{ohrimenko2014melbourne} during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
-In the case of classic client-server configuration, the client just needs to retrieve the database, permute it locally according to a new seed and upload it back. With the delegation to the mix-net, we now have a shift of paradigm: the permutations are now executed by semi-trusted mixes, yet we still want the global permutation to be known by the user only. Thereby, private permutation seeds are provided to each mix so that the adversaries only have a partial view of the permutation process and the mixes do a sufficient number of permutations so that the adversary cannot figure out the matching between remote and real indices. Finally, in order to keep the number of permutations constant on the client side when retrieving records, the permutation will be divided in two parts, the first one where the mixes undo the previous permutations and the second where they shuffle the records to reach the desired ordering. \\
-\\
-Two different architecture of mix-nets will be considered. Cascade mix-nets, as shown in Fig.~\ref{fig:mix_cas}, consist of mixes positioned ones after the others in a fix order ($r=m$), with one entry and one exit. Parallel mix-nets, shown in Fig.~\ref{fig:mix_par}, comprise mixes are positioned in parallel, with every mix being an entry and exit. During one round, the packets received by a mix are processed and then distributed among all the mixes once again.\\
-%
-\begin{figure*}[t]
-\centering
-\begin{minipage}[c]{0.475\textwidth}
-\vspace{0pt}
-\begin{adjustbox}{width=\textwidth}
-\centering 
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw=none, fill=none]    		(X)   {};
-\node[draw, rectangle]   		(A)[right of=X]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_2$};
-\node[draw, rectangle]    		(C)[right of=B]   {\small $Mix_3$};
-\node[draw=none, fill=none]    		(Y)[right of=C]   {};
-
-\path
-(X.east) edge     	node{}    	(A.west)
-(A.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(C.west)
-(C.east) edge     	node{}    	(Y.west);
-
-\end{tikzpicture}
-\end{adjustbox}
-\caption{A Cascade mix-net} \label{fig:mix_cas}
-\end{minipage}
-\hfill
-\begin{minipage}[T]{0.475\textwidth}
-\vspace{0pt}
-\centering 
-\begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw=none, fill=none]    		(X)   {};
-\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_2$};
-\node[draw, rectangle]   		(A)[above=2em of B]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(C)[below=2em of B]   {\small $Mix_3$};
-\node[draw, rectangle]   		(A')[right of=A]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B')[right of=B]   {\small $Mix_2$};
-\node[draw, rectangle]    		(C')[right of=C]   {\small $Mix_3$};
-\node[draw, rectangle]   		(A'')[right of=A']   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B'')[right of=B']   {\small $Mix_2$};
-\node[draw, rectangle]    		(C'')[right of=C']   {\small $Mix_3$};
-\node[draw=none, fill=none]    		(Y)[right of=B'']   {};
-
-\path
-(X.east) edge     	node{}    	(A.west)
-(X.east) edge     	node{}    	(B.west)
-(X.east) edge     	node{}    	(C.west)
-(A.east) edge     	node{}    	(A'.west)
-(A.east) edge     	node{}    	(B'.west)
-(A.east) edge     	node{}    	(C'.west)
-(B.east) edge     	node{}    	(A'.west)
-(B.east) edge     	node{}    	(B'.west)
-(B.east) edge     	node{}    	(C'.west)
-(C.east) edge     	node{}    	(A'.west)
-(C.east) edge     	node{}    	(B'.west)
-(C.east) edge     	node{}    	(C'.west)
-(A'.east) edge     	node{}    	(A''.west)
-(A'.east) edge     	node{}    	(B''.west)
-(A'.east) edge     	node{}    	(C''.west)
-(B'.east) edge     	node{}    	(A''.west)
-(B'.east) edge     	node{}    	(B''.west)
-(B'.east) edge     	node{}    	(C''.west)
-(C'.east) edge     	node{}    	(A''.west)
-(C'.east) edge     	node{}    	(B''.west)
-(C'.east) edge     	node{}    	(C''.west)
-(A''.east) edge     	node{}    	(Y.west)
-(B''.east) edge     	node{}    	(Y.west)
-(C''.east) edge     	node{}    	(Y.west);
-
-\end{tikzpicture}
-\end{adjustbox}
-\caption{A Parallel Mixnet} \label{fig:mix_par}
-\end{minipage}
-\end{figure*}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{pub,old},\ S_{prv,old,i}$; \\ \qquad Number of records $n$; \\  \qquad Data $data$;}
-$index \gets {\Pi}^{-1}_{S_{pub,old,j-1}} \llbracket 1, n\rrbracket $;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1,n/k \rrbracket$}
-{
-	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
-}
-$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
-$data \gets \Pi^{-1}_{S_{prv,old,j}} \left ( data \right )$;\\
-%$data \gets \Pi^{-1}_{S_{pub,old,j}} \left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Parallel sort for mix $i$ during round $j$}
-\label{alg:SortIN}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seed $S_{pub,new,j},\ S_{prv,new,i,j}$; \\ \qquad Number of records $n$; \\ \qquad Number of record per mix $k$; \\ \qquad Data $data$;}
-$index \gets {\Pi}_{S_{pub,new,j-1}} \llbracket 1,n \rrbracket$;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
-}
-$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
-$data \gets \Pi_{S_{prv,new,i,j}}\left ( data \right )$;\\
-%$data \gets \Pi_{S_{pub,new,i,j}}\left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Parallel permutation for mix $i$ during round $j$}
-\label{alg:SortOUT}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Number of records per mix $k$; \\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
-\ForAll{$i \in \llbracket 1,r \rrbracket$}
-{
-	$mix \gets index / k $;\\
-	$idx \gets {\Pi}^{-1}_{S_{prv, mix, i}}(index\ \%\ k) $;\\
-	$index \gets {\Pi}^{-1}_{S_{pub, i}}(k\cdot mix + idx)$;\\
-
-}
-\KwOut{$index$}
-\caption{Parallel Index Lookup}
-\label{alg:PIL}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Private seed $S_{old,i}$; \\ \qquad Data $data$;}
-$data \gets \Pi^{-1}_{S_{old,i}}\left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Cascade sort for mix $i$}
-\label{alg:CSort}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Private seed $S_{new,i}$; \\ \qquad Data $data$;}
-$data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Cascade permutation for mix $i$}
-\label{alg:CPerm}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{new}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Index to retrieve $index$;}
-$i \gets index$;\\
-\ForAll {$i \in \llbracket 1, m \rrbracket$}
-{
-	$index \gets {\Pi}_{S_{new, i}}(index) $;\\
-}
-\KwOut{$index$}
-\caption{Cascade Index Lookup}
-\label{alg:CIL}
-\end{algorithm}
-%
-
-\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
+\subsection{Encryption}\label{Enc}
+We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods.
+We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
 \textbf{Piling up method.} In the piling up method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
 
@@ -384,6 +214,20 @@ The volume under such line represents the number of real accesses a user does wh
 When the number of accesses is great, the access frequency approaches the average number of accesses.
 \end{proof}
 \end{theorem}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Encryption key $Key_{i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
+\ForAll{$r \in \llbracket 1,\ k \rrbracket$}
+{
+	$d[r].data \gets cbc_{Key_{i,j}}\left( d[r].IV,\ d[r].data \right )$;\\
+	$d[r].IV \gets cbc_{Key_{i,j}}\left( d[r].data,\ d[r].IV \right )$;\\
+}
+\KwOut{data}
+\caption{Piling up for mix $i$ at round $j$}
+\label{alg:pile}
+\end{algorithm}
 
 \textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
 The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
@@ -416,19 +260,7 @@ The renovation method can be be seen in Fig.\ref{fig:AES}.
 \end{minipage}
 \end{figure}
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Encryption key $Key_{i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
-\ForAll{$r \in \llbracket 1,\ k \rrbracket$}
-{
-	$d[r].data \gets cbc_{Key_{i,j}}\left( d[r].IV,\ d[r].data \right )$;\\
-	$d[r].IV \gets cbc_{Key_{i,j}}\left( d[r].data,\ d[r].IV \right )$;\\
-}
-\KwOut{data}
-\caption{Piling up for mix $i$ at round $j$}
-\label{alg:pile}
-\end{algorithm}
+
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -452,7 +284,7 @@ $key \gets Key_{old,i,j}$;\\
 	$d[r] \gets ctr_{key}\left (d[r],\ r\right )$;\\
 }
 \KwOut{data}
-\caption{Renovating for the mix $i$ during round $j$}
+\caption{Renovating process for the mix $i$ during round $j$}
 \label{alg:renov}
 \end{algorithm}
 
@@ -511,6 +343,59 @@ $rec \gets split(index,\ k)$;\\
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
 We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
+
+\begin{figure}
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+
+\node[draw=none, fill=none]    		(X)   {};
+\node[draw, rectangle]   		(A)[right of=X]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_2$};
+\node[draw, rectangle]    		(C)[right of=B]   {\small $Mix_3$};
+\node[draw=none, fill=none]    		(Y)[right of=C]   {};
+
+\path
+(X.east) edge     	node{}    	(A.west)
+(A.east) edge     	node{}    	(B.west)
+(B.east) edge     	node{}    	(C.west)
+(C.east) edge     	node{}    	(Y.west);
+
+\end{tikzpicture}
+\end{figure}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Private seed $S_{old,i}$; \\ \qquad Data $data$;}
+$data \gets \Pi^{-1}_{S_{old,i}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Cascade sort for mix $i$}
+\label{alg:CSort}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Private seed $S_{new,i}$; \\ \qquad Data $data$;}
+$data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Cascade permutation for mix $i$}
+\label{alg:CPerm}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $S_{new}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Index to retrieve $index$;}
+$i \gets index$;\\
+\ForAll {$i \in \llbracket 1, m \rrbracket$}
+{
+	$index \gets {\Pi}_{S_{new, i}}(index) $;\\
+}
+\KwOut{$index$}
+\caption{Cascade Index Lookup}
+\label{alg:CIL}
+\end{algorithm}
 
 \noindent\textbf{Using Cascade pile up.} Before the eviction process starts, the records are in the following state: permuted accordingly to the old seeds $S_i$ and encrypted under the keys $k_i$. The design refreshes the permutation and add new layers of AES-CBC encryption as shown in Fig~\ref{fig:ASMO_CBC}. The first time the database passes through a mix $m_i$, the mix undoes the permutation it has done in the previous eviction with the seed $S_i$ ($m_i$ performs $\Pi_{S_i}^{-1}$, denoted by $S_i^{-1}$ in the figure) and encrypt the records with the key $k_i$ as explained in Section~\ref{Arch}, the second time, it is permuted with the new seed $S_i'$ and encrypted with the new encryption key $k_{i}'$.\\
 %
@@ -626,6 +511,104 @@ These schemes are not efficient as instead of re-encrypting each record twice as
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we use random transposition shuffles (RTS) to model the parallelization  and calculate the number of rounds needed to reach perfect security.
 We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
+\begin{figure}
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+
+\node[draw=none, fill=none]    		(X)   {};
+\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_2$};
+\node[draw, rectangle]   		(A)[above=2em of B]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(C)[below=2em of B]   {\small $Mix_3$};
+\node[draw, rectangle]   		(A')[right of=A]   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B')[right of=B]   {\small $Mix_2$};
+\node[draw, rectangle]    		(C')[right of=C]   {\small $Mix_3$};
+\node[draw, rectangle]   		(A'')[right of=A']   {\small $Mix_{1}$};
+\node[draw, rectangle]    		(B'')[right of=B']   {\small $Mix_2$};
+\node[draw, rectangle]    		(C'')[right of=C']   {\small $Mix_3$};
+\node[draw=none, fill=none]    		(Y)[right of=B'']   {};
+
+\path
+(X.east) edge     	node{}    	(A.west)
+(X.east) edge     	node{}    	(B.west)
+(X.east) edge     	node{}    	(C.west)
+(A.east) edge     	node{}    	(A'.west)
+(A.east) edge     	node{}    	(B'.west)
+(A.east) edge     	node{}    	(C'.west)
+(B.east) edge     	node{}    	(A'.west)
+(B.east) edge     	node{}    	(B'.west)
+(B.east) edge     	node{}    	(C'.west)
+(C.east) edge     	node{}    	(A'.west)
+(C.east) edge     	node{}    	(B'.west)
+(C.east) edge     	node{}    	(C'.west)
+(A'.east) edge     	node{}    	(A''.west)
+(A'.east) edge     	node{}    	(B''.west)
+(A'.east) edge     	node{}    	(C''.west)
+(B'.east) edge     	node{}    	(A''.west)
+(B'.east) edge     	node{}    	(B''.west)
+(B'.east) edge     	node{}    	(C''.west)
+(C'.east) edge     	node{}    	(A''.west)
+(C'.east) edge     	node{}    	(B''.west)
+(C'.east) edge     	node{}    	(C''.west)
+(A''.east) edge     	node{}    	(Y.west)
+(B''.east) edge     	node{}    	(Y.west)
+(C''.east) edge     	node{}    	(Y.west);
+
+\end{tikzpicture}
+\caption{A Parallel Mixnet} \label{fig:mix_par}
+\end{figure}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $S_{pub,old},\ S_{prv,old,i}$; \\ \qquad Number of records $n$; \\  \qquad Data $data$;}
+$index \gets {\Pi}^{-1}_{S_{pub,old,j-1}} \llbracket 1, n\rrbracket $;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1,n/k \rrbracket$}
+{
+	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
+}
+$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
+$data \gets \Pi^{-1}_{S_{prv,old,j}} \left ( data \right )$;\\
+%$data \gets \Pi^{-1}_{S_{pub,old,j}} \left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Parallel sort for mix $i$ during round $j$}
+\label{alg:SortIN}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seed $S_{pub,new,j},\ S_{prv,new,i,j}$; \\ \qquad Number of records $n$; \\ \qquad Number of record per mix $k$; \\ \qquad Data $data$;}
+$index \gets {\Pi}_{S_{pub,new,j-1}} \llbracket 1,n \rrbracket$;\\
+$rec \gets split(index,\ k)$;\\
+\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
+{
+	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
+}
+$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
+$data \gets \Pi_{S_{prv,new,i,j}}\left ( data \right )$;\\
+%$data \gets \Pi_{S_{pub,new,i,j}}\left ( data \right )$;\\
+\KwOut{$data$}
+\caption{Parallel permutation for mix $i$ during round $j$}
+\label{alg:SortOUT}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Number of records per mix $k$; \\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
+\ForAll{$i \in \llbracket 1,r \rrbracket$}
+{
+	$mix \gets index / k $;\\
+	$idx \gets {\Pi}^{-1}_{S_{prv, mix, i}}(index\ \%\ k) $;\\
+	$index \gets {\Pi}^{-1}_{S_{pub, i}}(k\cdot mix + idx)$;\\
+
+}
+\KwOut{$index$}
+\caption{Parallel Index Lookup}
+\label{alg:PIL}
+\end{algorithm}
+
 %
 \subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
