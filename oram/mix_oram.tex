@@ -54,7 +54,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. We propose in this paper to  alleviate most of the client computation by delegating the randomization process to semi-trusted third parties.\todo{add results}
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be randomized periodically by the client. We propose in this paper to increase ORAM utility by delegating the randomization process to semi-trusted third parties.\todo{add results}
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -77,14 +77,14 @@ Oblivious RAM is a key technology for securely storing data on untrusted storage
 %
 \section{Introduction}\label{Introduction}
 %
-In cloud storage, data integrity must be preserved and both the data content and associated meta data must be hidden not only from external adversaries but also from itself.
+In cloud storage, data integrity must be preserved and both the data content and associated meta data must be hidden not only from external adversaries but also from the cloud itself.
 Cryptography is thereby used for secure communication channels, user authentication, data encryption and integrity checking.
 These, however, do not prevent the leakage of meta data: the storage server owner can watch which records were fetched and deduce from it the data content and the user activities. 
 
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the real record access. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
-This randomization is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be re-encrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to hide from the adversary the record indices. That is why, we propose here to delegate the eviction to semi trusted third parties.\\
-Mix networks\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is received by the mix-net where it is re-encrypted, or decrypted, and shuffled by each mix such that the output of one mix is the next ones' input. For the adversary to link the input and output, all of the mixes used in the shuffling have to be compromised.
-Mix-nets inspired designs could thus address ORAM constraints but at high cost since the re-encryption cost is linear in the number of mixes. If using those designs, methods to amortize the eviction must be taken into account to make ORAM practical.\\
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the record access by introducing virtual, or remote, indices. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
+This randomization is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be re-encrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to confidently hide from the adversary the record indices. The randomization cost is thus superlinear to the size of the database. That is why we propose here to delegate the eviction to semi trusted third parties.\\
+Mix networks\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is processed by the mix-net in that each mix re-encrypts, or decrypts, and shuffles the packets before sending them to the next mix. For the adversary to link the mix-net input and output, all of the mixes used in the shuffling have to be compromised.
+Mix-nets inspired designs could thus address ORAM constraints in the randomization but at high cost since the re-encryption cost is linear in the number of mixes. If using those designs, methods to amortize the eviction must be taken into account to make ORAM practical.\\
 
 In this work, we present several designs inspired by mix-nets for the eviction algorithm.
 The advantages of such practices are the delegation of the shuffling, the possibility to delay the latter to quieter times and the independence from centralized parties.
