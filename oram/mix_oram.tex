@@ -260,8 +260,6 @@ The renovation method can be be seen in Fig.\ref{fig:AES}.
 \end{minipage}
 \end{figure}
 
-
-
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -342,9 +340,9 @@ $rec \gets split(index,\ k)$;\\
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the basic cases where the whole database is sent through a cascade mix-net during the eviction process.\\
+We consider here the mix-net in a classic cascade configuration as depicted in Fig~\ref{CascadeArch}. During the eviction process, the whole database is passed from one mix to another such that it is successively processed by all before being updated back to the database.\\
 
-\begin{figure}
+\begin{figure} \label{CascadeArch}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
@@ -361,7 +359,11 @@ We consider here the basic cases where the whole database is sent through a casc
 (C.east) edge     	node{}    	(Y.west);
 
 \end{tikzpicture}
+\caption{Cascade architecture.}
 \end{figure}
+
+The mixes permute the records in the following way.
+
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -383,6 +385,9 @@ $data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
 \label{alg:CPerm}
 \end{algorithm}
 
+
+The user when retrieving a given record uses the following algorithm Alg~\ref{alg:CIL} to find the corresponding remote index.
+
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -396,6 +401,7 @@ $i \gets index$;\\
 \caption{Cascade Index Lookup}
 \label{alg:CIL}
 \end{algorithm}
+
 
 \noindent\textbf{Using Cascade pile up.} Before the eviction process starts, the records are in the following state: permuted accordingly to the old seeds $S_i$ and encrypted under the keys $k_i$. The design refreshes the permutation and add new layers of AES-CBC encryption as shown in Fig~\ref{fig:ASMO_CBC}. The first time the database passes through a mix $m_i$, the mix undoes the permutation it has done in the previous eviction with the seed $S_i$ ($m_i$ performs $\Pi_{S_i}^{-1}$, denoted by $S_i^{-1}$ in the figure) and encrypt the records with the key $k_i$ as explained in Section~\ref{Arch}, the second time, it is permuted with the new seed $S_i'$ and encrypted with the new encryption key $k_{i}'$.\\
 %
@@ -424,7 +430,7 @@ $i \gets index$;\\
 \end{tikzpicture}
 \end{adjustbox}
 \centering
-\caption{A simple Mix-ORAM: AES-CBC} \label{fig:ASMO_CBC}
+\caption{Piling up a simple Mix-ORAM.} \label{fig:ASMO_CBC}
 \end{minipage}
 \end{figure} 
 
@@ -489,7 +495,7 @@ We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\
 \end{tikzpicture}
 \end{adjustbox}
 \centering
-\caption{A simple Mix-ORAM: AES-CTR} \label{fig:ASMO_CTR}
+\caption{Renovating a simple Mix-ORAM.} \label{fig:ASMO_CTR}
 \end{minipage}
 \end{figure} 
 %
@@ -509,8 +515,10 @@ The message format is then: $$E_{pub,\ mix_i}\left(id,\ token,\ \alpha_{i,old},\
 These schemes are not efficient as instead of re-encrypting each record twice as in the Melbourne Shuffle, at least $2\cdot m$ encryption per element are necessary to achieve perfect security. The whole database also goes through every node twice which incur severe delays. To increase the mix-net efficiency, we study in the following sectin parallelization to distributing the workload among mixes.
 % 
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
-In this section, we use random transposition shuffles (RTS) to model the parallelization  and calculate the number of rounds needed to reach perfect security.
-We first present the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
+In this section, we replace the cascade configuration of the mix-net with a parallel one as depicted in Fig~\ref{fig:mix_par} and use random transposition shuffles (RTS) to model the parallelization. We also calculate the number of rounds needed to reach perfect security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
+
+Parallel mix-net ...
+
 \begin{figure}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
@@ -557,6 +565,9 @@ We first present the mixing time of $k$-RTS before introducing ORAM assumptions 
 \caption{A Parallel Mixnet} \label{fig:mix_par}
 \end{figure}
 
+The records are permuted locally and globally ...
+
+
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -592,6 +603,8 @@ $data \gets \Pi_{S_{prv,new,i,j}}\left ( data \right )$;\\
 \caption{Parallel permutation for mix $i$ during round $j$}
 \label{alg:SortOUT}
 \end{algorithm}
+
+The user when retrieving a given record needs to ...
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
