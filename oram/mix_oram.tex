@@ -81,7 +81,7 @@ In cloud storage, data integrity must be preserved and both the data content and
 Cryptography is thereby used for secure communication channels, user authentication, data encryption and integrity checking.
 These, however, do not prevent the leakage of meta data: the storage server owner can watch which records were fetched and deduce from it the data content and the user activities. 
 
-Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the record access by introducing virtual, or remote, indices. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
+Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the record access by introducing virtual/real, or remote/local, indices. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
 This randomization is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be re-encrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to confidently hide from the adversary the record indices. The randomization cost is thus superlinear to the size of the database. That is why we propose here to delegate the eviction to semi trusted third parties.\\
 Mix networks\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is processed by the mix-net in that each mix re-encrypts, or decrypts, and shuffles the packets before sending them to the next mix. For the adversary to link the mix-net input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets inspired designs could thus address ORAM constraints in the randomization but at high cost since the re-encryption cost is linear in the number of mixes. If using those designs, methods to amortize the eviction must be taken into account to make ORAM practical.\\
@@ -124,7 +124,7 @@ This work is inspired by mix-net and its encryption and permutation functionalit
 %
 \subsection{Model}\label{Model}
 
-In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process, how they are organized (the mix-net architecture), what type of encryption to use and secrets for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to the instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.
+In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process and the secret seeds for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to these instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.
 
 We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s\ll n$. The remote server can additionally include a small memory of capacity $\mathcal{O}(m)$ to store extra information such as the permutation seeds and encryption keys.
 \iffalse
@@ -151,8 +151,7 @@ We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM pr
 The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computationally indistinguishable if their lengths are equal ($k=k'$).
 \end{privdef}
 
-
-This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution~\cite{ostrovsky1990efficient} the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Hierarchical case~\cite{goldreich1996software}. We  evaluate it through the following security game.
+This work focuses on the ORAM eviction process where sequences of data-blocks are merged in an oblivious manner in order to hide the records indexes after access information has leaked. For instance, in the Square Root solution~\cite{ostrovsky1990efficient} the problem refers to the eviction of the shelter in the database and the upper partitions in a lower one in the Hierarchical case~\cite{goldreich1996software}. We evaluate it through the following security game.
 %
 \iffalse
 \begin{privdef}
@@ -191,7 +190,7 @@ AES in Counter mode (AES-CTR) encryption and decryption operations are commutati
 We first present a simple but impractical Mix-ORAM before looking at the eviction process and the use of shuffle algorithms, we will then apply the result to a traditional client-server ORAM and finally to the mix-ORAM.
 %
 \subsection{Architecture \& Encryption}\label{Arch}
-We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing different mix-net architecture and two re-encryption methods.
+We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two mix-net architecture and two re-encryption methods.
 
 \noindent\textbf{Permuting.} ORAM designs frequently uses PRGs\cite{ohrimenko2014melbourne} during the eviction algorithm to shuffle obliviously the records and store the mapping between virtual and real indexes.
 In the case of classic client-server configuration, the client just needs to retrieve the database, permute it locally according to a new seed and upload it back. With the delegation to the mix-net, we now have a shift of paradigm: the permutations are now executed by semi-trusted mixes, yet we still want the global permutation to be known by the user only. Thereby, private permutation seeds are provided to each mix so that the adversaries only have a partial view of the permutation process and the mixes do a sufficient number of permutations so that the adversary cannot figure out the matching between remote and real indices. Finally, in order to keep the number of permutations constant on the client side when retrieving records, the permutation will be divided in two parts, the first one where the mixes undo the previous permutations and the second where they shuffle the records to reach the desired ordering. \\
@@ -362,15 +361,15 @@ $i \gets index$;\\
 \end{algorithm}
 %
 
-\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. \\
+\noindent\textbf{Encrypting.} We will consider in this paper two ways to re-encrypt the database, independently of the mix-net architecture. We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
-In the piling up method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
+\textbf{Piling up method.} In the piling up method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
 
-Before uploading the records to the cloud, the user  encrypt them and append to them tokens to generate IVs. During the eviction, the mixes then encrypt the records with AES-CBC and these unique IVs. Before transferring the records to the next mix(es), the IV tokens are also encrypt thanks to AES-ECB and the mix private key.
-When retrieving a record, the user decrypts the IV first and uses it to decipher the record with the mixes shared secret. He repeat this operation in a trial error fashion to remove all AES-CBC encryption layers: the client will thus remove $r$ encryption layers, decrypt the record another time with his own key, check if the record is in plain text if not restart the process.\\
-Since the record decryption duration can vary significantly, a timing attack can occur. This is why, we change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. As the number of records accessed is increased, the average to decipher a record is thus reduced.\todo{check distribution of layers, check if sum is constant} \\
+Before uploading the records to the cloud, the user has encrypted them with AES-CBC and appended to them tokens to generate IVs. During the eviction, the mixes encrypt the records with AES-CBC and these unique IVs, then encrypt the IV tokens thanks to AES-ECB and the mix private key before transmitting the data to the next mixes.
+When retrieving a record, the user first decrypts the IV and uses it to decipher the record with the mixes shared secret. This operation is repeated in a trial error fashion until all AES-CBC encryption layers are removed. In short, the client removes $r$ encryption layers with the shared secrets, decrypts the record another time with his own key, check if the record is in plain text if not restart the process.\\
+Since the record decryption duration can vary significantly, a timing attack can occur. This is why, we change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. As the number of records accessed is increased, the average time to decipher a record is thus reduced.\todo{check distribution of layers, check if sum is constant} \\
 
-\noindent\textit{Considering fake access.} When a user accesses a record, the latter is  updated back in a distinct array of the ORAM server. To prevent the adversary from seeing if the user accesses an already accessed record or not, a record is fetched from both of the arrays of the ORAM server resulting in fake accesses. The fake accesses can help in the decryption of the records. 
+\noindent\textit{Considering fake access.} When a user accesses a record, the latter is updated back in a distinct array of the ORAM server. To prevent the adversary from seeing if the user accesses an already accessed record or not, a record is fetched from all of the ORAM arrays resulting in fake accesses. These fake accesses can help in the decryption of the records. 
 %
 \begin{theorem}
 In the case of a uniform distribution access we have an average number 0 of fake access for $s\ll n$.
@@ -386,9 +385,9 @@ When the number of accesses is great, the access frequency approaches the averag
 \end{proof}
 \end{theorem}
 
-The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
+\textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
 The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
-To prevent the adversary from seeing the records in plain text between the phases, we make the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
+To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
 The renovation method can be be seen in Fig.\ref{fig:AES}. 
 
 \begin{figure}[h]
