@@ -54,7 +54,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be randomized periodically by the client. We propose in this paper to increase ORAM utility by delegating the randomization process to semi-trusted third parties.\todo{add results}
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be  periodically randomized, i.e. re-encrypted and shuffled, by the client. The computation and communication costs the client inccurs are in reality super linear in the number of records which deters the use of ORAM for most common applications. We propose in this paper to increase ORAM utility by delegating the randomization process to semi-trusted third parties.\todo{add results}
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -124,7 +124,7 @@ This work is inspired by mix-net and its encryption and permutation functionalit
 %
 \subsection{Model}\label{Model}
 
-In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process and the secret seeds for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to these instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.
+In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process and the secret seeds for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to these instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.\\
 
 We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s\ll n$. The remote server can additionally include a small memory of capacity $\mathcal{O}(m)$ to store extra information such as the permutation seeds and encryption keys.
 \iffalse
@@ -340,17 +340,22 @@ $rec \gets split(index,\ k)$;\\
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the mix-net in a classic cascade configuration as depicted in Fig~\ref{CascadeArch}. During the eviction process, the whole database is passed from one mix to another such that it is successively processed by all before being updated back to the database.\\
+We consider here the mix-net in a classic cascade configuration as depicted in Fig~\ref{CascadeArch} with the use of the piling up and renovating encryption.\\\
+
+We want to remind that we consider the database to always be permuted according to a number of seeds, denoted $S_{old}$, the eviction goal is to obviously sort the database to a new state $S_{new}$.
+
+During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has inccured thanks to the old seeds $s_{old}$ given by the client while during the way out, the mixes permute the database according to the new ones $s_{new}$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if there has been any, the client overwrite the old seeds with the new ones.\\
 
 \begin{figure} \label{CascadeArch}
+\centering
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
-\node[draw=none, fill=none]    		(X)   {};
+\node[draw=none, rectangle]    		(X)   {};
 \node[draw, rectangle]   		(A)[right of=X]   {\small $Mix_{1}$};
 \node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_2$};
 \node[draw, rectangle]    		(C)[right of=B]   {\small $Mix_3$};
-\node[draw=none, fill=none]    		(Y)[right of=C]   {};
+\node[draw=none, rectangle]    		(Y)[right of=C]   {};
 
 \path
 (X.east) edge     	node{}    	(A.west)
@@ -362,46 +367,38 @@ We consider here the mix-net in a classic cascade configuration as depicted in F
 \caption{Cascade architecture.}
 \end{figure}
 
-The mixes permute the records in the following way.
-
-
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Private seed $S_{old,i}$; \\ \qquad Data $data$;}
+\KwIn{Old private seed $S_{old,i}$; \\ \qquad New private seed $S_{new,i}$;\\ \qquad Data $data$;}
+\If {in}
+{
 $data \gets \Pi^{-1}_{S_{old,i}}\left ( data \right )$;\\
+}
+\Else
+{
+$data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
+}
 \KwOut{$data$}
 \caption{Cascade sort for mix $i$}
 \label{alg:CSort}
 \end{algorithm}
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Private seed $S_{new,i}$; \\ \qquad Data $data$;}
-$data \gets \Pi_{S_{new,i}}\left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Cascade permutation for mix $i$}
-\label{alg:CPerm}
-\end{algorithm}
-
-
-The user when retrieving a given record uses the following algorithm Alg~\ref{alg:CIL} to find the corresponding remote index.
+When retrieving a given record, the user computes the remote record index  thanks to the last used seeds as shown in Alg~\ref{alg:CIL}.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Seeds $S_{new}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Index to retrieve $index$;}
+\KwIn{Seeds $S_{old}$; \\ \qquad Total number of records $n$; \\ \qquad Number of mixes $m$;\\ \qquad Index to retrieve $index$;}
 $i \gets index$;\\
 \ForAll {$i \in \llbracket 1, m \rrbracket$}
 {
-	$index \gets {\Pi}_{S_{new, i}}(index) $;\\
+	$index \gets {\Pi}_{S_{old, i}}(index) $;\\
 }
 \KwOut{$index$}
 \caption{Cascade Index Lookup}
 \label{alg:CIL}
 \end{algorithm}
-
 
 \noindent\textbf{Using Cascade pile up.} Before the eviction process starts, the records are in the following state: permuted accordingly to the old seeds $S_i$ and encrypted under the keys $k_i$. The design refreshes the permutation and add new layers of AES-CBC encryption as shown in Fig~\ref{fig:ASMO_CBC}. The first time the database passes through a mix $m_i$, the mix undoes the permutation it has done in the previous eviction with the seed $S_i$ ($m_i$ performs $\Pi_{S_i}^{-1}$, denoted by $S_i^{-1}$ in the figure) and encrypt the records with the key $k_i$ as explained in Section~\ref{Arch}, the second time, it is permuted with the new seed $S_i'$ and encrypted with the new encryption key $k_{i}'$.\\
 %
@@ -439,16 +436,13 @@ The client sends to each mix elements of a cyclic group of prime order satisfyin
 The client provides to the mixes the old group element $\alpha_{old}$ to undo the old permutations, the new one $\alpha_{new}$ to perform the new permutations and the encryption ones $\beta$ alongside with the signed list of mixes $(ports,\ ips)_{signed}$ and the database access information $db$ consisting of the IP $ip$ and access token $token$. The client thus send to each mix $mix_i$:
 $$E_{pub,\ mix_i}\left ( db,\ \alpha_{i,\ old},\ \alpha_{i,\ new},\ \beta_{i},\ (ports,\ ips)_{signed} \right) $$
 
-
 \todo{client: create alpha, update beta (store original beta but send updated value with locally computed bindings)}
 \todo{mix: derive keys and seeds}
-
-\todo{packet header, mix ? no packet header ?}
 
 \noindent\textbf{Costs.}
 We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\cdot m \cdot n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
 
-\noindent\textbf{Using AES-CTR.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, each phase consisting of $2 \cdot m$ rounds and at the middle of each phase, a blinding patch is done as depicted in Fig~\ref{fig:ASMO_CTR}.\\
+\noindent\textbf{Using Cascade renovation.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, an  blinding phase is added between the two during which the records are only encrypted then decrypted thanks to AES-CTR commutativity as depicted in Fig~\ref{fig:ASMO_CTR}.\\
  %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
