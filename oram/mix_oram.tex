@@ -232,7 +232,7 @@ When the number of accesses is great, the access frequency approaches the averag
 \textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
 The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
 To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
-The renovation method can be be seen in Fig.\ref{fig:AES}. 
+The renovation method can be be seen in Fig.\ref{fig:AES}.  
 
 \begin{figure}[h]
 \begin{minipage}{0.475\textwidth}
