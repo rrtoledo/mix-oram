@@ -54,7 +54,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be  periodically randomized, i.e. re-encrypted and shuffled, by the client. The computation and communication costs the client inccurs are in reality super linear in the number of records which deters the use of ORAM for most common applications. We propose in this paper to increase ORAM utility by delegating the randomization process to semi-trusted third parties.\todo{add results}
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be  periodically randomized, i.e. re-encrypted and shuffled, by the client. The computation and communication costs the client inccurs are in reality super linear in the number of records which deters the use of ORAM for most common applications. We propose in this paper to increase ORAM utility by delegating the randomization process to semi-trusted third parties and present four different shuffles.\todo{add results}
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -124,7 +124,16 @@ This work is inspired by mix-net and its encryption and permutation functionalit
 %
 \subsection{Model}\label{Model}
 
-In this work, we rely on semi-trusted third parties to re-randomize a set of records: After accessing a specific number of records from an ORAM server (number depending on the ORAM design), the client sends instructions to shuffle and encrypt the database to a set of mixes. These instructions contains information about which mix participates in the process and the secret seeds for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to these instructions. When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.\\
+An ORAM system actually is composed of two types of data arrays. One that we call database and consists of the user encrypted records and dummies and one that we call cache, e.g. the shelter in~\ref{}, which can fit up to $s$ records, $s$ being an ORAM parameter.
+When accessing a record, the client downloads the cache and check whether the desired record is present, if so the client fetches a dummy element from the database else the desired record. The client finishes the access by encrypting and updating the desired element back in the cache.
+
+After accessing $s$ records from an ORAM database, that is when the cache is full, the client needs to start the eviction process to randomize the database. To do so, the client first need to rebuild the database by merging obliviously the cache and database and afterwards start the oblivious shuffle.
+
+The rebuild phase consists in placing obliviously updated records from the cache back to the ORAM database. The client begins then by downloading the cached array of previously fetched records, fetches them all once again one by one from the database and overwrite them with an encryption of their cached version.
+
+The client finally sends randomization instructions to a set of mixes. These instructions contains information about which mix participates in the process and the secret seeds for shuffling and encrypting. When receiving the records, the mixes encrypt, shuffle and transmit them to the next mixes according to these instructions.
+
+When the user requests a specific record, the client computes the remote index thanks to the seeds shared with the mix-net and retrieve the corresponding record. The client then decrypts the latter thanks to the shared encryption keys and pass it to the calling application.\\
 
 We consider on one side, an ORAM remote server with memory capacity of $n\ b$-bit long blocks, a mix-net composed of $m$ mixes and on the other side, a client with memory of $s$-block capacity with $s\ll n$. The remote server can additionally include a small memory of capacity $\mathcal{O}(m)$ to store extra information such as the permutation seeds and encryption keys.
 \iffalse
