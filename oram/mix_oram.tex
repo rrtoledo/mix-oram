@@ -83,7 +83,7 @@ These, however, do not prevent the leakage of meta data: the storage server owne
 
 Oblivious RAM (ORAM)~\cite{goldreich87}, or Oblivious Storage (OS)~\cite{boneh2011}, precisely prevents an adversary from observing the record access by introducing virtual/real, or remote/local, indices. In these schemes, the remote records are permuted and information making the matching between remote and local indices, the seed, is saved locally. When the user requests a specific record, the client computes from the seed its remote index and fetch the corresponding block. After a number of accesses, the database is then re-encrypted and shuffled during a so called eviction process.\\ 
 This randomization is the main bottleneck of ORAM. Indeed, we assume in such design that the number of records stored remotely is much higher than what the client can store. As every record must be re-encrypted and permuted locally, the client has to download and process the database by chunks, and do so several times to confidently hide from the adversary the record indices. The randomization cost is thus superlinear to the size of the database. That is why we propose here to delegate the eviction to semi trusted third parties.\\
-Mix networks\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is processed by the mix-net in that each mix re-encrypts, or decrypts, and shuffles the packets before sending them to the next mix. For the adversary to link the mix-net input and output, all of the mixes used in the shuffling have to be compromised.
+Mix networks~\ref{chaum1981untraceable} is a solution widely applied in anonymity system to obliviously shuffle packets. A batch of packets is processed by the mix-net in that each mix re-encrypts, or decrypts, and shuffles the packets before sending them to the next mix. For the adversary to link the mix-net input and output, all of the mixes used in the shuffling have to be compromised.
 Mix-nets inspired designs could thus address ORAM constraints in the randomization but at high cost since the re-encryption cost is linear in the number of mixes. If using those designs, methods to amortize the eviction must be taken into account to make ORAM practical.\\
 
 In this work, we present several designs inspired by mix-nets for the eviction algorithm.
@@ -125,7 +125,7 @@ This work is inspired by mix-net and its encryption and permutation functionalit
 \subsection{Model}\label{Model}
 
 An ORAM system actually is composed of two types of data arrays. One that we call database and consists of the user encrypted records and dummies and one that we call cache, e.g. the shelter in~\ref{}, which can fit up to $s$ records, $s$ being an ORAM parameter.
-When accessing a record, the client downloads the cache and check whether the desired record is present, if so the client fetches a dummy element from the database else the desired record. The client finishes the access by encrypting and updating the desired element back in the cache.\\
+When accessing a record, the client downloads the cache and checks whether the desired record is present, if so the client fetches a dummy element from the database else the desired record, finally it encrypts and updates the desired element back in the cache.\\
 
 After accessing $s$ records from an ORAM database, that is when the cache is full, the client needs to start the eviction process to randomize the database. To do so, the client first need to rebuild the database by merging obliviously the cache and database and afterwards start the oblivious shuffle.
 The rebuild phase consists in placing obliviously updated records from the cache back to the ORAM database. The client begins then by downloading the cached array of previously fetched records, fetches all the records accessed from the database once again one by one overwrite them either with an encryption of their cached version wither with a dummy.
@@ -152,8 +152,7 @@ In addition, the adversaries may have corrupted the ORAM server and a part of th
 We will assume that the compromised machines behave in a \textit{honest but curious} way in that every operation is correctly performed but passively recorded and shared with the adversaries.
 
 \begin{privdef}\label{def:Oram}
-Let $\text{seq}_k=((\text{op}_1, \text{addr}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{addr}_k, \text{data}_k))$ denote a query sequence of length $k$, where $op$ denotes a read or write operation and $data$ the block to write else $
-\perp$.
+Let's denote a sequence of $k$ queries $\text{seq}_k=\{(\text{op}_1, \text{ad}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{ad}_k, \text{data}_k)\}$, where $op$ denotes a read or write operation, $ad$ the address where to process the operation and $data$ the block to write else $\perp$.
 We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM process with input $seq_k$.
 The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computationally indistinguishable if their lengths are equal ($k=k'$).
 \end{privdef}
@@ -216,11 +215,11 @@ However it is well known that the frequency access of records is not uniform, in
 \begin{theorem}
 Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
 The average number of fake access is $ \frac{v0}{v1}$.
+\end{theorem}
 \begin{proof}
 The volume under such line represents the number of real accesses a user does while the volume above it represents accesses in the stash which leads to fake accesses.
 When the number of accesses is great, the access frequency approaches the average number of accesses.
 \end{proof}
-\end{theorem}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -236,12 +235,12 @@ When the number of accesses is great, the access frequency approaches the averag
 \label{alg:pile}
 \end{algorithm}
 
-\textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
+\noindent\textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
 The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
 To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
 The renovation method can be be seen in Fig.\ref{fig:AES}.  
 
-\begin{figure}[h]
+\begin{figure}
 \begin{minipage}{0.475\textwidth}
 \begin{adjustbox}{width=\textwidth}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
