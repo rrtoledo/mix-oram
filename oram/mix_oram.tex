@@ -183,27 +183,22 @@ In this section, we first introduce the different encryption methods we will use
 We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods.
 We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
-\textbf{Piling up method.} In the piling up method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
+\textbf{Layered method.} In the Layered method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
 
 Before uploading the records to the cloud, the user has encrypted them with AES-CBC and appended to them tokens to generate IVs. During the eviction, the mixes encrypt the records with AES-CBC and these unique IVs, then encrypt the IV tokens thanks to AES-ECB and the mix private key before transmitting the data to the next mixes.
-When retrieving a record, the user first decrypts the IV and uses it to decipher the record with the mixes shared secret. This operation is repeated in a trial error fashion until all AES-CBC encryption layers are removed. In short, the client removes $r$ encryption layers with the shared secrets, decrypts the record another time with his own key, check if the record is in plain text if not restart the process.\\
-Since the record decryption duration can vary significantly, a timing attack can occur. This is why, we change the access method as the following: when a user access a record, he fetches $d$ other records, re-encrypt all of them and uploads them back at the same indices. The number of records fetched before eviction is thus increased to $s\cdot d$, most of which were done randomly. As the number of records accessed is increased, the average time to decipher a record is thus reduced.\todo{check distribution of layers, check if sum is constant} \\
+When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache. After doing so, the client locally overwrites the record if executing a write operation or if a read, decrypts the data block in a trial error fashion: the client decrypts first the IV and uses it to decipher the record with the mixes shared secret and repeats this operation  $r$ times in total, then the client decrypts the record one more time but with its own key . In short, the client removes $r$  mix encryption layers with the shared secrets, decrypts the record another time with his own key, check if the record is in plain text if not restart the process. After reading or writing the record, the client encrypts the record with its own key, and overwrite the cached version with it the next time the cache is fetched. 
 
-\noindent\textit{Considering fake access.} When a user accesses a record, the latter is updated back in a distinct array of the ORAM server. To prevent the adversary from seeing if the user accesses an already accessed record or not, a record is fetched from all of the ORAM arrays resulting in fake accesses. These fake accesses can help in the decryption of the records. 
-%
-\begin{theorem}
-In the case of a uniform distribution access we have an average number 0 of fake access for $s\ll n$.
-\end{theorem}
-%
-However it is well known that the frequency access of records is not uniform, in that case we can count a strictly positive number of fake accesses.
-\begin{theorem}
-Let $A$ be the access distribution. Let's call $v_0$ and $v_1$ the volume above the line $y=0$ and under it respectively.
-The average number of fake access is $ \frac{v0}{v1}$.
-\end{theorem}
+With the assumption that the record access distribution is uniform, we can represent the problem of accessing all records as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the n-th harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
 \begin{proof}
-The volume under such line represents the number of real accesses a user does while the volume above it represents accesses in the stash which leads to fake accesses.
-When the number of accesses is great, the access frequency approaches the average number of accesses.
+Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
+Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
+
+We now want to find the average number of encryption layers per record when deciphering it, this is equivalent to finding the average number of evictions before a record is deciphered. 
+Hence we have $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$. 
 \end{proof}
+
+To reduce these numbers, we change the access method in this way: when the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of records Database\textbackslash Cache. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -217,6 +212,45 @@ When the number of accesses is great, the access frequency approaches the averag
 \KwOut{data}
 \caption{Piling up for mix $i$ at round $j$}
 \label{alg:pile}
+\end{algorithm}
+
+\todo{}
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Encryption key $Keys$; \\ \qquad Record index $i$;\\ \qquad Last record $rec$;\\ \qquad Operation $op$;\\ \qquad Data to write $towrite$;}
+$j \gets recover_index(Keys, i)$;\\
+$fetch_cache()$;\\
+$decrypt_cache()$;\\
+$push_cache(rec)$;\\
+\If{$i\ in\ cache$}
+{
+$fetch_dummy()$;\\
+}
+\Else
+{
+$fetch(j)$;\\
+}
+$push_cache()$;\\
+\If {$op==read$}
+{
+\While{$data not plain$}
+{
+\ForAll{$r \in \llbracket 1,\ k \rrbracket$}
+{
+	$d[r].data \gets cbc_{Key_{i,j}}\left( d[r].IV,\ d[r].data \right )$;\\
+	$d[r].IV \gets cbc_{Key_{i,j}}\left( d[r].data,\ d[r].IV \right )$;\\
+}
+}
+$push_last(encrypt(data))$;\\
+}
+\Else
+{
+$push_last(towrite)$;\\
+}
+\KwOut{data}
+\caption{Retrieving a record}
+\label{alg:pileclient}
 \end{algorithm}
 
 \noindent\textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
