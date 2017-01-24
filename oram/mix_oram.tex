@@ -7,6 +7,8 @@
 \captionsetup{compatibility=false}
 \usepackage[ruled,algosection,noend,linesnumbered]{algorithm2e}
 \usepackage{adjustbox}
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
 \usepackage{amsfonts}
 \usepackage{stmaryrd}
 \usepackage{amsmath}
@@ -16,7 +18,7 @@
 \usepackage{float}
 
 \usepackage{tikz}
-\usetikzlibrary{shapes, positioning}
+\usetikzlibrary{shapes, positioning, matrix, backgrounds}
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem*{secgme}{Security Game}
@@ -179,16 +181,35 @@ AES in Counter mode (AES-CTR) encryption and decryption operations are commutati
 \section{Mix-ORAM}\label{Mix-ORAM}
 In this section, we first introduce the different encryption methods we will use to encrypt the records during the eviction. We then present a simple but impractical Mix-ORAM case before optimizing it with the use of distributed shuffle algorithms. 
 %
-\subsection{Encryption methods}\label{Enc}
-We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods.
+\subsection{Mix and User encryption methods}\label{Enc}
+We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods. For each method, we show how the mix-nets encrypt the records and how the client recovers a record plain text.
 We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
-\textbf{Layered method.} In the Layered method, the mixes keep encrypting the records with AES-CBC thanks to IV tokens appended to them.
+\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the mixes encrypt the records with AES-CBC thanks to IV tokens during the eviction and to let the client decrypts the requested records after the access. To maintain a low number of encryption layers on top of the records, we propose to modify the access method to fetch more records from the database.
 
-Before uploading the records to the cloud, the user has encrypted them with AES-CBC and appended to them tokens to generate IVs. During the eviction, the mixes encrypt the records with AES-CBC and these unique IVs, then encrypt the IV tokens thanks to AES-CBC and the mix private key before transmitting the data to the next mixes.
-When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache. After doing so, the client locally overwrites the record if executing a write operation or if a read, decrypts the data block in a trial error fashion: the client decrypts first the IV and uses it to decipher the record with the mixes shared secret and repeats these operations $r$ times in total, then the client decrypts the record one more time but with its own key. If the client recognize the plain text, the process stops, else the client cancel his previous decryption and restart the process. In short, the client removes $r$  mix encryption layers with the shared secrets, tries to remove his own with his own keys, checks if the record is in plain text if not cancels its decryption and restarts the process. After reading or writing the record, the client encrypts the record with its own key, and overwrite the cached version with it the next time the cache is fetched. 
+\begin{table}[H]
+\begin{minipage}[t][][b]{.475\textwidth}
+\vspace{0pt}
+\centering
+\begin{tabular}{|c|c|}
+IV token  &  data = label | record  \\
+$8\cdot\ceil{\log(n)/8}$ bit  &  $8\cdot\ceil{\log(n)/8}+b$ bit   \\
+\end{tabular}
+\centering
+\caption{Layered method data structure.}
+\label{ldata}
+\end{minipage}
+\end{table}
 
-With the assumption that the record access distribution is uniform, we can represent the problem of accessing all records as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the n-th harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
+During the eviction, the mixes use the IV token as seed to generate an initialisation array. AES-CBC is then used to encrypt the data with the IV and the secrets shared with the client. The $8\cdot\ceil{\log(n)/8}+b$ first bit of the data is then used as a seed to generate an IV with which the IV token is encrypted under AES-CBC and with the shared secrets. Once all elements haven been re-encrypted, they are forwarded to the next mixes.
+
+To decrypt a record, the client make uses of the following trial error process: using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
+To encrypt a record, the client generates the IV token and label, encrypts the data with its own secret key and the IV produced from the IV token, and encrypts the IV with its own secret key and an IV produced from the data.
+ 
+As the number of encryption layers per record may vary, we delay the decryption of the fetched record to avoid a timing attack. When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache before uploading the latter.
+After doing so, the client locally decrypts the previous encryption and starts the decryption method described above. Once the plain text is recovered, a new IV token is generated, the label is appended to the record, the data is encrypted with the IV produced from the IV token and the private key. The next time the cache is fetched, the cached version of the record is overwritten with the new version. 
+
+We now look at the average number of encryption layers a record has before being decripted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
 \begin{proof}
 Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
 Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
@@ -197,20 +218,22 @@ We now want to find the average number of encryption layers per record when deci
 Hence we have $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$. 
 \end{proof}
 
-To reduce these numbers, we change the access method in this way: when the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of records Database\textbackslash Cache. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+To reduce these numbers, we modify the access method in this way: when the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
 With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Encryption key $Key_{i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
-\ForAll{$r \in \llbracket 1,\ k \rrbracket$}
+\KwIn{Shared key $Key_{i,j}$; \\ \qquad Collection of data blocks $d$;}
+\ForAll{$r \in d$}
 {
-	$d[r].data \gets cbc_{Key_{i,j}}\left( d[r].IV,\ d[r].data \right )$;\\
-	$d[r].IV \gets cbc_{Key_{i,j}}\left( d[r].data,\ d[r].IV \right )$;\\
+	$IV \gets urandom(d[r].token, 128)$;\\
+	$d[r].data \gets cbc\left(Key_{i,j},\ IV,\ d[r].data \right )$;\\
+	$IV \gets urandom(d[r].data, 128)$;\\
+	$d[r].token \gets cbc\left(Key_{i,j},\ IV,\ d[r].token \right )$;\\
 }
 \KwOut{data}
-\caption{Piling up for mix $i$ at round $j$}
+\caption{Layered algorithm for mix $i$ at round $j$}
 \label{alg:pile}
 \end{algorithm}
 
@@ -224,11 +247,11 @@ $cache \gets fetch(cache)$;\\
 $record \gets decrypt\_cache(Keys,\ i,\ cache)$;\\
 \If{$record == null$}
 {
-$dummies \gets compute_dummies(cache, d+1)$;\\
+$dummies \gets compute\_dummies(cache, d+1)$;\\
 }
 \Else
 {
-$dummies \gets compute_dummies(cache, d, j)$;\\
+$dummies \gets compute\_dummies(cache, d, j)$;\\
 }
 $d \gets fetch(dummies)$
 $push\_cache(recs)$;\\
