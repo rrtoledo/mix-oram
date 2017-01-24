@@ -224,56 +224,93 @@ With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.\\
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Shared key $Key_{i,j}$; \\ \qquad Collection of data blocks $d$;}
-\ForAll{$r \in d$}
-{
-	$IV \gets urandom(d[r].token, 128)$;\\
-	$d[r].data \gets cbc\left(Key_{i,j},\ IV,\ d[r].data \right )$;\\
-	$IV \gets urandom(d[r].data, 128)$;\\
-	$d[r].token \gets cbc\left(Key_{i,j},\ IV,\ d[r].token \right )$;\\
-}
-\KwOut{data}
-\caption{Layered algorithm for mix $i$ at round $j$}
-\label{alg:pile}
+\KwIn{Record $rec$; \\ \qquad Encryption key $k$; }
+$IV \gets urandom(rec.token\cdot k, 128)$;\\
+$rec.data \gets enc\left(k,\ IV,\ rec.data \right )$;\\
+$IV \gets urandom(rec.data \cdot k, 128)$;\\
+$rec.token \gets enc\left(k,\ IV,\ rec.token \right )$;\\
+\KwOut{rec}
+\caption{Layered encryption primitive}
+\label{alg:lmix}
 \end{algorithm}
 
-\todo{}
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Encryption key $Keys$; \\ \qquad Record index $i$;\\ \qquad Last records $recs$;\\ \qquad Operation $op$;\\ \qquad Data to write $towrite$; \\ \qquad \# dummies $d$;\\}
-$j \gets recover\_index(Keys, i)$;\\
-$cache \gets fetch(cache)$;\\
-$record \gets decrypt\_cache(Keys,\ i,\ cache)$;\\
-\If{$record == null$}
+\KwIn{Record $rec$; \\ \qquad Decryption key $k$; }
+$IV \gets urandom(rec.data \cdot k, 128)$;\\
+$rec.token \gets dec\left(k,\ IV,\ rec.token \right )$;\\
+$IV \gets urandom(rec.token\cdot k, 128)$;\\
+$rec.data \gets dec\left(k,\ IV,\ rec.data \right )$;\\
+\KwOut{rec}
+\caption{Layered decryption primitive}
+\label{alg:lmix}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Record $rec$; \\ \qquad Record index $index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Private key $prv$;\\ \qquad Number of rounds $r$; \\ \qquad Permutation seeds $\sigma$;}
+$j,e=0$;\\
+$r\gets decrypt(prv_e,rec)$;\\
+\While{$rec.data.label != i$}
 {
-$dummies \gets compute\_dummies(cache, d+1)$;\\
+\If {$e!=0$}
+{
+$rec \gets encrypt(prv_e,\ rec)$;\\
+\ForAll{$k \in \llbracket 1 :r \rrbracket $}
+{
+	$m\gets retrieve\_mix(\sigma,\ e,\ j,\ index)$;\\
+	$rec \gets decrypt(k_{m,\ e,\ j}, rec)$;\\
+	$j\gets j-1$;\\
+}
+}
+	$rec \gets decrypt(prv_e,\ rec)$;\\
+    $e\gets e-1$;\\
+}
+\KwOut{rec}
+\caption{Layered Decryption algorithm }
+\label{alg:ldec}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{ Real record index $index$; \\ \qquad Operation $op$; \\ \qquad Data to write $towrite$; \\ \qquad Encryption keys $k$; \\ \qquad Permutation seeds $\sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
+$j \gets recover\_index(\sigma, index)$;\\
+$cache \gets fetch\_cache()$;\\
+\ForAll {$rec \in cache$}
+{
+$cache[rec]\gets decrypt(k,\ r,\ \sigma,\ cache[rec])$;\\
+}
+\If{$record \in cache$}
+{
+$record \gets find(record) $;\\
+$tofetch \gets choose\_dummies(cache, d+1)$;\\
 }
 \Else
 {
-$dummies \gets compute\_dummies(cache, d, j)$;\\
+$tofetch \gets choose\_dummies(cache, d)$;\\
+$tofetch \gets tofetch \cup \{j\}$;\\
 }
-$d \gets fetch(dummies)$
-$push\_cache(recs)$;\\
-$send\_cache(cache)$;\\
+$record,\ d \gets fetch(tofetch)$\\
+$update\_cache(recs, encrypt(record))$;\\
+$send\_cache()$;\\
 \If {$op==read$}
 {
-\ForAll{$r \in d$}
-{
-\While{$not\ plain$}
-{
-	$d[r].data \gets cbc\left( Key, d[r].IV,\ d[r].data \right )$;\\
-	$d[r].IV \gets cbc\left(Key, d[r].data,\ d[r].IV \right )$;\\
-}
-}
-$push\_last(encrypt(dummies))$;\\
+$d \gets d \cup \{record\}$;\\
 }
 \Else
 {
-$push\_last(encrypt(towrite, dummies))$;\\
+$d \gets d \cup \{towrite\}$;\\
 }
-\KwOut{data}
-\caption{Retrieving a record}
+\ForAll {$rec \in d$}
+{
+$d[rec] \gets decrypt(k,\ r,\ \sigma,\ d[rec])$;\\
+$save(encrypt(k,\ d[rec]))$;\\
+}
+\KwOut{record}
+\caption{Layered access method}
 \label{alg:pileclient}
 \end{algorithm}
 
