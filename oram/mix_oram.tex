@@ -321,6 +321,7 @@ The renovation method is divided in two phases, the first one where the mixes de
 To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
 The renovation method can be be seen in Fig.\ref{fig:AES}.  
 
+
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
