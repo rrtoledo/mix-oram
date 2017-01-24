@@ -173,10 +173,11 @@ We classify the computation cost under its function (encryption, shuffle and sec
 ORAM systems make use of pseudo random generators (PRG) and seeds to save the matching between remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A PRG is a deterministic algorithm that receives as an input a short random seed and stretches it into a long pseudo random stream.\\\
 
 \noindent\textbf{Encryption.}
-ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.\\
-Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the In%tel Core i3~\cite{mcwilliams2014hardware} which makes it the ideal choice for ORAM.\\ 
-AES in CBC mode (AES-CBC) is one of the most common mode of operation used today. It works sequentially, as the cipher text of one message is needed for the encryption of the next one. 
-AES in Counter mode (AES-CTR) encryption and decryption operations are commutative.
+ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.
+
+Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3~\cite{mcwilliams2014hardware} which makes it the ideal choice for ORAM.
+
+To minimize the size of the instructions stored and sent by the client, we make use of elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman assumption. The mixes make use of these elements and derive the different permutation seeds and encryption keys with the a key derivation function, such as the HKDF~\cite{XXXHKDF}, and refresh the them at each round by blinding them with the shared secrets as in \cite{danezis2009sphinx}. 
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
 In this section, we first introduce the different encryption methods we will use to encrypt the records during the eviction. We then present a simple but impractical Mix-ORAM case before optimizing it with the use of distributed shuffle algorithms. 
@@ -185,7 +186,7 @@ In this section, we first introduce the different encryption methods we will use
 We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods. For each method, we show how the mix-nets encrypt the records and how the client recovers a record plain text.
 We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
-\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the mixes encrypt the records with AES-CBC thanks to IV tokens during the eviction and to let the client decrypts the requested records after the access. To maintain a low number of encryption layers on top of the records, we propose to modify the access method to fetch more records from the database.
+\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the mixes encrypt the records with AES in CBC mode thanks to IV tokens during the eviction and to let the client decrypts the requested records after the access. To maintain a low number of encryption layers on top of the records, we propose to modify the access method to fetch more records from the database.
 
 \begin{table}[H]
 \begin{minipage}[t][][b]{.475\textwidth}
@@ -203,7 +204,7 @@ $8\cdot\ceil{\log(n)/8}$ bit  &  $8\cdot\ceil{\log(n)/8}+b$ bit   \\
 
 During the eviction, the mixes use the IV token as seed to generate an initialisation array. AES-CBC is then used to encrypt the data with the IV and the secrets shared with the client. The $8\cdot\ceil{\log(n)/8}+b$ first bit of the data is then used as a seed to generate an IV with which the IV token is encrypted under AES-CBC and with the shared secrets. Once all elements haven been re-encrypted, they are forwarded to the next mixes.
 
-To decrypt a record, the client make uses of the following trial error process: using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
+To decrypt a record, the client make uses of the trial error process written in Algorithm~\ref{alg:ldec}. Using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
 To encrypt a record, the client generates the IV token and label, encrypts the data with its own secret key and the IV produced from the IV token, and encrypts the IV with its own secret key and an IV produced from the data.
  
 As the number of encryption layers per record may vary, we delay the decryption of the fetched record to avoid a timing attack. When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache before uploading the latter.
@@ -214,11 +215,11 @@ We now look at the average number of encryption layers a record has before being
 Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
 Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
 
-We now want to find the average number of encryption layers per record when deciphering it, this is equivalent to finding the average number of evictions before a record is deciphered. 
-Hence we have $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$. 
+We now want to find the average number of encryption layers per record before decryption, this is equivalent to finding the average number of evictions before a record is deciphered. 
+Hence we have, $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
 \end{proof}
 
-To reduce these numbers, we modify the access method in this way: when the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+To reduce these numbers, we modify the access method as written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
 With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.\\
 
 \begin{algorithm}
@@ -231,7 +232,7 @@ $IV \gets urandom(rec.data \cdot k, 128)$;\\
 $rec.token \gets enc\left(k,\ IV,\ rec.token \right )$;\\
 \KwOut{rec}
 \caption{Layered encryption primitive}
-\label{alg:lmix}
+\label{alg:lencp}
 \end{algorithm}
 
 \begin{algorithm}
@@ -244,7 +245,7 @@ $IV \gets urandom(rec.token\cdot k, 128)$;\\
 $rec.data \gets dec\left(k,\ IV,\ rec.data \right )$;\\
 \KwOut{rec}
 \caption{Layered decryption primitive}
-\label{alg:lmix}
+\label{alg:ldecp}
 \end{algorithm}
 
 \begin{algorithm}
@@ -311,39 +312,14 @@ $save(encrypt(k,\ d[rec]))$;\\
 }
 \KwOut{record}
 \caption{Layered access method}
-\label{alg:pileclient}
+\label{alg:lacc}
 \end{algorithm}
 
-\noindent\textbf{Renovation method.} The renovation method consists in decrypting the old encryption layers and encrypting again, we do so with AES-CTR. 
+\noindent\textbf{Renovation method.} The renovation method consists in replacing all the mix encryption layer with new ones such that the client encryption remains oblivious, we do so with AES in CTR mode. Contrary to the Layered method, the renovation method does not rely on a data structure, and the encryption depends on the records order. We use the CTR mode to make use of its inherent commutativity properties.
+
 The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
 To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
 The renovation method can be be seen in Fig.\ref{fig:AES}.  
-
-\begin{figure}
-\begin{minipage}{0.475\textwidth}
-\begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw=none, fill=none]    	(X)				  {};
-\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $D_1$\\$P^{-1}$};
-\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $E_2'$};
-\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $D_2$};
-\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $E_1'$\\$P_1'$};
-\node[draw=none,fill=none]    	(Y)[right of=D]	  {};
-
-\path
-(X.east) edge     	node{\small $ E_{2}E_{1}$}    	(A.west)
-(A.east) edge     	node{\small $ E_{2}$}    	(B.west)
-(B.east) edge     	node{\small $ E_{2}'E_{2}$}    	(C.west)
-(C.east) edge     	node{\small $ E_{2}'$}    	(D.west)
-(D.east) edge     	node{\small $ E_{2}'E_{1}'$}    	(Y.west);
-\end{tikzpicture}
-\end{adjustbox}
-\centering
-\caption{AES-CTR} \label{fig:AES}
-\end{minipage}
-\end{figure}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
