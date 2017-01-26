@@ -56,7 +56,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be periodically randomized, i.e. re-encrypted and shuffled, by the client. To attain full privacy, the computation and communication costs the client incurs are in reality super linear in the number of records, this very price deters the use of ORAM for most applications. We propose in this paper to increase ORAM's appeal by delegating the randomization process to semi-trusted third parties such that the clients are oblivious to the corresponding overhead. To do so, we present four different designs inspired by mix-net technologies and evaluate them.
+Oblivious RAM is a key technology for securely storing data on untrusted storage but is commonly considered impractical due to its high overhead. Indeed, to ensure full privacy to the user, the database has to be periodically randomized, i.e. re-encrypted and shuffled, by the client. To attain full privacy, the computation and communication costs the client incurs are in reality super linear in the number of records, this very price deters the use of ORAM for most applications. We propose in this paper to increase ORAM's appeal by delegating the randomization process to semi-trusted third parties such that the clients are oblivious to the corresponding overhead. To do so, we present four different designs inspired by mix-net technologies and evaluate them. Results results results
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -315,11 +315,39 @@ $save(encrypt(k,\ d[rec]))$;\\
 \label{alg:lacc}
 \end{algorithm}
 
-\noindent\textbf{Renovation method.} The renovation method consists in replacing all the mix encryption layer with new ones such that the client encryption remains oblivious, we do so with AES in CTR mode. Contrary to the Layered method, the renovation method does not rely on a data structure, and the encryption depends on the records order. We use the CTR mode to make use of its inherent commutativity properties.
+\noindent\textbf{Renovation method.} The renovation method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the  underlying user encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the renovation method does not rely on a data structure, and the encryption used depends on the records order as we use AES in Counter mode (AES-CTR).
 
-The renovation method is divided in two phases, the first one where the mixes decrypt and sort the records with the old encryption keys and permutation seeds and the second where the records are permuted and encrypted with the new seeds.
-To prevent the adversary from seeing the records in plain text between the phases, the mixes perform additional encryption during both phases: at the end of the first phase, the records are encrypted by all the mixes with new encryption keys while at the beginning of the second phase the records are decrypted with the old encryption keys by the mixes in cascade.
-The renovation method can be be seen in Fig.\ref{fig:AES}.  
+Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The records are always encrypted with AES in CTR mode and we use as counter the record current index. The first time the record are encrypted with the client own private keys, the second time with the shared secrets of every mix, and finally at the last time the records are permuted with permutation seeds and encrypted with the shared secrets of every mix keys at the same time such that the counters vary.
+For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.
+
+During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1})$ by executing $(\Pi_{\sigma}^{-1}, D_{k1})$. The database is now in the original sequence and encrypted under $E_{k0}$. The mixes then encrypt the records with $E_{k0'}$ before decrypting with $D_{k0}$ thanks to AES CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k0'}$. Finally, the mixes encrypt and permute at the same time the records executing $(\Pi_{\sigma'}, E_{k1})$, the database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$. A scheme summarizing the eviction can be seen in Fig.~\ref{fig:AES}.  
+
+\begin{figure}
+\begin{minipage}{0.5\textwidth}
+\begin{adjustbox}{width=\textwidth}
+\begin{tikzpicture}[->, auto, semithick]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {};
+\node[draw=none, align=center] (XX)[below of=X] {\small \textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$};
+\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $D_{k0}$\\$\Pi_{\sigma}^{-1}$};
+\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $E_{k0'}$\\$I$};
+\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $D_{k0}$\\$I$};
+\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $E_{k1'}$\\$\Pi_{\sigma'}$};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=D]	  {};
+\node[draw=none, align=center] (YY)[below of=Y] {\small \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$};
+\path
+(X.east) edge     	node{}    	(A.west)
+(A.east) edge     	node{}    	(B.west)
+(B.east) edge     	node{}    	(C.west)
+(C.east) edge     	node{}    	(D.west)
+(D.east) edge     	node{}    	(Y.west);
+\end{tikzpicture}
+\end{adjustbox}
+\centering
+\caption{Eviction under the Renovation method. \\The first row denotes the encryption (E) and decryptions (D) while the second the permutations ($\Pi$) and $I$ for the identity.} \label{fig:AES}
+\end{minipage}
+\end{figure}
+
 
 
 \begin{algorithm}
