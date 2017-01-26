@@ -469,7 +469,7 @@ $indices \gets \{,\}$;\\
 \end{algorithm}
 
 \noindent\textbf{Layered Cascade.} Before the eviction process starts, the records are in the following state: permuted accordingly to the old seeds $\sigma_i$ and encrypted under the keys $k_i$. The design refreshes the permutation, the database being lastly permuted with $\sigma'$, and add new layers of AES-CBC encryption, the database being encrypted with both $k_i$ and $k_i'$, as shown in Fig~\ref{fig:ASMO_L}.
-The first time the database passes through a mix $m_i$, $m_i$ undoes the permutation  inherited from the previous eviction, i.e. $m_i$ performs $\Pi_{\sigma_i}^{-1}\left(DB\right)$ denoted by $\sigma_i$ in the figure. The mix $m_i$ also encrypts the records with the key $k_i$ as detailed before in Algorithm~\ref{alg:lencp}. The second time, the mix $m_i$ performs $\Pi_{\sigma_i'}\left(DB\right)$, and encrypts every record with the new encryption key $k_{i}'$.\\
+The first time the database passes through a mix $mix_i$, $mix_i$ undoes the permutation  inherited from the previous eviction, i.e. $mix_i$ performs $\Pi_{\sigma_i}^{-1}\left(DB\right)$ denoted by $\sigma_i$ in the figure. The mix $mix_i$ also encrypts the records with the key $k_i$ as detailed before in Algorithm~\ref{alg:lencp}. The second time, the mix $mix_i$ performs $\Pi_{\sigma_i'}\left(DB\right)$, and encrypts every record with the new encryption key $k_{i}'$.\\
 %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
@@ -512,10 +512,31 @@ To generate the $\alpha$s and $\beta$s, the client pick at random in $\mathbb{Z}
 \beta_i &= g^{z_i'},\ s\sigma_i = y_i^{z_i'},\ \sigma=hkdf(ss_i)
 \end{align*}
 
-\noindent\textit{Mix operations.} \todo{} \\
+\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i$. If the mix $mix_j$ is before $mix_i$ in the lists of mixes $(ports,\ ips)$ ($j=i-1$), the records are permuted with the seed $\sigma_{i,old}$ to cancel $\Pi_{\sigma_{i,old}}$ and sent to $mix_{i+1}$. If $j=i+1$, the records are permuted with $\sigma_{i,new}$ and sent to $mix_{i-1}$ (or the database if $i=0$).\\
+
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Group elements $\alpha_i,\ \beta_i$;\\ \qquad List of mixes $(ips,\ ports)$;\\ \qquad Data $data$;\\ \qquad Private key $x_i$}
+$s\sigma_{i,old} = \alpha_{i,old}^{x_i}$;\\
+$s\sigma_{i, new} = \alpha_{i, new}^{x_i}$;\\
+$sk_{i,} = \beta_{i}^{x_i}$;\\
+$k_i=hkdf(sk_i)$;\\
+$\sigma_{i,old}=hkdf(s\sigma_{i,old})$;\\
+$\sigma_{i,new}=hkdf(s\sigma_{i,new})$;\\
+\ForAll {$d \in data$}
+{
+	$d \gets encrypt_cbc(k_i, d)$;\\
+}
+\KwOut{$mixes,\ indices$}
+\caption{Layered Cascade mix operation for mix $mix_i$.}
+\label{alg:CIL}
+\end{algorithm}
 
 \noindent\textit{Costs.}
-We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\cdot m \cdot n$. The total communication cost is $c_{com}=2\cdot m\cdot n + m\cdot c_{client}$.\\
+As the whole database is sent through the mix-net twice, the mix communication cost is $2\cdot m \cdot n \cdot b$. The client communication is $m \cdot (3 \cdot 32+ (m+1)\cdot (ip +ports)+ token)$.
+The live computation cost is the encryption and shuffle, that is to say $4\cdot m \cdot n \cdot c_{CBC}$, as the keys and seeds can be derived while the database is being received. \todo{}.\\
 
 \noindent\textbf{Rebuild Cascade.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, an  blinding phase is added between the two during which the records are only encrypted then decrypted thanks to AES-CTR commutativity as depicted in Fig~\ref{fig:ASMO_CTR}.\\
  %
