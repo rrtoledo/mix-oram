@@ -348,7 +348,7 @@ During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1}
 \end{minipage}
 \end{figure}
 
-When retrieving a record, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text.
+When retrieving a record, as shown in Alg~\ref{alg:racc}, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Alg~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. After updating the cache with the encryption of the record to read or write, the latter is sent back.
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -364,9 +364,8 @@ $record \gets dec(record, k_{i,0}, index )$;\\
 }
 \KwOut{record}
 \caption{Rebuild decryption algorithm}
-\label{alg:UAS}
+\label{alg:rdec}
 \end{algorithm}
-\todo{encryption?}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -401,7 +400,7 @@ $update\_cache(encrypt(towrite,k,\sigma))$;\\
 $send\_cache()$;\\
 \KwOut{record}
 \caption{Renovating access method}
-\label{alg:renov}
+\label{alg:racc}
 \end{algorithm}
 
 %
@@ -413,7 +412,7 @@ We want to remind that we consider the database to always be permuted according 
 
 During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has inccured thanks to the old seeds $s_{old}$ given by the client while during the way out, the mixes permute the database according to the new ones $s_{new}$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if there has been any, the client overwrite the old seeds with the new ones.
 
-\begin{figure}[H] \label{CascadeArch}
+\begin{figure} \label{CascadeArch}
 \centering
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
