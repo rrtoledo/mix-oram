@@ -251,7 +251,7 @@ $rec.data \gets dec\left(k,\ IV,\ rec.data \right )$;\\
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Record $rec$; \\ \qquad Record index $index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Private key $prv$;\\ \qquad Number of rounds $r$; \\ \qquad Permutation seeds $\sigma$;}
+\KwIn{Record and index $record,\ index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Private key $prv$;\\ \qquad Number of rounds $r$; \\ \qquad Permutation seeds $\sigma$;}
 $j,e=0$;\\
 $r\gets decrypt(prv_e,rec)$;\\
 \While{$rec.data.label != i$}
@@ -277,7 +277,7 @@ $rec \gets encrypt(prv_e,\ rec)$;\\
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{ Real record index $index$; \\ \qquad Operation $op$; \\ \qquad Data to write $towrite$; \\ \qquad Encryption keys $k$; \\ \qquad Permutation seeds $\sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
+\KwIn{ Real record index $index$; \\ \qquad Operation and data $op,\ towrite$; \\ \qquad Encryption keys $k$; \\ \qquad Permutation seeds $\sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
 $j \gets recover\_index(\sigma, index)$;\\
 $cache \gets fetch\_cache()$;\\
 \ForAll {$rec \in cache$}
@@ -315,7 +315,7 @@ $save(encrypt(k,\ d[rec]))$;\\
 \label{alg:lacc}
 \end{algorithm}
 
-\noindent\textbf{Renovation method.} The renovation method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the  underlying user encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the renovation method does not rely on a data structure, and the encryption used depends on the records order as we use AES in Counter mode (AES-CTR).
+\noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the  underlying user encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the rebuild method does not rely on a data structure, and the encryption used depends on the records order as we use AES in Counter mode (AES-CTR).
 
 Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The records are always encrypted with AES in CTR mode and we use as counter the record current index. The first time the record are encrypted with the client own private keys, the second time with the shared secrets of every mix, and finally at the last time the records are permuted with permutation seeds and encrypted with the shared secrets of every mix keys at the same time such that the counters vary.
 For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.
@@ -344,89 +344,66 @@ During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1}
 \end{tikzpicture}
 \end{adjustbox}
 \centering
-\caption{Eviction under the Renovation method. \\The first row denotes the encryption (E) and decryptions (D) while the second the permutations ($\Pi$) and $I$ for the identity.} \label{fig:AES}
+\caption{Eviction under the Rebuild method. \\The first row denotes the encryption (E) and decryptions (D) while the second the permutations ($\Pi$) and $I$ for the identity.} \label{fig:AES}
 \end{minipage}
 \end{figure}
 
-
+When retrieving a record, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text.
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Encryption key $Key_{old,i,j},\ Key_{new,i,j}$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $d$;}
-$key \gets Key_{old,i,j}$;\\
-\uIf{$j\leq r+m$}
+\KwIn{Number of rounds and mixes $r,\ m$; \\ \qquad Encryption keys $k_{mix, round}$; \\ \qquad Mix and Indices $mix,\ round$;}
+\ForAll{$i \in \llbracket 1, r\rrbracket$}
 {
-	$key \gets Key_{new,i,j}$;\\
+$record \gets dec(record, k_{mix[r-i],r-i}, ind[r-i] )$;\\
 }
-\uElseIf{$j\leq r+2m$}
+\ForAll{$i \in \llbracket 1, m\rrbracket$}
 {
-	$key \gets Key_{old,i,j-m}$;\\
+$record \gets dec(record, k_{i,0}, index )$;\\
 }
-\uElse
+\KwOut{record}
+\caption{Rebuild decryption algorithm}
+\label{alg:UAS}
+\end{algorithm}
+\todo{encryption?}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Encryption keys $k_{mix,round}$; \\ \qquad Permutation seeds $\sigma$; \\ \qquad Record and index $record,\ index$;  \\ \qquad Operation and data $op,\ towrite$;  \\ \qquad Number of rounds and mixes $r,\ m$;}
+$indices \gets \{\}$;\\
+$mix\gets \{\}$;\\
+\ForAll{$i \in \llbracket 1, r\rrbracket$}
 {
-	$key \gets Key_{new,i,j-r}$;\\
+$mix,\ indices \gets recover\_indices(index,\ r,\ \sigma)$;\\
 }
-\ForAll {$r \in \llbracket 1,k \rrbracket$}
+$cache \gets fetch\_cache()$;\\
+\If{$record \in cache$}
 {
-	$d[r] \gets ctr_{key}\left (d[r],\ r\right )$;\\
+$record \gets find(record)$;\\
+$tofetch \gets choose\_dummies(cache, 1)$;\\
 }
-\KwOut{data}
-\caption{Renovating process for the mix $i$ during round $j$}
+\Else
+{
+$tofetch \gets indices[r]$;\\
+}
+$record, d \gets fetch(tofetch)$;\\
+$record \gets decrypt(record,k,\sigma)$;\\
+\If {$op==read$}
+{
+$update\_cache(encrypt(record,k,\sigma))$;\\
+}
+\Else
+{
+$update\_cache(encrypt(towrite,k,\sigma))$;\\
+}
+$send\_cache()$;\\
+\KwOut{record}
+\caption{Renovating access method}
 \label{alg:renov}
 \end{algorithm}
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Number of records $n$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $data$;}
-$data \gets sort(data)$;\\
-$data \gets encrypt(data)$;\\
-
-$index \gets {\Pi}^{-1}_{S_{pub,old,j}} \llbracket 1,n \rrbracket$;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$rec[u] \gets [rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$;\\
-}
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$tosend \gets []$;\\
-	\ForAll{$v \in rec[u]$}
-	{
-		$tosend.expand(rec[u][v])$;\\
-	}
-	$send(Mix_u, tosend)$;\\
-}
-\caption{Unwrapping process for the mix $i$ during round $j$}
-\label{alg:UAS}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{ Number of records $n$; \\ \qquad Number of records per mix $k$; \\ \qquad Data $data$;}
-$data \gets permute(data)$;\\
-$data \gets encrypt(data)$;\\
-
-$index \gets {\Pi}_{S_{pub,new,j}} \llbracket 1,n \rrbracket$;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$rec[u] \gets [rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$;\\
-}
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$tosend \gets []$;\\
-	\ForAll{$v \in rec[u]$}
-	{
-		$tosend.expand(rec[u][v])$;\\
-	}
-	$send(Mix_u, tosend)$;\\
-}
-\caption{Wrapping process for the mix $i$ during round $j$}
-\label{alg:WAS}
-\end{algorithm}
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
@@ -434,9 +411,9 @@ We consider here the mix-net in a classic cascade configuration as depicted in F
 
 We want to remind that we consider the database to always be permuted according to a number of seeds, denoted $S_{old}$, the eviction goal is to obviously sort the database to a new state $S_{new}$.
 
-During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has inccured thanks to the old seeds $s_{old}$ given by the client while during the way out, the mixes permute the database according to the new ones $s_{new}$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if there has been any, the client overwrite the old seeds with the new ones.\\
+During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has inccured thanks to the old seeds $s_{old}$ given by the client while during the way out, the mixes permute the database according to the new ones $s_{new}$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if there has been any, the client overwrite the old seeds with the new ones.
 
-\begin{figure} \label{CascadeArch}
+\begin{figure}[H] \label{CascadeArch}
 \centering
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
@@ -535,7 +512,7 @@ We have $c_{cmp} = 2\cdot m \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}=2\
 \noindent\textbf{Using Cascade renovation.} Each of the mixes decrypt and unwrap the records in the first phase then wrap and encrypt in the second, an  blinding phase is added between the two during which the records are only encrypted then decrypted thanks to AES-CTR commutativity as depicted in Fig~\ref{fig:ASMO_CTR}.\\
  %
 \begin{figure}[H]
-\begin{minipage}{0.475\textwidth}
+\begin{minipage}{0.475\textwidth}g
 \begin{adjustbox}{width=\textwidth}
 \begin{tikzpicture}[->, auto, semithick, node distance = 8em, every loop/.style={<-}]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
