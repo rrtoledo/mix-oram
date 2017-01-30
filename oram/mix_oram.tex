@@ -518,18 +518,45 @@ To generate the $\alpha$s and $\beta$s, the client pick at random in $\mathbb{Z}
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Group elements $\alpha_i,\ \beta_i$;\\ \qquad List of mixes $(ips,\ ports)$;\\ \qquad Data $data$;\\ \qquad Private key $x_i$}
-$s\sigma_{i,old} = \alpha_{i,old}^{x_i}$;\\
-$s\sigma_{i, new} = \alpha_{i, new}^{x_i}$;\\
-$sk_{i,} = \beta_{i}^{x_i}$;\\
-$k_i=hkdf(sk_i)$;\\
-$\sigma_{i,old}=hkdf(s\sigma_{i,old})$;\\
-$\sigma_{i,new}=hkdf(s\sigma_{i,new})$;\\
+\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i,\ \beta_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data and sender $data,\ sender$;}
+$k_i=hkdf(\beta_{i}^{x_i})$;\\
+$\sigma_{i,old}=hkdf(\alpha_{i,old}^{x_i})$;\\
+$\sigma_{i,new}=hkdf(\alpha_{i, new}^{x_i})$;\\
+$way\_in \gets 1$;\\
+$index \gets list.index(mix_i)$;\\
+$index2 \gets list.index(sender)$;\\
+\If{$index==0\ and\ data==null$}
+{
+$data \gets fetch\_DB(db)$;\\
+}
+\If {$sender!=null\ and\ index2 \geq index$}
+{
+$way\_in\gets 0$;\\
+}
 \ForAll {$d \in data$}
 {
-	$d \gets encrypt_cbc(k_i, d)$;\\
+	$d \gets encrypt\_cbc(k_i, d)$;\\
 }
-\KwOut{$mixes,\ indices$}
+\If{$ way\ in$}
+{
+$receiver \gets list[index]$;\\
+\If{$index \ len(list)-1 $}
+{
+$receiver \gets list[index+1]$;\\
+}
+$data \gets send\_mix(receiver, data)$;\\
+}
+\Else
+{
+\If{$index !=0$}
+{
+$data \gets send\_mix(list[index-1], data)$;\\
+}
+\Else
+{
+$data \gets send\_DB(db, data)$;\\
+}
+}
 \caption{Layered Cascade mix operation for mix $mix_i$.}
 \label{alg:CIL}
 \end{algorithm}
