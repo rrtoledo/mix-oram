@@ -9,6 +9,7 @@
 \usepackage{adjustbox}
 \usepackage{mathtools}
 \DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
 \usepackage{amsfonts}
 \usepackage{stmaryrd}
 \usepackage{amsmath}
@@ -408,7 +409,7 @@ $send\_cache()$;\\
 %
 We consider here the mix-net in a classic cascade configuration as depicted in Fig~\ref{fig:CascadeArch} and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.
 
-During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has incurred thanks to the old seeds $\sigma$ given by the client. While during the way out, the mixes permute the database according to the new ones $\sigma$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if any, the old seeds are overwritten with the new ones.
+During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has incurred thanks to the old seeds $\sigma$ given by the client. While during the way out, the mixes permute the database according to the new ones $\sigma'$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if any, the old seeds are overwritten with the new ones.
 
 When retrieving a record, the user recovers the remote index thanks to the last used seeds. We wrote in Algorithm~\ref{alg:CIL} a method to compute all intermediary indices and mixes, the last index being the one sought.
 
@@ -713,7 +714,48 @@ The  computation cost ... \todo{}.\\
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we replace the cascade configuration of the mix-net with a parallel one as depicted in Fig~\ref{fig:mix_par} and use random transposition shuffles (RTS) to model the parallelization. We also calculate the number of rounds needed to reach perfect security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
 
-Parallel mix-net ...
+During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. However, contrary to the cascade case, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $mix_i$ fetches the indices in $\llbracket i\cdot n/m : (i+1)n/m \llbracket$. The mixes, after receiving the records, permute them with private permutation seeds and finally send them to the mix-net according to public permutation seeds. At the end of the eviction, the mixes uploads the records back to the database on their assigned indices. During the way in, the mixes cancel the previous permutations done thanks to the old private and public seeds while in the way out they use the new ones. As the database is permuted by chunks, several rounds of permutation are needed to guarantee a shuffle oblivious to the eyes of the adversary.
+
+When retrieving a record, the user recovers the index thanks to the public and private seeds.
+
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Data $data$; \\ \qquad Old and new private seed $\sigma_{i,round},\ \sigma_{i,round}'$}
+\If {in}
+{
+$data \gets \Pi^{-1}_{\sigma_{i,round}}\left ( data \right )$;\\
+}
+\Else
+{
+$data \gets \Pi_{\sigma_{i,round}'}\left ( data \right )$;\\
+}
+\KwOut{$data$}
+\caption{Parallel sort for mix $i$ during round $round$.}
+\label{alg:PSort}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Private and public seeds $\sigma_{i,round},\ \sigma_{round}$;\\ \qquad Number of records, mixes and rounds $n,\ m,\ r$;\\ \qquad Record index $index$;}
+$mixes \gets \{,\}$;\\
+$indices \gets \{,\}$;\\
+\ForAll {$i \in \llbracket 1, r \rrbracket$}
+{
+	$mix \gets \floor{index/m}$;\\
+	$mixes \gets mixes \cup \{mix \}$;\\
+	$shuffle \gets {\Pi}_{\sigma_{mix,i}}(i\cdot n / m,\ )i+1)\cdot n / m)$;\\
+	$index \gets i\cdot n/m + shuffle.index(index)$;\\
+	$indices \gets \cup \{index\}$;\\
+	$shuffle \gets {\Pi}_{\sigma_{i}(1,n)}$;\\
+	$index \gets shuffle.index(index)$;\\
+}
+\KwOut{$mixes,\ indices$}
+\caption{Parallel Index Lookup}
+\label{alg:PIL}
+\end{algorithm}
 
 \begin{figure}
 \begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
@@ -760,64 +802,6 @@ Parallel mix-net ...
 \end{tikzpicture}
 \caption{A Parallel Mixnet} \label{fig:mix_par}
 \end{figure}
-
-The records are permuted locally and globally ...
-
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{pub,old},\ S_{prv,old,i}$; \\ \qquad Number of records $n$; \\  \qquad Data $data$;}
-$index \gets {\Pi}^{-1}_{S_{pub,old,j-1}} \llbracket 1, n\rrbracket $;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1,n/k \rrbracket$}
-{
-	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
-}
-$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
-$data \gets \Pi^{-1}_{S_{prv,old,j}} \left ( data \right )$;\\
-%$data \gets \Pi^{-1}_{S_{pub,old,j}} \left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Parallel sort for mix $i$ during round $j$}
-\label{alg:SortIN}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seed $S_{pub,new,j},\ S_{prv,new,i,j}$; \\ \qquad Number of records $n$; \\ \qquad Number of record per mix $k$; \\ \qquad Data $data$;}
-$index \gets {\Pi}_{S_{pub,new,j-1}} \llbracket 1,n \rrbracket$;\\
-$rec \gets split(index,\ k)$;\\
-\ForAll{$u \in \llbracket 1, n/k \rrbracket$}
-{
-	$rec[u] \gets [Rec[u][v]\ if\ rec[u][v] \in \llbracket i\cdot k,\ (i+1) \cdot k \rrbracket\ for\  v \in \llbracket 1,\ k \rrbracket]$
-}
-$data \gets [data\ for\ (rec,data)\ \in sorted(zip(rec,\ data))]$;\\
-$data \gets \Pi_{S_{prv,new,i,j}}\left ( data \right )$;\\
-%$data \gets \Pi_{S_{pub,new,i,j}}\left ( data \right )$;\\
-\KwOut{$data$}
-\caption{Parallel permutation for mix $i$ during round $j$}
-\label{alg:SortOUT}
-\end{algorithm}
-
-The user when retrieving a given record needs to ...
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $S_{pub},\ S_{prv}$; \\ \qquad Number of records per mix $k$; \\ \qquad Number of rounds $r$;\\ \qquad Index to retrieve $index$;}
-\ForAll{$i \in \llbracket 1,r \rrbracket$}
-{
-	$mix \gets index / k $;\\
-	$idx \gets {\Pi}^{-1}_{S_{prv, mix, i}}(index\ \%\ k) $;\\
-	$index \gets {\Pi}^{-1}_{S_{pub, i}}(k\cdot mix + idx)$;\\
-
-}
-\KwOut{$index$}
-\caption{Parallel Index Lookup}
-\label{alg:PIL}
-\end{algorithm}
-
 %
 \subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
