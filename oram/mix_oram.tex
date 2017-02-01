@@ -19,7 +19,7 @@
 \usepackage{float}
 
 \usepackage{tikz}
-\usetikzlibrary{shapes, positioning, matrix, backgrounds}
+\usetikzlibrary{shapes, positioning, matrix, backgrounds, decorations.pathreplacing}
 
 \newtheorem{privdef}{Privacy Definition}
 \newtheorem*{secgme}{Security Game}
@@ -316,38 +316,37 @@ $save(encrypt(k,\ d[rec]))$;\\
 \label{alg:lacc}
 \end{algorithm}
 
-\noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the  underlying user encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the rebuild method does not rely on a data structure, and the encryption used depends on the records order as we use AES in Counter mode (AES-CTR).
+\noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the underlying client encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the rebuild method does not rely on a particular data structure, and the encryption used depends on the records order because we use AES in Counter mode (AES-CTR) with the record index as counter.
 
-Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The records are always encrypted with AES in CTR mode and we use as counter the record current index. The first time the record are encrypted with the client own private keys, the second time with the shared secrets of every mix, and finally at the last time the records are permuted with permutation seeds and encrypted with the shared secrets of every mix keys at the same time such that the counters vary.
+Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The records are always encrypted with AES in CTR mode and we use as counter the record current index. The first time the record are encrypted with the client own private keys and fixed counters, the second time with keys generated from the shared secrets of the mixes and fixed counters, and finally at the last time the records are permuted and encrypted at the same time, with the permutation seeds and with encryption keys generated from the shared secrets and the changing indices as counters.
 For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.
 
 During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1})$ by executing $(\Pi_{\sigma}^{-1}, D_{k1})$. The database is now in the original sequence and encrypted under $E_{k0}$. The mixes then encrypt the records with $E_{k0'}$ before decrypting with $D_{k0}$ thanks to AES CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k0'}$. Finally, the mixes encrypt and permute at the same time the records executing $(\Pi_{\sigma'}, E_{k1})$, the database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$. A scheme summarizing the eviction can be seen in Fig.~\ref{fig:AES}.  
 
-\begin{figure}
-\begin{minipage}{0.5\textwidth}
-\begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick]
+\begin{figure*}
+\begin{tikzpicture}[auto, semithick, node distance= 4em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {DB};
 \node[draw=none, align=center] (XX)[below of=X] {\small \textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$};
 \node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $D_{k0}$\\$\Pi_{\sigma}^{-1}$};
-\node[draw, rectangle, align=center]    		(B)[right of=A]   {\small $E_{k0'}$\\$I$};
-\node[draw, rectangle, align=center]    		(C)[right of=B]   {\small $D_{k0}$\\$I$};
-\node[draw, rectangle, align=center]    		(D)[right of=C]   {\small $E_{k1'}$\\$\Pi_{\sigma'}$};
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=D]	  {};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{0}'  \right )$}, label=below:{$D\left ( k_{0}  \right )$}]    		(B1)[right of=A]    { $\ $\\$\ $ };
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{1}'  \right )$}, label=below:{$D\left ( k_{2}  \right )$}]    		(B2)[right of=B1]   { $\ $\\$\ $};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{2}'  \right )$}, label=below:{$D\left ( k_{2}  \right )$}]    		(B3)[right of=B2]   { $\ $\\$\ $};
+\node[draw, rectangle, align=center]    		(C)[right of=B3]   {\small $E_{k1'}$\\$\Pi_{\sigma'}$};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=C]	  {DB};
 \node[draw=none, align=center] (YY)[below of=Y] {\small \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$};
-\path
+\draw[decoration={brace,mirror, amplitude=1em}, decorate]  ([yshift=-1em]A.south east) -- ([yshift=-1em]C.south west) node[below, pos=0.5, yshift=-1em] {Simple E/D phase};
+\path[->]
 (X.east) edge     	node{}    	(A.west)
-(A.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(C.west)
-(C.east) edge     	node{}    	(D.west)
-(D.east) edge     	node{}    	(Y.west);
+(A.east) edge     	node{}    	(B1.west)
+(B1.east) edge		node{}		(B2.west)
+(B2.east) edge		node{}		(B3.west)
+(B3.east) edge     	node{}    	(C.west)
+(C.east) edge     	node{}    	(Y.west);
 \end{tikzpicture}
-\end{adjustbox}
 \centering
 \caption{Eviction under the Rebuild method. \\The first row denotes the encryption (E) and decryptions (D) while the second the permutations ($\Pi$) and $I$ for the identity.} \label{fig:AES}
-\end{minipage}
-\end{figure}
+\end{figure*}
 
 When retrieving a record, as shown in Alg~\ref{alg:racc}, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Alg~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. After updating the cache with the encryption of the record to read or write, the latter is sent back.
 
@@ -400,7 +399,7 @@ $update\_cache(encrypt(towrite,k,\sigma))$;\\
 }
 $send\_cache()$;\\
 \KwOut{record}
-\caption{Renovating access method}
+\caption{Rebuild access method}
 \label{alg:racc}
 \end{algorithm}
 
