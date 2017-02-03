@@ -126,15 +126,6 @@ class Mix():
 		return output		
 
 
-	def KDF(element, idx="A"):
-   		""" The key derivation function for b, iv, keys and seeds """
-		""" INPUT: element, element to derive key from """
-		""" INPUT: idx, padding """
-		""" OUTPUT: blind, IV, encryption key, permutation seed"""
-    		keys = sha512(element + idx).digest()
-   		return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64])
-
-
 	def cascade_layered(self, instructions, data):
 		if not inverse:
 			self.permute(seed, data, inverse)
