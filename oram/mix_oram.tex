@@ -181,13 +181,13 @@ Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for hig
 To minimize the size of the instructions stored and sent by the client, we make use of elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman assumption. The mixes make use of these elements and derive the different permutation seeds and encryption keys with the a key derivation function, such as the HKDF~\cite{XXXHKDF}, and refresh the them at each round by blinding them with the shared secrets as in \cite{danezis2009sphinx}. 
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
-In this section, we first introduce the different encryption methods we will use to encrypt the records during the eviction. We then present a simple but impractical Mix-ORAM case before optimizing it with the use of distributed shuffle algorithms. 
+In this section, we first introduce two different methods we use to randomize the records during the eviction. We then present simple but impractical Mix-ORAM schemes before optimizing them with the use of distributed shuffle algorithms. 
 %
 \subsection{Mix and User encryption methods}\label{Enc}
-We present in this work different ways to delegate the eviction process to a semi-trusted mix-net proposing two re-encryption methods. For each method, we show how the mix-nets encrypt the records and how the client recovers a record plain text.
+We present in this work two different ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-nets encrypt and permute the records and how the client recovers a record plain text.
 We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
 
-\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the mixes encrypt the records with AES in CBC mode thanks to IV tokens during the eviction and to let the client decrypts the requested records after the access. To maintain a low number of encryption layers on top of the records, we propose to modify the access method to fetch more records from the database.
+\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grows. The mixes only encrypt the records with AES in CBC mode during the eviction and the client only decrypts the records during the access. 
 
 \begin{table}[H]
 \begin{minipage}[t][][b]{.475\textwidth}
@@ -205,37 +205,25 @@ $8\cdot\ceil{\log(n)/8}$ bit  &  $8\cdot\ceil{\log(n)/8}+b$ bit   \\
 
 During the eviction, the mixes use the IV token as seed to generate an initialisation array. AES-CBC is then used to encrypt the data with the IV and the secrets shared with the client. The $8\cdot\ceil{\log(n)/8}+b$ first bit of the data is then used as a seed to generate an IV with which the IV token is encrypted under AES-CBC and with the shared secrets. Once all elements haven been re-encrypted, they are forwarded to the next mixes.
 
-To decrypt a record, the client make uses of the trial error process written in Algorithm~\ref{alg:ldec}. Using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
-To encrypt a record, the client generates the IV token and label, encrypts the data with its own secret key and the IV produced from the IV token, and encrypts the IV with its own secret key and an IV produced from the data.
- 
-As the number of encryption layers per record may vary, we delay the decryption of the fetched record to avoid a timing attack. When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache before uploading the latter.
-After doing so, the client locally decrypts the previous encryption and starts the decryption method described above. Once the plain text is recovered, a new IV token is generated, the label is appended to the record, the data is encrypted with the IV produced from the IV token and the private key. The next time the cache is fetched, the cached version of the record is overwritten with the new version. 
-
-We now look at the average number of encryption layers a record has before being decripted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
-\begin{proof}
-Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
-Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
-
-We now want to find the average number of encryption layers per record before decryption, this is equivalent to finding the average number of evictions before a record is deciphered. 
-Hence we have, $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
-\end{proof}
-
-To reduce these numbers, we modify the access method as written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
-With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.\\
-
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{Record $rec$; \\ \qquad Encryption key $k$; }
-$IV \gets urandom(rec.token\cdot k, 128)$;\\
+$IV \gets PRF(rec.token\cdot k, 128)$;\\
 $rec.data \gets enc\left(k,\ IV,\ rec.data \right )$;\\
-$IV \gets urandom(rec.data \cdot k, 128)$;\\
+$IV \gets PRF(rec.data \cdot k, 128)$;\\
 $rec.token \gets enc\left(k,\ IV,\ rec.token \right )$;\\
 \KwOut{rec}
 \caption{Layered encryption primitive}
 \label{alg:lencp}
 \end{algorithm}
 
+
+\noindent The mixes use permutation seeds to permute the records. We assume the existence of a record index the client can access to, e.g to link the records' titles to their position in the database. We make use of this index to store the current remote indices, or simply create one if needs be. In that case, the client needs to have a larger memory  as we add $n\cdot log(n)$ bit, for 50MB, we can store more that $10**8$ indices.
+
+The client make uses of a trial error process, Algorithm~\ref{alg:ldec}, to decrypt the records. Using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
+To encrypt a record, the client generates the IV token and label, encrypts the data with its own secret key and the IV produced from the IV token, and encrypts the IV with its own secret key and an IV produced from the data.
+ 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -273,7 +261,10 @@ $rec \gets encrypt(prv_e,\ rec)$;\\
 \KwOut{rec}
 \caption{Layered Decryption algorithm}
 \label{alg:ldec}
-\end{algorithm}
+\end{algorithm} 
+ 
+As the number of encryption layers per record varies, we delay the decryption of the fetched record to prevent timing attacks. When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache before uploading the latter.
+After doing so, the client locally decrypts the previous encryption and starts the decryption method described above. Once the plain text is recovered, a new IV token is generated, the label is appended to the record, the data is encrypted with the IV produced from the IV token and the private key. The next time the cache is fetched, the cached version of the record is overwritten with the new version. \\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -328,14 +319,14 @@ During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1}
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 \node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {DB};
 \node[draw=none, align=center] (XX)[below of=X] {\small \textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$};
-\node[draw, rectangle, align=center]   		(A)[right of=X]   {\small $D_{k0}$\\$\Pi_{\sigma}^{-1}$};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{0}'  \right )$}, label=below:{$D\left ( k_{0}  \right )$}]    		(B1)[right of=A]    { $\ $\\$\ $ };
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{1}'  \right )$}, label=below:{$D\left ( k_{2}  \right )$}]    		(B2)[right of=B1]   { $\ $\\$\ $};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{2}'  \right )$}, label=below:{$D\left ( k_{2}  \right )$}]    		(B3)[right of=B2]   { $\ $\\$\ $};
-\node[draw, rectangle, align=center]    		(C)[right of=B3]   {\small $E_{k1'}$\\$\Pi_{\sigma'}$};
+\node[draw, rectangle, align=center, label=below:{$D\left ( k  \right )$}]   		(A)[right of=X]   {$\Pi_{\sigma}^{-1}$};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{10}'  \right )$}, label=below:{$D\left ( k_{10}  \right )$}]    		(B1)[right of=A]    { $\ $\\$\ $ };
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{11}'  \right )$}, label=below:{$D\left ( k_{11}  \right )$}]    		(B2)[right of=B1]   { $\ $\\$\ $};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{12}'  \right )$}, label=below:{$D\left ( k_{12}  \right )$}]    		(B3)[right of=B2]   { $\ $\\$\ $};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k'  \right )$}]    		(C)[right of=B3]   {$\Pi_{\sigma'}$};
 \node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=C]	  {DB};
 \node[draw=none, align=center] (YY)[below of=Y] {\small \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$};
-\draw[decoration={brace,mirror, amplitude=1em}, decorate]  ([yshift=-1em]A.south east) -- ([yshift=-1em]C.south west) node[below, pos=0.5, yshift=-1em] {Simple E/D phase};
+\draw[decoration={brace,mirror, amplitude=1em}, decorate]  ([yshift=-2em]A.south east) -- ([yshift=-2em]C.south west) node[below, pos=0.5, yshift=-1em] {Simple E/D phase};
 \path[->]
 (X.east) edge     	node{}    	(A.west)
 (A.east) edge     	node{}    	(B1.west)
@@ -345,7 +336,7 @@ During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1}
 (C.east) edge     	node{}    	(Y.west);
 \end{tikzpicture}
 \centering
-\caption{Eviction under the Rebuild method. \\The first row denotes the encryption (E) and decryptions (D) while the second the permutations ($\Pi$) and $I$ for the identity.} \label{fig:AES}
+\caption{Eviction under the Rebuild method, with encryptions (E) and decryptions (D) and permutations ($\Pi$).} \label{fig:AES}
 \end{figure*}
 
 When retrieving a record, as shown in Alg~\ref{alg:racc}, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Alg~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. After updating the cache with the encryption of the record to read or write, the latter is sent back.
@@ -406,33 +397,11 @@ $send\_cache()$;\\
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the mix-net in a classic cascade configuration as depicted in Fig~\ref{fig:CascadeArch} and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.
+We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.
 
 During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has incurred thanks to the old seeds $\sigma$ given by the client. While during the way out, the mixes permute the database according to the new ones $\sigma'$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if any, the old seeds are overwritten with the new ones.
 
 When retrieving a record, the user recovers the remote index thanks to the last used seeds. We wrote in Algorithm~\ref{alg:CIL} a method to compute all intermediary indices and mixes, the last index being the one sought.
-
-\begin{figure} \label{CascadeArch}
-\centering
-\begin{tikzpicture}[->, auto, semithick, node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw=none, rectangle]    		(X)   {};
-\node[draw, rectangle]   		(A)[right of=X]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B)[right of=A]   {\small $Mix_2$};
-\node[draw, rectangle]    		(C)[right of=B]   {\small $Mix_3$};
-\node[draw=none, rectangle]    		(Y)[right of=C]   {};
-
-\path
-(X.east) edge     	node{}    	(A.west)
-(A.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(C.west)
-(C.east) edge     	node{}    	(Y.west);
-
-\end{tikzpicture}
-\caption{Cascade architecture with three mixes.}
-\label{fig:CascadeArch}
-\end{figure}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -711,12 +680,9 @@ The  computation cost ... \todo{}.\\
 \noindent\textbf{Partial Conclusion.} These two designs are not efficient as only a mix work at a time. To increase the mix-net efficiency, we study in the following section parallelization to distributing the workload among mixes.
 % 
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
-In this section, we replace the cascade configuration of the mix-net with a parallel one as depicted in Fig~\ref{fig:mix_par} and use random transposition shuffles (RTS) to model the parallelization. We also calculate the number of rounds needed to reach perfect security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
+In this section, we replace the cascade configuration of the mix-net with a parallel one and simulate random transposition shuffles (RTS) thanks to the use of private and public permutations as shown in Figure~\ref{fig:Par}. We also calculate the number of rounds needed to reach perfect security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
 
 During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. However, contrary to the cascade case, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $mix_i$ fetches the indices in $\llbracket i\cdot n/m : (i+1)n/m \llbracket$. The mixes, after receiving the records, permute them with private permutation seeds and finally send them to the mix-net according to public permutation seeds. At the end of the eviction, the mixes uploads the records back to the database on their assigned indices. During the way in, the mixes cancel the previous permutations done thanks to the old private and public seeds while in the way out they use the new ones. As the database is permuted by chunks, several rounds of permutation are needed to guarantee a shuffle oblivious to the eyes of the adversary.
-
-When retrieving a record, the user recovers the index thanks to the public and private seeds.
-
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -734,6 +700,95 @@ $data \gets \Pi_{\sigma_{i,round}'}\left ( data \right )$;\\
 \caption{Parallel sort for mix $i$ during round $round$.}
 \label{alg:PSort}
 \end{algorithm}
+
+When retrieving a record, the user recovers the index thanks to the public and private seeds.
+
+\begin{figure*}
+\centering
+\begin{minipage}[c]{0.475\textwidth}
+\begin{tikzpicture}[->,
+auto,
+semithick, 
+scale=0.5,
+block/.style={draw, fill=white, rectangle, font=\small}]
+
+\node[block, align=center]							(B)		{$\textbf{Mix}_k$ \\ $ S_{k,r}$};
+\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r}$};
+\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r}$};
+
+\node[block, align=center]							(B')[left of=B, xshift=-5em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r-1}$};
+\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r-1}$};
+\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r-1}$};
+
+
+\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}_{i}$};
+
+
+\path[->, midway]
+ (A')		edge node[above,yshift=4ex]		{$S_{pub,r}$} 	(A.west)
+ (A')		edge node		{} 					(B.west)
+ (B')		edge node		{} 					(C.west)
+ (B') 		edge node		{} 					(A.west)
+ (C') 		edge node		{} 					(A.west)
+ (C') 		edge node		{} 					(C.west)
+
+ (A.east) edge node[sloped, above]	{} 	([yshift=-2ex]1.north west)
+ (B.east) edge node[sloped, above]	{} 	(1)
+ (C.east) edge node[sloped, above]	{} 	([yshift=2ex]1.south west);
+ 
+\end{tikzpicture}
+\centering
+\caption*{Last rounds of wrapping} \label{fig:WAS}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.475\textwidth}
+\begin{tikzpicture}[->,
+auto,
+thin, 
+scale=0.5,
+block/.style={draw, fill=white, rectangle, font=\small}]
+
+
+\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}_i$};
+
+\node[block, align=center]							(B)[right of=0, xshift=3em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r}^{-1}$};
+\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r}^{-1}$};
+\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r}^{-1}$};
+
+\node[block, align=center]							(B')[right of=B, xshift=5em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r-1}^{-1}$};
+\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]	[rotate=-90]{...};
+\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]	[rotate=-90]{...};
+\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]	{$\textbf{Mix}_1$ \\ $ \sigma_{1,r-1}^{-1}$};
+\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]	{$\textbf{Mix}_m$ \\ $ \sigma_{m,r-1}^{-1}$};
+
+
+\path[->, midway]
+ ([yshift=-2ex]0.north east) edge node[sloped, above]{} (A.west)
+ (0) edge node[sloped, above]{} (B.west)
+ ([yshift=2ex]0.south east) edge node[sloped, above]{} (C.west)
+
+ (A.east) edge node[above,yshift=4ex]	{$S_{pub,r}^{-1}$} 	(A')
+ (A.east) edge node						{} 					(B')
+ (A.east) edge node						{} 					(C')
+ (B.east) edge node						{} 					(A')
+ (C.east) edge node						{} 					(B')
+ (C.east) edge node						{} 					(C');
+ 
+\end{tikzpicture}
+\centering
+\caption*{First rounds of unwrapping} \label{fig:UAS}
+\end{minipage}
+\centering
+\caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
+\end{figure*} 
+
+
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -756,51 +811,6 @@ $indices \gets \{,\}$;\\
 \label{alg:PIL}
 \end{algorithm}
 
-\begin{figure}
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-
-\node[draw=none, fill=none]    		(X)   {};
-\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_2$};
-\node[draw, rectangle]   		(A)[above=2em of B]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(C)[below=2em of B]   {\small $Mix_3$};
-\node[draw, rectangle]   		(A')[right of=A]   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B')[right of=B]   {\small $Mix_2$};
-\node[draw, rectangle]    		(C')[right of=C]   {\small $Mix_3$};
-\node[draw, rectangle]   		(A'')[right of=A']   {\small $Mix_{1}$};
-\node[draw, rectangle]    		(B'')[right of=B']   {\small $Mix_2$};
-\node[draw, rectangle]    		(C'')[right of=C']   {\small $Mix_3$};
-\node[draw=none, fill=none]    		(Y)[right of=B'']   {};
-
-\path
-(X.east) edge     	node{}    	(A.west)
-(X.east) edge     	node{}    	(B.west)
-(X.east) edge     	node{}    	(C.west)
-(A.east) edge     	node{}    	(A'.west)
-(A.east) edge     	node{}    	(B'.west)
-(A.east) edge     	node{}    	(C'.west)
-(B.east) edge     	node{}    	(A'.west)
-(B.east) edge     	node{}    	(B'.west)
-(B.east) edge     	node{}    	(C'.west)
-(C.east) edge     	node{}    	(A'.west)
-(C.east) edge     	node{}    	(B'.west)
-(C.east) edge     	node{}    	(C'.west)
-(A'.east) edge     	node{}    	(A''.west)
-(A'.east) edge     	node{}    	(B''.west)
-(A'.east) edge     	node{}    	(C''.west)
-(B'.east) edge     	node{}    	(A''.west)
-(B'.east) edge     	node{}    	(B''.west)
-(B'.east) edge     	node{}    	(C''.west)
-(C'.east) edge     	node{}    	(A''.west)
-(C'.east) edge     	node{}    	(B''.west)
-(C'.east) edge     	node{}    	(C''.west)
-(A''.east) edge     	node{}    	(Y.west)
-(B''.east) edge     	node{}    	(Y.west)
-(C''.east) edge     	node{}    	(Y.west);
-
-\end{tikzpicture}
-\caption{A Parallel Mixnet} \label{fig:mix_par}
-\end{figure}
 %
 \subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
@@ -849,96 +859,12 @@ We could see that permuting $k$ elements in RTS decreased the mixing time by at 
 %
 We now consider the mix-net as a collection of isolated mixes. The unwrapping and wrapping phases consist of $r= \frac{m}{2} \cdot \log \left (\frac{n}{s} \right ) $ rounds as depicted in Fig~\ref{fig:Par}.\\
 
-\begin{figure*}
-\centering
-\begin{minipage}[c]{0.475\textwidth}
-\begin{tikzpicture}[->,
-auto,
-semithick, 
-scale=0.5,
-block/.style={draw, fill=white, rectangle, font=\small}]
-
-\node[block, align=center]							(B)		{$\textbf{Mix}_k$ \\ $ S_{k,r}$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r}$};
-\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r}$};
-
-\node[block, align=center]							(B')[left of=B, xshift=-5em]		{$\textbf{Mix}_k$ \\ $ S_{k,r-1}$};
-\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r-1}$};
-\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r-1}$};
-
-
-\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}_{i}$};
-
-
-\path[->, midway]
- (A')		edge node[above,yshift=4ex]		{$S_{pub,r}$} 	(A.west)
- (A')		edge node		{} 					(B.west)
- (B')		edge node		{} 					(C.west)
- (B') 		edge node		{} 					(A.west)
- (C') 		edge node		{} 					(A.west)
- (C') 		edge node		{} 					(C.west)
-
- (A.east) edge node[sloped, above]	{} 	([yshift=-2ex]1.north west)
- (B.east) edge node[sloped, above]	{} 	(1)
- (C.east) edge node[sloped, above]	{} 	([yshift=2ex]1.south west);
- 
-\end{tikzpicture}
-\centering
-\caption*{Last rounds of wrapping} \label{fig:WAS}
-\end{minipage}
-\hfill
-\begin{minipage}[c]{0.475\textwidth}
-\begin{tikzpicture}[->,
-auto,
-thin, 
-scale=0.5,
-block/.style={draw, fill=white, rectangle, font=\small}]
-
-
-\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}_i$};
-
-\node[block, align=center]							(B)[right of=0, xshift=3em]		{$\textbf{Mix}_k$ \\ $ S_{k,r}^{-1}$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ S_{1,r}^{-1}$};
-\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ S_{m,r}^{-1}$};
-
-\node[block, align=center]							(B')[right of=B, xshift=5em]		{$\textbf{Mix}_k$ \\ $ S_{k,r-1}^{-1}$};
-\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]	[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]	[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]	{$\textbf{Mix}_1$ \\ $ S_{1,r-1}^{-1}$};
-\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]	{$\textbf{Mix}_m$ \\ $ S_{m,r-1}^{-1}$};
-
-
-\path[->, midway]
- ([yshift=-2ex]0.north east) edge node[sloped, above]{} (A.west)
- (0) edge node[sloped, above]{} (B.west)
- ([yshift=2ex]0.south east) edge node[sloped, above]{} (C.west)
-
- (A.east) edge node[above,yshift=4ex]	{$S_{pub,r}^{-1}$} 	(A')
- (A.east) edge node						{} 					(B')
- (A.east) edge node						{} 					(C')
- (B.east) edge node						{} 					(A')
- (C.east) edge node						{} 					(B')
- (C.east) edge node						{} 					(C');
- 
-\end{tikzpicture}
-\centering
-\caption*{First rounds of unwrapping} \label{fig:UAS}
-\end{minipage}
-\centering
-\caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
-\end{figure*} 
 
 \noindent\textbf{Using AES-CBC.} In this case, the mixes keep encrypting the records with the appended IVs during $r$ rounds of wrapping and unwrapping.\\
 
 \noindent\textbf{Message Format.}
-The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, the number of rounds $r$, and the signed ordered $(ports,\ ips)$ of the mixes participating in the eviction.
-The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ r,\ (port	s,\ ips)_{signed}\right )$$
+The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, the number of rounds $r$, and the signed ordered $list=(ports,\ ips)$ of the mixes participating in the eviction.
+The message format is then : $$db,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
 
 \noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$ and $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
 
@@ -947,7 +873,7 @@ When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ dis
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and old key.\\
 
 \noindent\textbf{Message Format.}
-The client send the same data as in the AES-CBC case. The message format is then : $$E_{pub,\ mix_i}\left (id,\ token,\ index,\ range,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ r,\ (ports,\ ips)_{signed}\right )$$
+The client send the same data as in the AES-CBC case. The message format is then : $$db,\  \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
 
 \noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot (r+m) \cdot c_{CTR} $, $c_{client}=x$, $c_{mix}= (2r+m)\cdot n$. The total communication cost is $c_{com}= (2r+m)\cdot n + c_{client}$.
 
@@ -979,11 +905,22 @@ In the case of CTR, the adversary only needs to discover the uncompromised mixes
 uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
 
 \section{Evaluation}\label{Evaluation}
+\textbf{Layered method.} We now look at the average number of encryption layers a record has before being decrypted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
+\begin{proof}
+Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
+Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
+
+We now want to find the average number of encryption layers per record before decryption, this is equivalent to finding the average number of evictions before a record is deciphered. 
+Hence we have, $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
+\end{proof}
+
+To reduce these numbers, we modify the access method as written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.
 \subsection{Implementation and Benchmark}\label{Implementation}
 \subsection{Performances}\label{Performance}
 performance per enc, performance per design, performance with implementation
 \subsection{Comparison}\label{Comparison}
-Comparison of CBC and tagging
+Comparison of our schemes
 
 \begin{table*}
 \begin{minipage}[t][][b]{.475\textwidth}
@@ -1024,16 +961,8 @@ Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
 \section{Discussion}\label{Discussion}
 
 \subsection{Active Adversary}\label{Active Adversary}
-As misbehaving mixes are already discarded in the eviction setup, we could integrate in the client a light-weight local mix reputation system.
-Randomized Partial Checking
+As misbehaving mixes are already discarded in the eviction setup, we could integrate in the client a light-weight local mix reputation system based on Randomized Partial Checking.
 
-
-\subsection{Differentially Private Oblivious Shuffle}\label{DPOS}
-We could ask the mixes to process only a fraction of rounds $r \approx \frac{n}{2\cdot k }  \cdot \log \left (\frac{n}{s}-0.5 \right)$ to increase even more the efficiency of the eviction.
-
-In the worst case scenario where an adversary $\mathcal{A}$ controls all but one mixes, the probability  $\mathcal{A}$ knows where a record is at the end of the eviction is $\delta= \Pr \left ( \mathcal{A} \text{ knows a record index}\right ) = \left ( 1 - \frac{1}{m} \right )^r$ where is $r$ the number of rounds.
-
-To prevent such case, we can make each mix permute every allocated sections of the database and then begins the Oblivious Merge. We would thus add $2 \cdot m^2$ permutations for the whole eviction....
 
 \section{Acknowledgement}
 Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
