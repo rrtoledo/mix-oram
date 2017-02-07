@@ -184,13 +184,13 @@ Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for hig
 To minimize the size of the instructions stored and sent by the client, we make use of elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman assumption. The mixes make use of these elements and derive the different permutation seeds and encryption keys with the a key derivation function, such as the HKDF~\cite{XXXHKDF}, and refresh the them at each round by blinding them with the shared secrets as in \cite{danezis2009sphinx}. 
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
-In this section, we first introduce two different methods we use to randomize the records during the eviction. We then present simple but impractical Mix-ORAM schemes before optimizing them with the use of distributed shuffle algorithms. 
+In this section, we first introduce two different methods we use to randomize the records during the eviction. We then present simple but expensive Mix-ORAM schemes before optimizing them with the use of distributed shuffle algorithms. 
 %
 \subsection{Mix and User encryption methods}\label{Enc}
 We present in this work two different ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-nets encrypt and permute the records and how the client recovers a record plain text.
-We make the assumption that all data has first been encrypted by the user before using the ORAM. \\
+We make the assumption that all data has first been encrypted with the client private keys  before using the ORAM. \\
 
-\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grows. The mixes only encrypt the records with AES in CBC mode during the eviction and the client only decrypts the records during the access. 
+\noindent\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grows. The mixes only encrypt the records with AES in CBC mode during the eviction and the client only decrypts the records during the access. 
 
 \begin{table}[H]
 \begin{minipage}[t][][b]{.475\textwidth}
