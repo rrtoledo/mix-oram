@@ -135,17 +135,15 @@ This work is inspired by the mix-net technology for its encryption and permutati
 %
 \subsection{Model}\label{Model}
 
-ORAM systems actually rely on two types of data arrays. One we call database and comprises the user's encrypted records and some dummies and the other one we call cache, e.g. the shelter in~\cite{goldreich87}, of lesser size and used to store the fetched records in order to hide the number of times they were accessed.\\
+ORAM systems rely on two data arrays, one we call \emph{database} and comprises the user's encrypted records and some dummies and the other one we call \emph{cache}, e.g. the shelter in~\cite{goldreich87}, of lesser size so that it fits on the client and used to store the fetched records in order to hide the number of times they were accessed.\\
 
-\noindent\textbf{Access method:} The client first downloads the cache and checks whether the desired record is present, if so a dummy is fetched from the database else the desired record. Finally, the fetched element is encrypted and updated in the cache which is sent back to the ORAM.\\
+\noindent\textbf{Access method:} The client first downloads the cache and checks whether the desired record is present, if so a dummy is fetched from the database else the desired record. Finally, the fetched element is encrypted and updated if it is a read operation else overwritten for a write operation. The element is then stored locally in the cache before the latter is sent back to the remote server.\\
 
 \noindent\textbf{Eviction method:} When the cache is full, the client empties it by starting the eviction process. To do so, the client first \textit{rebuilds} the database by merging obliviously the cache and the database and afterwards, starts the \textit{oblivious shuffle}.
 
 \noindent The rebuild phase consists in placing obliviously records from the cache back to the ORAM database. The client begins by downloading the cache, then re-encrypts the records and discards any dummies contained within it. It next fetches all the records previously accessed from the database, and overwrites them one by one with their cached version or with a dummy before updating them back in the database. The cache is now empty.
 
-\noindent The client starts the oblivious shuffle by selecting a set of mixes from the mix-net and sending to them randomization instructions containing the list of participating mixes and the seeds used for shuffling and encrypting. When receiving the records, the first mixes fetch the database, encrypt the records, shuffle and transmit them to the next mixes according to these instructions.\\
-
-We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about permutation and encryption.
+\noindent The client starts the oblivious shuffle by selecting a set of mixes from the mix-net and sending to them randomization instructions containing the list of participating mixes and the seeds used for shuffling and encrypting. When receiving the records, the first mixes fetch the database, encrypt the records, shuffle and transmit them to the next mixes according to these instructions.
 
 \subsection{Security definitions and Threat model}\label{Threat}
 
@@ -168,12 +166,15 @@ An adversary gives to the user two ORAM query sequences $\text{seq}_k$ and $\tex
 \end{secgme} 
 %
 
+\noindent\textbf{Rationale.} We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about permutation and encryption.
+
 \noindent\textbf{Costs.} We denote the communication costs by $\omega$ for the number of \emph{bits} sent by the ORAM, $\gamma$ by the client, and by $\mu$ sent per mix. 
 We classify the computation cost under its function (encryption, shuffle and secret generation), and the machine doing the computation. 
 %
 \subsection{Cryptographic Primitives}
+
 \noindent\textbf{PRG \& Seeds.}
-ORAM systems make use of pseudo random generators (PRG) and seeds to save the matching between remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A PRG is a deterministic algorithm that receives as an input a short random seed and stretches it into a long pseudo random stream.\\\
+ORAM systems make use of pseudo random generators (PRG) and seeds to make the matching between remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A PRG is a deterministic algorithm that receives as an input a short random key and stretches it into a long pseudo random stream.\\\
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.
