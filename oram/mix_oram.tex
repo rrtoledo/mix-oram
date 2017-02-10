@@ -187,10 +187,11 @@ To minimize the size of the instructions stored and sent by the client, we make 
 In this section, we first introduce two different methods we use to randomize the records during the eviction. We then present simple but expensive Mix-ORAM schemes before optimizing them with the use of distributed shuffle algorithms. 
 %
 \subsection{Mix and User encryption methods}\label{Enc}
-We present in this work two different ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-nets encrypt and permute the records and how the client recovers a record plain text.
-We make the assumption that all data has first been encrypted with the client private keys  before using the ORAM. \\
+We present here two ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-net encrypts and permutes the records and how the client recovers a record plain text.
+We make the assumption that all data has first been encrypted with the client private keys  before using ORAM. \\
 
-\noindent\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record real indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grows. The mixes only encrypt the records with AES in CBC mode during the eviction and the client only decrypts the records during the access. 
+\noindent\textbf{Layered method.} In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record local indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grow. The records are encrypted and permuted by the mixes during the eviction, and only decrypted by the client during the access. We moreover assume the existence of a record index the client can access, e.g to link the records' names to their position in the local database, and make use of it to store the current remote indices. % The index takes up $n\cdot log(n)$ bits, 50 MB can store more that $10^8$ indices. 
+Before sending the records to the ORAM database, the client first needs to encrypt and permute them. Each record is thus appended with its local index and a random IV token, the tokens and data are then encrypted with the client secret key according to Algorithm~\ref{lencp} and permuted with a random seed, the index is then updated with the new remote indices.\\
 
 \begin{table}[H]
 \begin{minipage}[t][][b]{.475\textwidth}
@@ -206,35 +207,70 @@ $8\cdot\ceil{\log(n)/8}$ bit  &  $8\cdot\ceil{\log(n)/8}+b$ bit   \\
 \end{minipage}
 \end{table}
 
-During the eviction, the mixes use the IV token as seed to generate an initialisation array. AES-CBC is then used to encrypt the data with the IV and the secrets shared with the client. The $8\cdot\ceil{\log(n)/8}+b$ first bit of the data is then used as a seed to generate an IV with which the IV token is encrypted under AES-CBC and with the shared secrets. Once all elements haven been re-encrypted, they are forwarded to the next mixes.
+During the eviction, the mixes encrypt both the IV token and the data separately as in Algorithm~\ref{alg:lencp}. They first generate an initialisation array from the IV token and use it to encrypt the data with keys derived from the secrets shared with the client. The first bits of the data are then used to generate another IV to encrypt with the IV token. Before sending the records to the next mixes, the data block needs to be permuted. To do so, the mixes derive from the shared secrets permutation seeds from which the new ordering are generated, and the data blocks are sorted according to them.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{Record $rec$; \\ \qquad Encryption key $k$; }
-$IV \gets PRF(rec.token\cdot k, 128)$;\\
-$rec.data \gets enc\left(k,\ IV,\ rec.data \right )$;\\
-$IV \gets PRF(rec.data \cdot k, 128)$;\\
-$rec.token \gets enc\left(k,\ IV,\ rec.token \right )$;\\
+$IV0 \gets PRF(rec.token\cdot k, 128)$;\\
+$rec.data \gets enc\left(k,\ IV0,\ rec.data \right )$;\\
+$IV1 \gets PRF(rec.data \cdot k, 128)$;\\
+$rec.token \gets enc\left(k,\ IV1,\ rec.token \right )$;\\
 \KwOut{rec}
 \caption{Layered encryption primitive}
 \label{alg:lencp}
 \end{algorithm}
 
+When retrieving a record, the client needs to decipher all encryption layers. As the number of encryption layers per record varies, a timing attack can occur : the adversary can guess when a record was last fetched. To prevent the attack, we modify the access method so that the decryption happens offline (c.f. Algorithm~\ref{alg:lacc}). After retrieving a record (line 1 to 9), the client now directly encrypts it with its own key and updates it in the cache stored locally (line 10). The local cache is then uploaded to the remote server (line 11).
+After doing so, if it is a write operation, the client overwrite the record with its new version (line 12 to 13). If it is a read operation, the client locally decrypts the previous encryption and remove the mix encryption layers (line 14 to 15). And finally, the client save locally an encrypted version of the record (line 16).\\ 
 
-\noindent The mixes use permutation seeds to permute the records. We assume the existence of a record index the client can access to, e.g to link the records' titles to their position in the database. We make use of this index to store the current remote indices, or simply create one if needs be. In that case, the client needs to have a larger memory  as we add $n\cdot log(n)$ bit, for 50MB, we can store more that $10**8$ indices.
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{ Local record index $index$; \\ \qquad Operation and data $op,\ towrite$; \\ \qquad Encryption keys $k$; \\ \qquad Permutation seeds $\sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
+$j \gets recover\_index(\sigma,\ index)$;\\
+$cache \gets fetch\_cache()$;\\
+\ForAll {$rec \in cache$}
+{
+$cache[rec]\gets \textbf{decrypt}(k,\ r,\ \sigma,\ cache[rec])$;\\
+}
+\If{$record \in cache$}
+{
+$tofetch \gets choose\_dummy()$;\\
+}
+\Else
+{
+$tofetch \gets tofetch \{j\}$;\\
+}
+$record \gets fetch\_record(tofetch, cache)$\\
+$update\_cache(recs \cup \textbf{encrypt}(record))$;\\
+$send\_cache()$;\\
 
-The client make uses of a trial error process, Algorithm~\ref{alg:ldec}, to decrypt the records. Using the shared secrets, the IV token is first deciphered then the data, these two operations are repeated $r$ times in total. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.
-To encrypt a record, the client generates the IV token and label, encrypts the data with its own secret key and the IV produced from the IV token, and encrypts the IV with its own secret key and an IV produced from the data.
+\If {$op!=read$}
+{
+$record \gets \{towrite\}$;\\
+}
+\Else
+{
+$record \gets \textbf{decrypt}(k,\ r,\ \sigma,\ record)$;\\
+}
+$save\_in\_recs(\textbf{encrypt}(k,\ record))$;\\
+\KwOut{record}
+\caption{Layered access method}
+\label{alg:lacc}
+\end{algorithm}
+
+To decrypt a record, the client uses a trial error (c.f. Algorithm~\ref{alg:ldec}) based on the primitive~\ref{alg:ldecp} where, using the shared secrets, the IV token is first deciphered then the data. The decryption algorithm first removes the client encryption, and executes the primitive $r$ times. The client then uses its own secret key to decipher the IV and the data another time, if the label is the right one, the process stops, if not the client cancels the last decryption and starts again.\\
  
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{Record $rec$; \\ \qquad Decryption key $k$; }
-$IV \gets urandom(rec.data \cdot k, 128)$;\\
-$rec.token \gets dec\left(k,\ IV,\ rec.token \right )$;\\
-$IV \gets urandom(rec.token\cdot k, 128)$;\\
-$rec.data \gets dec\left(k,\ IV,\ rec.data \right )$;\\
+$IV1 \gets PRF(rec.data \cdot k, 128)$;\\
+$rec.token \gets dec\left(k,\ IV1,\ rec.token \right )$;\\
+$IV0 \gets PRF(rec.token\cdot k, 128)$;\\
+$rec.data \gets dec\left(k,\ IV0,\ rec.data \right )$;\\
 \KwOut{rec}
 \caption{Layered decryption primitive}
 \label{alg:ldecp}
@@ -245,91 +281,50 @@ $rec.data \gets dec\left(k,\ IV,\ rec.data \right )$;\\
 \DontPrintSemicolon
 \KwIn{Record and index $record,\ index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Private key $prv$;\\ \qquad Number of rounds $r$; \\ \qquad Permutation seeds $\sigma$;}
 $j,e=0$;\\
-$r\gets decrypt(prv_e,rec)$;\\
+$r\gets \textbf{decrypt\_prm}(prv_e,rec)$;\\
 \While{$rec.data.label != i$}
 {
 \If {$e!=0$}
 {
-$rec \gets encrypt(prv_e,\ rec)$;\\
+$rec \gets encrypt(prv_{e+1},\ rec)$;\\
+}
 \ForAll{$k \in \llbracket 1 :r \rrbracket $}
 {
 	$m\gets retrieve\_mix(\sigma,\ e,\ j,\ index)$;\\
-	$rec \gets decrypt(k_{m,\ e,\ j}, rec)$;\\
+	$rec \gets \textbf{decrypt\_prm}(k_{m,\ e,\ j}, rec)$;\\
 	$j\gets j-1$;\\
 }
-}
-	$rec \gets decrypt(prv_e,\ rec)$;\\
+	$rec \gets \textbf{decrypt\_prm}(prv_e,\ rec)$;\\
     $e\gets e-1$;\\
 }
 \KwOut{rec}
 \caption{Layered Decryption algorithm}
 \label{alg:ldec}
 \end{algorithm} 
- 
-As the number of encryption layers per record varies, we delay the decryption of the fetched record to prevent timing attacks. When retrieving a record, before sending the cache back to the ORAM server, the client encrypts the retrieved record with its own key and updates it back in the cache before uploading the latter.
-After doing so, the client locally decrypts the previous encryption and starts the decryption method described above. Once the plain text is recovered, a new IV token is generated, the label is appended to the record, the data is encrypted with the IV produced from the IV token and the private key. The next time the cache is fetched, the cached version of the record is overwritten with the new version. \\
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{ Real record index $index$; \\ \qquad Operation and data $op,\ towrite$; \\ \qquad Encryption keys $k$; \\ \qquad Permutation seeds $\sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
-$j \gets recover\_index(\sigma, index)$;\\
-$cache \gets fetch\_cache()$;\\
-\ForAll {$rec \in cache$}
-{
-$cache[rec]\gets decrypt(k,\ r,\ \sigma,\ cache[rec])$;\\
-}
-\If{$record \in cache$}
-{
-$record \gets find(record) $;\\
-$tofetch \gets choose\_dummies(cache, d+1)$;\\
-}
-\Else
-{
-$tofetch \gets choose\_dummies(cache, d)$;\\
-$tofetch \gets tofetch \cup \{j\}$;\\
-}
-$record,\ d \gets fetch(tofetch)$\\
-$update\_cache(recs, encrypt(record))$;\\
-$send\_cache()$;\\
-\If {$op==read$}
-{
-$d \gets d \cup \{record\}$;\\
-}
-\Else
-{
-$d \gets d \cup \{towrite\}$;\\
-}
-\ForAll {$rec \in d$}
-{
-$d[rec] \gets decrypt(k,\ r,\ \sigma,\ d[rec])$;\\
-$save(encrypt(k,\ d[rec]))$;\\
-}
-\KwOut{record}
-\caption{Layered access method}
-\label{alg:lacc}
-\end{algorithm}
+\noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption and permutation layers with new ones. The difficulty of this method is to replace the layers in a manner such that the intermediaries never see the underlying client encryption to prevent an adversary from observing which record was accessed.
+In order to achieve this, the records are encrypted and decrypted in two phases : a simple encryption-decryption (E/D phase) phase and a encryption-permutation (E/$\Pi$ phase) one. Contrary to the Layered method, we encrypt with AES in Counter mode (AES-CTR) and use the record current index as counter.
+Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The first time the record are encrypted with the client own private keys and fixed counters, the second time with keys generated from the secrets shared with the mixes and fixed counters, and finally at the last time the records are permuted and encrypted at the same time, with the permutation seeds and encryption keys generated from the shared secrets.
+For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.\\
 
-\noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption layers with new ones in a manner such that the intermediaries never see the underlying client encryption. In order to achieve this, the encrypted records are first encrypted with the mix encryption keys twice. That way, each mix can either decrypt or re-encrypt the cipher-texts and there will always remain at least one layer of  mix encryption. Contrary to the Layered method, the rebuild method does not rely on a particular data structure, and the encryption used depends on the records order because we use AES in Counter mode (AES-CTR) with the record index as counter.
-
-Before sending the records to the untrusted storage, the client encrypts the plain-text thrice. The records are always encrypted with AES in CTR mode and we use as counter the record current index. The first time the record are encrypted with the client own private keys and fixed counters, the second time with keys generated from the shared secrets of the mixes and fixed counters, and finally at the last time the records are permuted and encrypted at the same time, with the permutation seeds and with encryption keys generated from the shared secrets and the changing indices as counters.
-For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.
-
-During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1})$ by executing $(\Pi_{\sigma}^{-1}, D_{k1})$. The database is now in the original sequence and encrypted under $E_{k0}$. The mixes then encrypt the records with $E_{k0'}$ before decrypting with $D_{k0}$ thanks to AES CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k0'}$. Finally, the mixes encrypt and permute at the same time the records executing $(\Pi_{\sigma'}, E_{k1})$, the database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$. A scheme summarizing the eviction can be seen in Fig.~\ref{fig:AES}.  
+During the eviction (c.f. Figure~\ref{fig:rebuild}), the mixes first unravel the last layer $(\Pi_\sigma, E_{k1})$ by executing $(\Pi_{\sigma}^{-1}, D(k1))$ during an unwrapping E/$\Pi$ phase. At the end of it, the database is then in the original sequence and encrypted under $E_{k0}$ only. 
+The mixes then start E/D phase where the records are encrypted with $E(k_{0i}')$ before being decrypting with $D(k_{0i})$ by each mix $mix_i$ thanks to AES-CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k0'}$ only. Finally, the wrapping E/$\Pi$ phase starts with the mixes encrypting and permuting at the same time the records executing $(\Pi_{\sigma'}, E_{k1})$. The database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$.  
 
 \begin{figure*}
-\begin{tikzpicture}[auto, semithick, node distance= 4em]
+\begin{tikzpicture}[auto, semithick, node distance= 6.5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {DB};
-\node[draw=none, align=center] (XX)[below of=X] {\small \textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$};
-\node[draw, rectangle, align=center, label=below:{$D\left ( k  \right )$}]   		(A)[right of=X]   {$\Pi_{\sigma}^{-1}$};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em,  label={[align=center, yshift=1em]\textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$}]    	(X)				  {DB};
+\node[draw, rectangle, align=center, label=below:{$D\left ( k_0  \right )$}]   		(A)[right of=X]   {$\Pi_{\sigma}^{-1}$};
 \node[draw, rectangle, align=center, label=above:{$E\left ( k_{10}'  \right )$}, label=below:{$D\left ( k_{10}  \right )$}]    		(B1)[right of=A]    { $\ $\\$\ $ };
 \node[draw, rectangle, align=center, label=above:{$E\left ( k_{11}'  \right )$}, label=below:{$D\left ( k_{11}  \right )$}]    		(B2)[right of=B1]   { $\ $\\$\ $};
 \node[draw, rectangle, align=center, label=above:{$E\left ( k_{12}'  \right )$}, label=below:{$D\left ( k_{12}  \right )$}]    		(B3)[right of=B2]   { $\ $\\$\ $};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k'  \right )$}]    		(C)[right of=B3]   {$\Pi_{\sigma'}$};
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=C]	  {DB};
-\node[draw=none, align=center] (YY)[below of=Y] {\small \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$};
-\draw[decoration={brace,mirror, amplitude=1em}, decorate]  ([yshift=-2em]A.south east) -- ([yshift=-2em]C.south west) node[below, pos=0.5, yshift=-1em] {Simple E/D phase};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_0'  \right )$}]    		(C)[right of=B3]   {$\Pi_{\sigma'}$};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em, label={[align=center, yshift=1em] \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$}]    	(Y)[right of=C]	  {DB};
+
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]A.north west) -- ([yshift=2em, xshift=1em]A.north east) node[above, pos=0.5, yshift=1em, align=center] {Unwrapping \\ E/$\Pi$ phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]B1.north west) -- ([yshift=2em, xshift=1em]B3.north east) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]C.north west) -- ([yshift=2em, xshift=1em]C.north east) node[above, pos=0.5, yshift=1em, align=center] {Wrapping \\ E/$\Pi$ phase};
+
 \path[->]
 (X.east) edge     	node{}    	(A.west)
 (A.east) edge     	node{}    	(B1.west)
@@ -339,7 +334,7 @@ During the eviction, the mixes first unravel the last layer $(\Pi_\sigma, E_{k1}
 (C.east) edge     	node{}    	(Y.west);
 \end{tikzpicture}
 \centering
-\caption{Eviction under the Rebuild method, with encryptions (E) and decryptions (D) and permutations ($\Pi$).} \label{fig:AES}
+\caption{Eviction under the Rebuild method, with encryptions (E) and decryptions (D) and permutations ($\Pi$) and three mixes.} \label{fig:rebuild}
 \end{figure*}
 
 When retrieving a record, as shown in Alg~\ref{alg:racc}, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Alg~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. After updating the cache with the encryption of the record to read or write, the latter is sent back.
@@ -534,7 +529,7 @@ $data \gets send\_DB(db, data)$;\\
 }
 }
 \caption{Layered Cascade mix operation for mix $mix_i$.}
-\label{alg:CIL}
+\label{alg:CL}
 \end{algorithm}
 
 \noindent\textit{Costs.}
@@ -543,7 +538,7 @@ The computation cost is ... \todo{}.\\
 
 
 \noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ ($\Pi_{\sigma_1,...,\sigma_m}\left ( DB \right )$) and the records encrypted with the keys $k_i$ and their index as counter. After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$.
-The mixes operates as as depicted in Fig~\ref{fig:ASMO_L}: they first decrypt and unwrap the records (first row of mixes in the figure), then change the inner encryption by encrypting with the new keys and decrypting with the old (second row), and finally wrap and encrypt again with the new keys (last row). As said in Section~\ref{Enc}, the inner encryption is needed to prevent any intermediary from seeing the user encryption on top of the records and hence, deduce whether a record was fetched or not. 
+The mixes operates as as depicted in Fig~\ref{fig:ASMO_R}: they first decrypt and unwrap the records (first row of mixes in the figure), then change the inner encryption by encrypting with the new keys and decrypting with the old (second row), and finally wrap and encrypt again with the new keys (last row). As said in Section~\ref{Enc}, the inner encryption is needed to prevent any intermediary from seeing the user encryption on top of the records and hence, deduce whether a record was fetched or not. 
 
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}g
@@ -590,7 +585,7 @@ The mixes operates as as depicted in Fig~\ref{fig:ASMO_L}: they first decrypt an
 \end{tikzpicture}
 \end{adjustbox}
 \centering
-\caption{Rebuilt simple Mix-ORAM.} \label{fig:ASMO_L}
+\caption{Rebuilt simple Mix-ORAM.} \label{fig:ASMO_R}
 \end{minipage}
 \end{figure} 
 %
@@ -672,8 +667,8 @@ $data \gets send\_DB(db, data)$;\\
 }
 }
 }
-\caption{Rebuilt Cascade mix operation for mix $mix_i$.}
-\label{alg:CIL}
+\caption{Rebuild Cascade mix operation for $mix_i$.}
+\label{alg:RCmix}
 \end{algorithm}
 
 \noindent\textit{Costs.}
