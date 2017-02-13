@@ -766,10 +766,29 @@ $$ \tau(\epsilon) \leq \frac{n}{2\cdot k}  \cdot \left [ \left( \log \left (\fra
 %
 \subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
 %
-We now consider the mix-net as a collection of isolated mixes. The unwrapping (for the rebuild method) and wrapping phases consist each of $r$ rounds.\\
+We now consider the mix-net as a collection of mixes communicating to each other. The eviction algorithm is composed of the unwrapping (for the rebuild method) and the wrapping phases which consist each of $r$ rounds.
+
+The mixes have each been allocated a chunk of the database ($mix_idx$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seed to compute which record to send to each mix as written in Algorithm~\ref{alg:PRA}.
 
 
-\noindent\textbf{Layered method.} In that scenario, there is only one wrapping phase where the mixes keep encrypting and permuting the records. As the permutation is not undone at any moment, the assumption that the records are indistinguishable holds, the wrapping phase can then consist of $r= m/2 \cdot \log(n/s)$ rounds. \\
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Public seeds $\sigma_{pub, round}$;\\ \qquad Number of records and mixes $n,\ m$;}
+$records \gets {\Pi}_{\sigma_{pub, rnd}}(\llbracket 1 : n \rrbracket)$;\\
+$mixes \gets []$;\\
+\ForAll {$i \in \llbracket 1, m \rrbracket$}
+{
+	$mixes \gets mixes \cup records[i\cdot n/m : (i+1)\cdot n/m]$;\\
+	$mixes[i]\gets [mixes[i][j]$ for $j \in [1:n/m]$ if $mixes[i][j] \in [idx\cdot n/m : (idx+1)\cdot n/m] ]$;\\
+}
+\KwOut{$mixes$}
+\caption{Public Record Allocation for $mix_{idx}$ at round $rnd$}
+\label{alg:PRA}
+\end{algorithm}
+
+\noindent\textbf{Layered method.} In this design, chunks of the database are attributed to each mix which keep encrypting and permuting the records. Before the eviction, the database is permuted with the old seeds $\sigma_i$ and encrypted with the old encryption keys $k_i$. Afterwards, the records are encrypted with both $k_i$ and $k_i'$, permuted with both $\sigma_i$ and $\sigma_i'$, and the indices are saved in the record index. 
+As no permutation layer is removed, the record indistinguishability assumption holds, the eviction can then consist of $r= m/2 \ \log(n/s)$ rounds. \\
 
 \noindent\textit{Mix Instructions.}
 The client need to send to each mix the session keys to access the database $(id,\ token)$, the total number of records $n$, the elements used to compute the encryption keys and permutation seeds $(\alpha_i, \alpha_{pub, i})$, the number of rounds $r$, and the ordered $list=(ports,\ ips)$ of the mixes participating in the eviction. The client thus send :
@@ -790,8 +809,11 @@ b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b
 b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
 
+\noindent\textit{Mix operations.} In this scheme the mix $mix_i$ receive a list of encrypted record from all mixes (or the database). It first merges the record lists and  sorts them to the natural order thanks to the public seed. It then encrypts each record and permute them according to the private key and seed. It finally computes the record allocation arrays (c.f. Algorithm~\ref{alg:PRA}) before sending the records accordingly to them.\\
 
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$ and $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
+\noindent\textit{Client operations.} To find a record position in the database, the client simply needs to look at the current index in the record index.\\
+
+\noindent\textit{Costs.} The communication costs are ... and the computation costs ... .\\
 
 \noindent\textbf{Rebuild method.}
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
