@@ -306,16 +306,16 @@ $rec.data \gets dec\left(k,\ IV0,\ rec.data \right )$;\\
 \begin{tikzpicture}[auto, semithick, node distance= 6.5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 \node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em,  label={[align=center, yshift=1em]\textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$}]    	(X)				  {DB};
-\node[draw, rectangle, align=center, label=below:{$D\left ( k_0  \right )$}]   		(A)[right of=X]   {$\Pi_{\sigma}^{-1}$};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{10}'  \right )$}, label=below:{$D\left ( k_{10}  \right )$}]    		(B1)[right of=A]    { $\ $\\$\ $ };
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{11}'  \right )$}, label=below:{$D\left ( k_{11}  \right )$}]    		(B2)[right of=B1]   { $\ $\\$\ $};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{12}'  \right )$}, label=below:{$D\left ( k_{12}  \right )$}]    		(B3)[right of=B2]   { $\ $\\$\ $};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_0'  \right )$}]    		(C)[right of=B3]   {$\Pi_{\sigma'}$};
+\node[draw, rectangle, align=center, label=below:{$D\left ( k_0  \right )$}, label=above:{$\Pi_{\sigma}^{-1}$}]   		(A)[right of=X]   {$all\ mixes$};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{10}'  \right )$}, label=below:{$D\left ( k_{10}  \right )$}]    		(B1)[right of=A]    { $mix_1 $ };
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{11}'  \right )$}, label=below:{$D\left ( k_{11}  \right )$}]    		(B2)[right of=B1]   { $mix_2$};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_{12}'  \right )$}, label=below:{$D\left ( k_{12}  \right )$}]    		(B3)[right of=B2]   { $mix_3 $};
+\node[draw, rectangle, align=center, label=above:{$E\left ( k_0'  \right )$}, label=below:{$\Pi_{\sigma'}$}]    		(C)[right of=B3]   {$all\ mixes$};
 \node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em, label={[align=center, yshift=1em] \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$}]    	(Y)[right of=C]	  {DB};
 
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]A.north west) -- ([yshift=2em, xshift=1em]A.north east) node[above, pos=0.5, yshift=1em, align=center] {Unwrapping \\ E/$\Pi$ phase};
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]B1.north west) -- ([yshift=2em, xshift=1em]B3.north east) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em, xshift=-1em]C.north west) -- ([yshift=2em, xshift=1em]C.north east) node[above, pos=0.5, yshift=1em, align=center] {Wrapping \\ E/$\Pi$ phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]A.north west) -- ([yshift=2em]A.north east) node[above, pos=0.5, yshift=1em, align=center] {Unwrapping \\ E/$\Pi$ phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]B1.north west) -- ([yshift=2em]B3.north east) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]C.north west) -- ([yshift=2em]C.north east) node[above, pos=0.5, yshift=1em, align=center] {Wrapping \\ E/$\Pi$ phase};
 
 \path[->]
 (X.east) edge     	node{}    	(A.west)
@@ -440,7 +440,7 @@ $$ db,\ \alpha_{i},\ (ports,\ ips) $$
 Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption and $q$ the prime order of $\mathcal{G}$. We assume that each mix $mix_i$ has a public key $y_i=g^{x_i}\in \mathcal{G}^*$ with $x_i \in_{\mathbb{R}} \mathbb{Z_q}$ alongside the presence of a Public Key Infrastructure to distribute an authenticated list of all $(mix_i, y_i)$.
 To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the element $z_i$. The group element $\alpha$ and the shared secret $ss$ are generated and the encryption keys and permutation seeds are derived as follows:
 \begin{align*}
-\alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=hkdf(sk_i)
+\alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=hkdf(ss_i)
 \end{align*}
 
 \noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i$ and permutes the records  with the seed $\sigma_{i}$ and sent to $mix_{i+1}$ (or the database if $i=m$).\\
@@ -544,7 +544,7 @@ The client sends to every mix two elements of a cyclic group of prime order sati
 $$ db,\ \alpha_{i,\ old},\ \alpha_{i,\ new}\ (ports,\ ips) $$
 
 Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption and $q$ the prime order of $\mathcal{G}$. We assume that each mix $mix_i$ has a public key $y_i=g^{x_i}\in \mathcal{G}^*$ with $x_i \in_{\mathbb{R}} \mathbb{Z_q}$ alongside the presence of a Public Key Infrastructure to distribute an authenticated list of all $(mix_i, y_i)$.
-To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the elements $z_i$ and $z_i'$. The group elements $\alpha$, shared secrets $sk$ and $ss$ are generated and the encryption keys and permutation seeds are derived as follows: $$\alpha_i = g^{z_i},\ sk_i = y_i^{z_i},\ k_i, \sigma_i=hkdf(sk_i)$$
+To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the element $z_i$. The group elements $\alpha$, shared secrets$ss$ are generated and the encryption keys and permutation seeds are derived as follows: $$\alpha_i = g^{z_i},\ ss_i = y_i^{z_i},\ k_i, \sigma_i=hkdf(ss_i)$$
 
 
 \noindent\textit{Mix operations.} In this scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). At first, the records are permuted with the old seed $\sigma_{i}$ and encrypted with the key $k_{i}$ and sent to $mix_{i+1}$ (or itself). The mixes then encrypt the record with both the new and old keys and send to the previous mix (or the last if $i=0$). Finally, the records are permuted with $\sigma_{i}'$, encrypted with $k_{i}'$ and sent to $mix_{i-1}$ (or the database if $i=0$).\\
@@ -660,11 +660,11 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r-1}$};
 
 
-\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}_{i}$};
+\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}$};
 
 
 \path[->, midway]
- (A')		edge node[above,yshift=4ex]		{$S_{pub,r}$} 	(A.west)
+ (A')		edge node[above,yshift=4ex]		{$\sigma_{pub,r}$} 	(A.west)
  (A')		edge node		{} 					(B.west)
  (B')		edge node		{} 					(C.west)
  (B') 		edge node		{} 					(A.west)
@@ -688,7 +688,7 @@ scale=0.5,
 block/.style={draw, fill=white, rectangle, font=\small}]
 
 
-\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}_i$};
+\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}$};
 
 \node[block, align=center]							(B)[right of=0, xshift=3em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r}^{-1}$};
 \node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
@@ -708,7 +708,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (0) edge node[sloped, above]{} (B.west)
  ([yshift=2ex]0.south east) edge node[sloped, above]{} (C.west)
 
- (A.east) edge node[above,yshift=4ex]	{$S_{pub,r}^{-1}$} 	(A')
+ (A.east) edge node[above,yshift=4ex]	{$\sigma_{pub,r}^{-1}$} 	(A')
  (A.east) edge node						{} 					(B')
  (A.east) edge node						{} 					(C')
  (B.east) edge node						{} 					(A')
@@ -766,14 +766,30 @@ $$ \tau(\epsilon) \leq \frac{n}{2\cdot k}  \cdot \left [ \left( \log \left (\fra
 %
 \subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
 %
-We now consider the mix-net as a collection of isolated mixes. The unwrapping and wrapping phases consist of $r= \frac{m}{2} \cdot \log \left (\frac{n}{s} \right ) $ rounds as depicted in Fig~\ref{fig:Par}.\\
+We now consider the mix-net as a collection of isolated mixes. The unwrapping (for the rebuild method) and wrapping phases consist each of $r$ rounds.\\
 
 
-\noindent\textbf{Layered method.} In that scenario, the mixes keep encrypting the records with the appended IVs and keep permuting them. As the permutation is not undone at any moment, the assumption that the records are indistinguishable holds. Thus we can permute the records the number of times detailed in the oblivious merge method. \\
+\noindent\textbf{Layered method.} In that scenario, there is only one wrapping phase where the mixes keep encrypting and permuting the records. As the permutation is not undone at any moment, the assumption that the records are indistinguishable holds, the wrapping phase can then consist of $r= m/2 \cdot \log(n/s)$ rounds. \\
 
-\noindent\textbf{Message Format.}
-The client only need to send to each mix the signed message containing session keys to access the database $(id,\ token)$, information to compute which records it has been attributed $(index,\ range)$, the client's secret used to compute the shared secret $(\alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}')$, the number of rounds $r$, and the signed ordered $list=(ports,\ ips)$ of the mixes participating in the eviction.
-The message format is then : $$db,\ \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
+\noindent\textit{Mix Instructions.}
+The client need to send to each mix the session keys to access the database $(id,\ token)$, the total number of records $n$, the elements used to compute the encryption keys and permutation seeds $(\alpha_i, \alpha_{pub, i})$, the number of rounds $r$, and the ordered $list=(ports,\ ips)$ of the mixes participating in the eviction. The client thus send :
+$$db,\ \alpha_i,\ \alpha_{pub, i},\ n,\ r,\ list$$
+
+As for the previous schemes, we have $g$ a generator of the prime-order $q$ cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption. We assume that each mix $mix_i$ has a private key $x_i$ and a public key $y_i$, and the client the private and public key $x_c,\ y_c$ ; all public keys being distributed thanks to a PKI in a authenticated manner.
+We also assume the mixes have exchanged with the client private random elements $m_i \in_{\mathbb{R}} \mathbb{Z_q}$. 
+The client sends to the mix $mix_{i\in 1..m}$ $\alpha_i$ generated with a random element of $\mathbb{Z}_q$, $\beta_i$ computed from the $m_i$ to compute the shared secrets $ss_i,\ sk$ and the encryption keys $k_i$ and the permutation seeds $\sigma$ as follows :
+ 
+\begin{align*}
+\alpha_{i,0} &= g^{z_i}, &ss_{i,0 }&= y_{i,0}^{z_i}, &k_{i,0},\ \sigma_{i,0}&=hkdf(ss_{i,0})\\
+\beta_{i, 0} &= g^{\Pi_{j\neq i}m_j}, &sk_0 &= \beta_{i,0}^{m_i}, &\sigma_{pub, 0}&=hkdf( sk_0)
+\end{align*}
+
+We furthermore refresh the permutation seeds and encryption keys at each round thanks to blinding the group elements. Let $h_b : \mathcal{G}^* \rightarrow \mathbb{Z}_{q}^*$ the hash function we use for computing blinding factors, we can then compute the $\alpha$ and $\beta$ for the round $j+1$ as follows:
+\begin{align*}
+b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b_{i,k}}\\
+b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
+\end{align*}
+
 
 \noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot r \cdot n \cdot c_{CBC}$, $c_{client}= x$, $c_{mix}= 2\cdot r \cdot n$ and $c_{com} = 2 \cdot r \cdot n+ c_{client}$.\\
 
