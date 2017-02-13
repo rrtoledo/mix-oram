@@ -396,71 +396,35 @@ $rec \gets decrypt(rec, k_{i,0}, index )$;\\
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.
+We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.\\
 
-During the eviction process, the whole database makes a round trip through the mix-net before being updated back to the database. During the way in, the mixes cancel the previous permutation the database has incurred thanks to the old seeds $\sigma$ given by the client. While during the way out, the mixes permute the database according to the new ones $\sigma'$ as shown in Alg~\ref{alg:CSort}. At the end of the eviction, or after verification if any, the old seeds are overwritten with the new ones.
-
-When retrieving a record, the user recovers the remote index thanks to the last used seeds. We wrote in Algorithm~\ref{alg:CIL} a method to compute all intermediary indices and mixes, the last index being the one sought.
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Old and new private seed $\sigma_i,\ \sigma_i'$;\\ \qquad Data $data$;}
-\If {in}
-{
-$data \gets \Pi^{-1}_{\sigma_i}\left ( data \right )$;\\
-}
-\Else
-{
-$data \gets \Pi_{\sigma_i'}\left ( data \right )$;\\
-}
-\KwOut{$data$}
-\caption{Cascade sort for mix $i$}
-\label{alg:CSort}
-\end{algorithm}
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Seeds $\sigma$;\\ \qquad Number of records and mixes $n,\ m$;\\ \qquad Record index $index$;}
-$mixes \gets \{,\}$;\\
-$indices \gets \{,\}$;\\
-\ForAll {$i \in \llbracket 1, m \rrbracket$}
-{
-	$index \gets {\Pi}_{\sigma_i}(n,\ index)$;\\
-	$mixes \gets mixes \cup \{i\}$;\\
-	$indices \gets \cup \{index\}$
-}
-\KwOut{$mixes,\ indices$}
-\caption{Cascade Index Lookup}
-\label{alg:CIL}
-\end{algorithm}
-
-\noindent\textbf{Layered Cascade.} The design refreshes the permutation and add new layers of AES-CBC encryption. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ ($\Pi_{\sigma_1,...,\sigma_m}\left ( DB \right )$) and encrypted with the keys $k_i$. After randomization, the database is encrypted with both $k_i$ and $k_i'$ and permuted with the new seeds $\sigma_i$, as shown in Fig~\ref{fig:ASMO_L}.
-The first time the database passes through a mix $mix_i$, $mix_i$ undoes the permutation  inherited from the previous eviction, i.e. $mix_i$ performs $\Pi_{\sigma_i}^{-1}\left(DB\right)$ denoted by $\sigma_i$ in the figure. The mix $mix_i$ also encrypts the records with the key $k_i$ as detailed before in Algorithm~\ref{alg:lencp}. The second time, the mix $mix_i$ performs $\Pi_{\sigma_i'}\left(DB\right)$, and encrypts every record with the new encryption key $k_{i}'$.\\
+\noindent\textbf{Layered Cascade.} The design sends the whole database through the mix-net where each mix adds a new permutation and a new encryption layers. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and encrypted with the keys $k_i$. After randomization, the database is encrypted with both $k_i$ and $k_i'$ and permuted with both seeds $\sigma_i',\ \sigma_i$, as shown in Fig~\ref{fig:ASMO_L}.\\
 %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
 \begin{adjustbox}{width=\textwidth}
 \centering
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5.5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em]    	(0)				  {};	
-\node[draw, rectangle]   		(A)[right of=0]   {\small $Mix_{1}$};
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{$k_{i=1..m} $},label=below:{$\sigma_{j=1..m}$}]    	(0)				  {DB};
+	
+\node[draw, rectangle]   		(A)[right of=0, label=above:{$E(k_1')$},label=below:{$\Pi(\sigma_1')$}]   {\small $Mix_{1}$};
+
 \node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
-\node[draw, rectangle]    		(B)[right of=X]   {\small $Mix_m$};
+
+\node[draw, rectangle]    		(B)[right of=X, label=above:{$E(k_m')$},label=below:{$\Pi(\sigma_m')$}]   {\small $Mix_m$};
+
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{$k_{i=1..m},\ k_{i=1..m}' $},label=below:{$\sigma_{j=1..m},\ \sigma_{j=1..m}'$}]    	(00)[right of=B]				  {DB};	
 
 \path
-([yshift=1ex]0.east) edge     	node[above=1em]{\small $DB_{k_{i=1..2m}}^{\sigma_j=1..m}$}    	([yshift=1ex]A.west)
-([yshift=-1ex]A.west) edge     	node[below=0.5em]{\small $DB_{k_{i=1..2m},\ k_{i=1..2m}'}^{\sigma_{j=1..m}'}$}    	([yshift=-1ex]0.east)
+(0.east) edge     	node[align=center]{}    	(A.west)
 
-([yshift=1ex]A.east) edge     	node{\small $\sigma_1,k_{1}'$}    	([yshift=1ex]X.west)
-([yshift=-1ex]X.west) edge     	node{\small $\sigma_2',k_{2m-1}'$}    	([yshift=-1ex]A.east)
+(A.east) edge     	node{}    	(X.west)
 
-([yshift=1ex]X.east) edge     	node{\small $\sigma_{m-1},k_{m-1}$}    	([yshift=1ex]B.west)
-([yshift=-1ex]B.west) edge     	node{\small $\sigma_{m}',k_{m+1}'$}    	([yshift=-1ex]X.east)
+(X.east) edge     	node{}    	(B.west)
 
-(B)    edge[loop right, dashed]    node[xshift=-2em,yshift=1.2em]{\small $\sigma_{m},k_{m}'$} (B);
+(B.east) edge     	node[align=center]{}    	(00.west)
+;
 
 \end{tikzpicture}
 \end{adjustbox}
@@ -470,117 +434,102 @@ The first time the database passes through a mix $mix_i$, $mix_i$ undoes the per
 \end{figure} 
 
 \noindent\textit{Mix instructions.}
-The client sends to every mix three elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman Assumption as in Sphinx~\cite{danezis2009sphinx} $\alpha_{old}$ to undo the old permutations, $\alpha_{new}$ to perform the new ones and  $\beta$ to encrypt the records. Alongside these elements, are sent the signed list of mixes $(ports,\ ips)$ and the database access information $db$ consisting of the IP addresses and access token. The client thus send to each mix $mix_i$:
-$$ db,\ \alpha_{i,\ old},\ \alpha_{i,\ new},\ \beta_{i},\ (ports,\ ips) $$
+The client sends to every mix one element of a cyclic group of prime order satisfying the decisional Diffie-Hellman Assumption as in Sphinx~\cite{danezis2009sphinx} $\alpha$ to perform the permutations and to encrypt the records. Alongside this elements, are sent the signed list of mixes $(ports,\ ips)$ and the database access information $db$ consisting of the IP addresses and access token. The client thus send to each mix $mix_i$:
+$$ db,\ \alpha_{i},\ (ports,\ ips) $$
 
 Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption and $q$ the prime order of $\mathcal{G}$. We assume that each mix $mix_i$ has a public key $y_i=g^{x_i}\in \mathcal{G}^*$ with $x_i \in_{\mathbb{R}} \mathbb{Z_q}$ alongside the presence of a Public Key Infrastructure to distribute an authenticated list of all $(mix_i, y_i)$.
-To generate the $\alpha$s and $\beta$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the elements $z_i$ and $z_i'$. The group elements $\alpha$, $\beta$, shared secrets $sk$ and $ss$ are generated and the encryption keys and permutation seeds are derived as follows:
+To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the element $z_i$. The group element $\alpha$ and the shared secret $ss$ are generated and the encryption keys and permutation seeds are derived as follows:
 \begin{align*}
-\alpha_i &= g^{z_i},\ sk_i = y_i^{z_i},\ k_i=hkdf(sk_i)\\
-\beta_i &= g^{z_i'},\ s\sigma_i = y_i^{z_i'},\ \sigma_i=hkdf(ss_i)
+\alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=hkdf(sk_i)
 \end{align*}
 
-\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i$. If the mix $mix_j$ is before $mix_i$ in the lists of mixes $(ports,\ ips)$ ($j=i-1$), the records are permuted with the seed $\sigma_{i,old}$ to cancel $\Pi_{\sigma_{i,old}}$ and sent to $mix_{i+1}$. If $j=i+1$, the records are permuted with $\sigma_{i,new}$ and sent to $mix_{i-1}$ (or the database if $i=0$).\\
+\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i$ and permutes the records  with the seed $\sigma_{i}$ and sent to $mix_{i+1}$ (or the database if $i=m$).\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i,\ \beta_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data and sender $data,\ sender$;}
-$k_i=hkdf(\beta_{i}^{x_i})$;\\
-$\sigma_{i,old}=hkdf(\alpha_{i,old}^{x_i})$;\\
-$\sigma_{i,new}=hkdf(\alpha_{i, new}^{x_i})$;\\
-$way\_in \gets 1$;\\
+\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data $data$;}
+$k_i,\ \sigma_{i}=hkdf(\alpha_{i}^{x_i})$;\\
 $index \gets list.index(mix_i)$;\\
-$index2 \gets list.index(sender)$;\\
-\If{$index > index2$}
-{
 \If{$index==0$}
 {
 $data \gets fetch\_DB(db)$;\\
-}
-$data \gets \Pi_{\sigma_{i,old}}^{-1}(data)$;\\
-}
-\Else
-{
-$way\_in\gets 0$;\\
-$data \gets \Pi_{\sigma_{i,new}}(data)$;\\
 }
 \ForAll {$d \in data$}
 {
 	$d \gets encrypt\_cbc(k_i, d)$;\\
 }
-\If{$ way\_in$}
+$data \gets \Pi_{\sigma_i}(data)$
+\If{$index !=m$}
 {
-$receiver \gets list[index]$;\\
-\If{$index < len(list)-1 $}
-{
-$receiver \gets list[index+1]$;\\
-}
-$data \gets send\_mix(receiver, data)$;\\
-}
-\Else
-{
-\If{$index !=0$}
-{
-$data \gets send\_mix(list[index-1], data)$;\\
+$data \gets send\_mix(list[index+1], data)$;\\
 }
 \Else
 {
 $data \gets send\_DB(db, data)$;\\
 }
-}
 \caption{Layered Cascade mix operation for mix $mix_i$.}
 \label{alg:CL}
 \end{algorithm}
 
+\noindent\textit{Client Operations.} To find a record position in the database, the client just needs to look at the current index in the record index.\\
+
 \noindent\textit{Costs.}
-As the whole database is sent through the mix-net twice, the mix communication cost is $2\cdot m \cdot n \cdot b$. The client communication is $m \cdot (3 \cdot 32+ (m+1)\cdot (ip +ports)+ token)$.
-The computation cost is ... \todo{}.\\
+As the whole database is sent through the mix-net, the mix communication cost is $ \cdot m \cdot n \cdot b$. The client communication is $m \cdot (32+ m\cdot (ip +ports)+ token)$.
+The computation cost for the client is ..., and ... per mix  \todo{}.\\
 
 
-\noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ ($\Pi_{\sigma_1,...,\sigma_m}\left ( DB \right )$) and the records encrypted with the keys $k_i$ and their index as counter. After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$.
-The mixes operates as as depicted in Fig~\ref{fig:ASMO_R}: they first decrypt and unwrap the records (first row of mixes in the figure), then change the inner encryption by encrypting with the new keys and decrypting with the old (second row), and finally wrap and encrypt again with the new keys (last row). As said in Section~\ref{Enc}, the inner encryption is needed to prevent any intermediary from seeing the user encryption on top of the records and hence, deduce whether a record was fetched or not. 
+\noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and the records encrypted with the keys $k_i$ and their index as counter. After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$.
+The mixes operates as as depicted in Fig~\ref{fig:ASMO_R}: they first decrypt and unwrap the records, then change the inner encryption by encrypting with the new keys and decrypting with the old, and finally wrap and encrypt again with the new keys.
+
 
 \begin{figure}[H]
-\begin{minipage}{0.475\textwidth}g
+\begin{minipage}{0.475\textwidth}
 \begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick, node distance = 8em, every loop/.style={<-}]
+\begin{tikzpicture}[->, auto, semithick, node distance = 5em, every loop/.style={<-}]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
 
-\node[draw, cylinder, shape border rotate=90,minimum height=3cm,minimum width=1cm, anchor=west]    	(0)				  {};	
-\node[draw, rectangle]   		(A)[right =of 0.north, anchor = north]   {\small $Mix_{1}$};
-\node[draw, rectangle] (A')[right of=0]{\small $Mix_{1}$};
-\node[draw, rectangle]   		(A'')[right=of 0.south, anchor = south]   {\small $Mix_{1}$};
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{\small $k_{i=1..m}$},label=below:{\small $\sigma_{j=1..m}$}]    	(0)				  {DB};
+
+\node[draw=none, fill=none]    		(00)[below of=0]   {};
+
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{\small $k_{i=1..m}'$},label=below:{\small $\sigma_{j=1..m}'$}]    	(000)	[below of=00]			  {DB};
+	
+\node[draw, rectangle, label=above:{\small $D(k_1)$},label=below:{\small $\Pi^{-1}(\sigma_1)$}]   		(A)[right =of 0.north east, anchor = north]   {\small $Mix_{1}$};
+
+\node[draw, rectangle, label=above:{\small $E(k_{m+1}')$},label=below:{\small $D(k_{m+1})$}] (A')[below of=A]{\small $Mix_{1}$};
+
+\node[draw, rectangle, label=above:{\small $E(k_m')$},label=below:{\small $\Pi(\sigma_1')$}]   		(A'')[below=of A', anchor = south]   {\small $Mix_{1}$};
 
 \node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
 \node[draw=none, fill=none]    		(X')[right of=A']   {\small $...$};
 \node[draw=none, fill=none]    		(X'')[right of=A'']   {\small $...$};
 
-\node[draw, rectangle]    		(B)[right of= X]   {\small $Mix_m$};
-\node[draw, rectangle]    		(B')[right of=X']   {\small $Mix_{m}$};
-\node[draw, rectangle]    		(B'')[right of= X'']   {\small $Mix_m$};
+\node[draw, rectangle, label=above:{\small $E(k_m)$},label=below:{\small $\Pi^{-1}(\sigma_m)$}]    		(B)[right of= X]   {\small $Mix_m$};
+\node[draw, rectangle, label=above:{\small $E(k_{2m}')$},label=below:{\small $D(k_{2m})$}]    		(B')[right of=X']   {\small $Mix_{m}$};
+\node[draw, rectangle, label=above:{\small $E(k_m')$},label=below:{\small $\Pi(\sigma_m')$}]    		(B'')[right of= X'']   {\small $Mix_m$};
 
 \path 
-([yshift=0.85cm]0.north east) edge     	node{\small $DB_{k_{i=1..2m}}^{S_{j=1..m}}$}    	(A.west)
+([yshift=0.47em]0.east) edge    node{}    	(A.west)
 
-(A.east) edge node{$k_{1},\ S_{1}^{-1}$}    	(X.west)
+(A.east) edge node{}    	(X.west)
 
-(X.east) edge node{$k_{m-1},\ S_{m-1}^{-1}$}    	(B.west)
+(X.east) edge node{}    	(B.west)
 
-(B.east) edge[bend left] node{$k_{m},\ S_{m}^{-1}$} ([yshift=1ex]B'.east)
+(B.east) edge[bend left] node{} ([yshift=1ex]B'.east)
 
-([yshift=1ex]B'.west) edge[align=center] node[above]{$k_{2m}'$} node[below]{$k_{2m-1}$}    	([yshift=1ex]X'.east)
+([yshift=1ex]B'.west) edge[align=center] node{} 	([yshift=1ex]X'.east)
 
-([yshift=1ex]X'.west) edge[align=center] node[above]{$k_{m+2}'$} node[below]{$k_{m+1}$}    	([yshift=1ex]A'.east)
+([yshift=1ex]X'.west) edge[align=center]  node{}   	([yshift=1ex]A'.east)
 
-([yshift=-1ex]A'.east) edge[align=center] node[above]{$k_{2m}$} node[below]{$k_{m+1}'$} (B''.west)
+([yshift=-1ex]A'.east) edge[align=center] node{} (B''.west)
 
-([yshift=-1ex]B''.west) edge    node{$k_{m}',\ S_{m}'$}  ([yshift=-1ex]X''.east)
+([yshift=-1ex]B''.west) edge    node{}  ([yshift=-1ex]X''.east)
 
-([yshift=-1ex]X''.west) edge    node{$k_{2}',\ S_{2}'$}  ([yshift=-1ex]A''.east)
+([yshift=-1ex]X''.west) edge    node{}  ([yshift=-1ex]A''.east)
 
-([yshift=-1ex]A''.west) edge node{\small $DB_{k_{i=1..2m}'}^{S_{j=1..m}'}$} ([yshift=-0.8cm]0.south east);
+([yshift=-1ex]A''.west) edge node{} (000.east);
 
 
 \end{tikzpicture}
@@ -598,78 +547,84 @@ Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying 
 To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the elements $z_i$ and $z_i'$. The group elements $\alpha$, shared secrets $sk$ and $ss$ are generated and the encryption keys and permutation seeds are derived as follows: $$\alpha_i = g^{z_i},\ sk_i = y_i^{z_i},\ k_i, \sigma_i=hkdf(sk_i)$$
 
 
-\noindent\textit{Mix operations.} In this scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). If $j=i-1$, the records are permuted with the seed $\sigma_{i,old}$ ($\Pi_{\sigma_{i,old}}^{-1}$), encrypted with the key $k_{i,old}$ and sent to $mix_{i+1}$ (or itself). The mixes then encrypt the record with both the new and old keys and send to the previous mix (or the last if $i=0$). Finally, If $j=i+1$ or $j=0$, the records are permuted with $\sigma_{i,new}$, encrypted with $k_{i,old}$ and sent to $mix_{i-1}$ (or the database if $i=0$).\\
+\noindent\textit{Mix operations.} In this scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). At first, the records are permuted with the old seed $\sigma_{i}$ and encrypted with the key $k_{i}$ and sent to $mix_{i+1}$ (or itself). The mixes then encrypt the record with both the new and old keys and send to the previous mix (or the last if $i=0$). Finally, the records are permuted with $\sigma_{i}'$, encrypted with $k_{i}'$ and sent to $mix_{i-1}$ (or the database if $i=0$).\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
-\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data and sender $data,\ sender$;}
-$\sigma_{i,old},\ k_{i,old}=hkdf(\alpha_{i,old}^{x_i})$;\\
-$\sigma_{i,new},\ k_{i,new}=hkdf(\alpha_{i, new}^{x_i})$;\\
-$way\_in \gets 1$;\\
+\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i,\ \alpha_i'$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data and sender $data,\ sender$;\\ \qquad Time $time=0$;}
+$\sigma_{i},\ k_{i}=hkdf(\alpha_{i}^{x_i})$;\\
+$\sigma_{i}',\ k_{i}'=hkdf(\alpha_{i}'^{x_i})$;\\
 $index \gets list.index(mix_i)$;\\
-$index2 \gets list.index(sender)$;\\
-\If{$index > index2$}
+\If{$time==0$}
 {
 \If{$index==0$}
 {
 $data \gets fetch\_DB(db)$;\\
 }
-$data \gets \Pi_{\sigma_{i,old}}^{-1}(data)$;\\
+$data \gets \Pi_{\sigma_{i}}^{-1}(data)$;\\
 \ForAll {$d \in \llbracket 1:data\rrbracket$}
 {
-	$data[d] \gets encrypt\_ctr(k_{i,old}, d, data[d])$;\\
+	$data[d] \gets encrypt\_ctr(k_{i}, d, data[d])$;\\
 }
-}
-\Else
-{
-$way\_in\gets 0$;\\
-\If{First time out}
-{
-\ForAll {$d \in \llbracket 1:data\rrbracket$}
-{
-	$data[d] \gets encrypt\_ctr(k_{i,old}, d, data[d])$;\\
-    $data[d] \gets encrypt\_ctr(k_{i,new}, d, data[d])$;\\
-}
-}
-\Else
-{
-\ForAll {$d \in \llbracket 1:data\rrbracket$}
-{
-$data[d] \gets encrypt\_ctr(k_{i,new}, d, data[d])$;\\
-}
-$data \gets \Pi_{\sigma_{i,new}}(data)$;\\
-}
-}
-\If{$ way\_in$}
-{
+$time \gets 1$;\\
 $receiver \gets list[index]$;\\
-\If{$index < len(list)-1 $}
+\If {$index!=m$}
 {
 $receiver \gets list[index+1]$;\\
 }
-$data \gets send\_mix(receiver, data)$;\\
+$send\_mix(receiver, data)$;\\
+}
+\uElseIf {$time==1$}
+{
+\ForAll {$d \in \llbracket 1:data\rrbracket$}
+{
+	$data[d] \gets encrypt\_ctr(k_{i}, d, data[d])$;\\
+    $data[d] \gets encrypt\_ctr(k_{i}', d, data[d])$;\\
+}
+$time \gets 2$;\\
+$receiver \gets list[m]$;\\
+\If {$index!=1$}
+{
+$receiver \gets list[index-1]$;\\
+}
+$send\_mix(receiver, data)$;\\
 }
 \Else
 {
-\If{$index !=0$}
+\ForAll {$d \in \llbracket 1:data\rrbracket$}
 {
-$data \gets send\_mix(list[index-1], data)$;\\
+$data[d] \gets encrypt\_ctr(k_{i}', d, data[d])$;\\
 }
-\Else
+$data \gets \Pi_{\sigma_{i}'}(data)$;\\
+$receiver \gets db$;\\
+\If {$index!=1$}
 {
-\If{First time out}
-{
-$data \gets send\_mix(list[len(list)-1], data)$;\\
+$receiver \gets list[index-1]$;\\
 }
-\Else
-{
-$data \gets send\_DB(db, data)$;\\
-}
-}
+$send\_mix(receiver, data)$;\\
 }
 \caption{Rebuild Cascade mix operation for $mix_i$.}
 \label{alg:RCmix}
+\end{algorithm}
+
+\noindent\textit{Client operations.} When retrieving a record, the user recovers the remote index thanks to the last seeds as depicted in Algorithm~\ref{alg:CRIL} where the last index being the one sought.\\
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Seeds $\sigma$;\\ \qquad Number of records and mixes $n,\ m$;\\ \qquad Record index $index$;}
+$mixes \gets \{,\}$;\\
+$indices \gets \{,\}$;\\
+\ForAll {$i \in \llbracket 1, m \rrbracket$}
+{
+	$index \gets {\Pi}_{\sigma_i}(n,\ index)$;\\
+	$mixes \gets mixes \cup \{i\}$;\\
+	$indices \gets \cup \{index\}$
+}
+\KwOut{$mixes,\ indices$}
+\caption{Cascade Rebuild Index Lookup}
+\label{alg:CRIL}
 \end{algorithm}
 
 \noindent\textit{Costs.}
