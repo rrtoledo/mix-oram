@@ -819,6 +819,26 @@ b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{
 When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
 At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and old key.\\
 
+\noindent\textit{Mix Instructions.}
+The client sends the same instructions as in the Parallel Layered design but with double the amount of group elements $\alpha$, the old and the new ones. The message format is then : 
+$$db,\  \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
+
+To derive the permutation seeds $\sigma$ and encryption keys $k$, we make use of the random private elements $z,i$ and $m_i$, the public and private keys $y$ and $x$.
+\begin{align*}
+\alpha_{i,0} &= g^{z_i}, &ss_{i,0 }&= y_{i,0}^{z_i}, &k_{i,0},\ \sigma_{i,0}&=hkdf(ss_{i,0})\\
+\beta_{i, 0} &= g^{\Pi_{j\neq i}m_j}, &sk_0 &= \beta_{i,0}^{m_i}, &\sigma_{pub, 0}&=hkdf( sk_0)
+\end{align*}
+
+Contrary to the Layered method, we derive the $\alpha$ $r$ more times for the simple the Encryption/Decryption phase. 
+\begin{align*}
+b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b_{i,k}}\\
+b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
+\end{align*}
+
+\noindent\textit{Mix Operations.} During the first time $r$ rounds, the records are unwrapped of their previous encryption and permutation layers. ... . Then the group of $n/m$ records are encrypted and decrypted in $m$ parallel cascades, i.e. the public permutation is fixed. Finally, the mixes start wrapping up the records in $r$ rounds. ... . \\
+
+\noindent\textit{Client Operations.} To recover a record remote position, the client derive from the $m+1$ alphas the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.\\
+
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -840,10 +860,7 @@ $indices \gets \{,\}$;\\
 \label{alg:PIL}
 \end{algorithm}
 
-\noindent\textbf{Message Format.}
-The client send the same data as in the AES-CBC case. The message format is then : $$db,\  \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
-
-\noindent\textbf{Costs.} For 128-bit security, group elements can be expressed in just 32 bytes, we have thus a maximum message size of $|addr|+XXX + 3 \cdot 8 \cdot 32 + XXX$. We have $c_{cmp} = 2\cdot (r+m) \cdot c_{CTR} $, $c_{client}=x$, $c_{mix}= (2r+m)\cdot n$. The total communication cost is $c_{com}= (2r+m)\cdot n + c_{client}$.
+\noindent\textit{Costs.} The communication costs are ... and the computation costs ... .\\
 
 \section{Security Proof}\label{Security}
 
