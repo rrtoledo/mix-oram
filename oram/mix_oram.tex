@@ -898,7 +898,7 @@ In this method, the adversary just need to break one layer of encryption after t
 \textbf{Layered method.} We look here at the average number of encryption layers $e$ a record has before being decrypted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e_{all}]\leq(n/s)\cdot H_n$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number. The expected number of encryption layers per record before decryption is however $E[e]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
 \begin{proof}
 Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
-Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
+Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e_{all}]\leq n/s\ H_n$.
 
 We now want to find the average number of encryption layers per record before decryption, this is equivalent to finding the average number of evictions before a record is deciphered. 
 Hence we have, $E[e]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
@@ -907,6 +907,36 @@ Hence we have, $E[e]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \l
 To reduce these numbers, we modify the access method written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, with $d$ high enough, yields a better approximation of the uniform distribution assumption and we would obtain  $E[e_{all}]\leq n/(sd) \cdot H_n $ and $E[e] \leq {r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
 With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
 
+\begin{table*}
+\vspace{0pt}
+\centering
+\begin{tabular}{l *4c}
+\toprule
+    					& Cascade - Layered	 			& Cascade - Rebuild							& Parallel - Layered 						& Parallel - Rebuild\\
+\midrule
+\#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
+Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
+Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $\frac{m}{2} \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $4m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
+Mix Communication cost & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$\\
+Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )+ 2C_{\Pi}(n)]$\\
+Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
+Client Additional storage & $n\log(n)+ k m$ & $km$ &$n\log(n)+ k (m+1)$ & $k(m+1)$ \\
+\bottomrule
+\end{tabular}
+\centering
+\caption{Cost comparison of the designs, \\ with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
+\end{table*}
+
+\subsection{Comparison}\label{Comparison}
+Comparison of our schemes.
+We did not include the record allocation cost in the tables as it can be done while waiting for the records.
+
+\begin{itemize}
+	\item For the cascade architecture, all the costs are linear in the number of mixes.
+	\item For the parallel architecture, no computation cost depends on $m$ (considering that $C_E \gg C_{\Pi}$), we could "nearly" say it for the communication cost \george{}
+	\item The parallel architecture can be faster than the cascade one. For most database depending on the the underlying ORAM system (on $s$) (if $m \geq 1/2 \log(\frac{n}{s})$), for the Layered method for small to medium sized databases for the Rebuild method (if $m \geq log(n) +1/2$).
+	\item The Layered method needs more additional space and decryption takes longer than for the Rebuild method, however the eviction is faster \raphael{at least if the cost induced by the additional bytes for the Layered method is insignificant}.
+\end{itemize}
 
 \subsection{Implementation, Benchmark and Performances}\label{Implementation}
 
@@ -933,37 +963,6 @@ Parallel Rebuild  	& 0 				& 0 				& 0 			\\
 \end{table}
 
 performance per enc, performance per design, performance with implementation
-
-\begin{table*}
-\vspace{0pt}
-\centering
-\begin{tabular}{l *4c}
-\toprule
-    					& Cascade - Layered	 			& Cascade - Rebuild							& Parallel - Layered 						& Parallel - Rebuild\\
-\midrule
-\#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
-Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
-Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $\frac{m}{2} \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $4m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
-Mix Communication cost & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$\\
-Client Lookup cost &&&&\\
-Client Decryption cost &&&&\\
-Client Additional storage & $n\log(n)+ k m$ & $km$ &$n\log(n)+ k (m+1)$ & $k(m+1)$ \\
-\bottomrule
-\end{tabular}
-\centering
-\caption{Cost comparison of the designs, \\ with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
-\end{table*}
-
-\subsection{Comparison}\label{Comparison}
-Comparison of our schemes.
-We did not include the record allocation cost in the tables as it can be done while waiting for the records.
-
-\begin{itemize}
-	\item For the cascade architecture, all the costs are linear in the number of mixes.
-	\item For the parallel architecture, no computation cost depends on $m$ (considering that $C_E \gg C_{\Pi}$), we could "nearly" say it for the communication cost \george{}
-	\item The parallel architecture can be faster than the cascade one. For most database depending on the the underlying ORAM system (on $s$) (if $m \geq 1/2 \log(\frac{n}{s})$), for the Layered method for small to medium sized databases for the Rebuild method (if $m \geq log(n) +1/2$).
-	\item The Layered method needs more additional space and decryption takes longer than for the Rebuild method, however the eviction is faster \raphael{at least if the cost induced by the additional bytes for the Layered method is insignificant}.
-\end{itemize}
 
 
 \section{Discussion}\label{Discussion}
