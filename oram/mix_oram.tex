@@ -835,7 +835,7 @@ b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b
 b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
 
-\noindent\textit{Mix Operations.} During the first time $r$ rounds, the records are unwrapped of their previous encryption and permutation layers. ... . Then the group of $n/m$ records are encrypted and decrypted in $m$ parallel cascades, i.e. the public permutation is fixed. Finally, the mixes start wrapping up the records in $r$ rounds. ... . \\
+\noindent\textit{Mix Operations.} During the first time $r$ rounds, the records are unwrapped of their previous encryption and permutation layers. ... . Then the group of $n/m$ records are encrypted and decrypted in $m$ parallel cascades, i.e. the public permutation is fixed. Finally, the mixes start wrapping up the records in $r$ rounds. ... . \todo{} \\
 
 \noindent\textit{Client Operations.} To recover a record remote position, the client derive from the $m+1$ alphas the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.\\
 
@@ -934,28 +934,36 @@ Parallel Rebuild  	& 0 				& 0 				& 0 			\\
 
 performance per enc, performance per design, performance with implementation
 
-
 \begin{table*}
 \vspace{0pt}
 \centering
 \begin{tabular}{l *4c}
 \toprule
-    					& \#Rounds (r).	 			& Computation cost							& Communication cost						& Additional  storage\\
+    					& Cascade - Layered	 			& Cascade - Rebuild							& Parallel - Layered 						& Parallel - Rebuild\\
 \midrule
-Cascade - Layered   &  $m$ 				& $m \cdot ( n  C_{E}+ C_{\Pi}(n) )$   						& $(r+1) \cdot C_{com}(n)$  					&$n\log(n)+ k m$\\
-Cascade - Rebuild   &  $3m$ 				& $m  \cdot ( 4 n  C_{E}+ 2 C_{\Pi}(n)) $  						& $(r+1) \cdot C_{com}(n)$  					&$km$\\
-Parallel - Layered  &  $\frac{m}{2} \log\left( \frac{n}{s}\right)$  & $\frac{m}{2} \log\left (\frac{n}{s}\right) \cdot (\frac{n}{m} C_{E} + C_{\Pi}\left(\frac{n}{m}\right) )$   			& $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$  	&$n \log(n) + k (m+1)$\\
-Parallel - Rebuild  &  $4m\log(n) +  m$  	& $(4\log(n) + 2) n \cdot C_{E} + 4m\log(n) \cdot C_{\Pi}\left(\frac{n}{m}\right)$   	& $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$  	&$k (m+1)$\\
+\#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
+Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
+Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $\frac{m}{2} \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $4m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
+Mix Communication cost & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$\\
+Client Lookup cost &&&&\\
+Client Decryption cost &&&&\\
+Client Additional storage & $n\log(n)+ k m$ & $km$ &$n\log(n)+ k (m+1)$ & $k(m+1)$ \\
 \bottomrule
 \end{tabular}
 \centering
 \caption{Cost comparison of the designs, \\ with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
 \end{table*}
 
-
 \subsection{Comparison}\label{Comparison}
-Comparison of our schemes
+Comparison of our schemes.
+We did not include the record allocation cost in the tables as it can be done while waiting for the records.
 
+\begin{itemize}
+	\item For the cascade architecture, all the costs are linear in the number of mixes.
+	\item For the parallel architecture, no computation cost depends on $m$ (considering that $C_E \gg C_{\Pi}$), we could "nearly" say it for the communication cost \george{}
+	\item The parallel architecture can be faster than the cascade one. For most database depending on the the underlying ORAM system (on $s$) (if $m \geq 1/2 \log(\frac{n}{s})$), for the Layered method for small to medium sized databases for the Rebuild method (if $m \geq log(n) +1/2$).
+	\item The Layered method needs more additional space and decryption takes longer than for the Rebuild method, however the eviction is faster \raphael{at least if the cost induced by the additional bytes for the Layered method is insignificant}.
+\end{itemize}
 
 
 \section{Discussion}\label{Discussion}
