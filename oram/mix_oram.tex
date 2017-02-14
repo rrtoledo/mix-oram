@@ -864,30 +864,35 @@ $indices \gets \{,\}$;\\
 
 \section{Security Proof}\label{Security}
 
-We first remark that all of the eviction metadata is independent of data content, it is entirely determined by the sole parameter $n$ and is the same for any access. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
-We argue that the adversary can win the game in only two ways: decrypting the records or finding out the record order before eviction. 
+We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round.  The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
 
-\subsection{In Search of the Lost Order.}
-The client has sent to each mix private, and potentially public, group elements chosen as random from which the permutation keys are retrieved. The randomness of the seeds was increased thanks to the use of a key derivation function.\\
+We argue that the adversary can win the game in only two ways: decrypting the records or finding out the records' position before eviction. 
 
-\noindent\textbf{Cascade mixnet.}
-In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the uncompromised mixes. \\
+\subsection{In Search of the Lost Position.}
 
-\noindent\textbf{Parallel mixnet.}
-In this architecture, chunks of the database are exchanged between mixes. The adversary can benefit of it as some records may never go to uncompromised mixes.\\
-Goodrich in 2012 ~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. If we note by $p(i,t)$ the probability the adversary thinks that the a particular card is at index $i$ at round $t$, $m-m_a$ the number of uncorrupted server(s) and by $\Phi(t)= \sum_{i}^{n}\left (p(i,t) - 1/n \right)^2$ the sum of squares metric, we have that $$E[\Phi(t)] = \left (1 - (m-m_a) \cdot \frac{k-1}{n-1}\right )^{t}$$\\
-To have $\Phi(t) \leq n^{-c}$ with $m-m_a=1$, we need $cm \log n \leq r \leq 2cm \log(n)$, the upper bound being the value we propose in Section~\ref{kRTS}. The value we propose in Theorem~\ref{sec:kOM}, $\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$, accounts for the indistinguishability assumption we made: we do not want to hide the position of every record, only the position of $s$ of them (the accessed ones). ?
+\noindent\textbf{Cascade mix-net.}
+In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the honest mixes. \george{} \\
+
+\noindent\textbf{Parallel Rebuild mix-net.}
+In this design, chunks of the database are exchanged between mixes during $r=2m\log(n)$ rounds. The adversary can benefit of the fact that some records may never go to the uncompromised mixes (with probability $p=(1-1/m)^r << 1$) to win the game.\\
+Goodrich in 2012 ~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. We derived from their theorem a more precise condition for all but one compomised mixes (see Appendix~\ref{proof:pmn}). In that case, we need the mix-net  to shuffle the records during $t=bm\log(n)$ rounds so that the expected sum of square error between the card assignment probabilities and the uniform distribution is at most $1/n^b$.
+
+The value we chose $r=2m\log(n)$, give us a closeness better than $1/n^2 = o(1/n)$, we can consider the scheme secure.\\
+
+\noindent\textbf{Parallel Layered mix-net.}
+In this scheme, we propose to maintain the randomness of the database after it was first shuffled by the client with evictions of $r=\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$ rounds (c.f. Theorem~\ref{sec:kOM}).
+The theorem's indistinguishability assumption holds as we do not remove any permutation layer, thus the design is secure.
 
 \subsection{In Search of the Lost Key.}
-We assume here the adversary knows the invariant position of some of the records he asked the user to query. 
+We assume here the adversary knows the invariant position of some of the records he asked the user to query. \\
 
-\noindent\textbf{The CBC case.}
-In the CBC case, the blocks and IVs are encrypted again and again with AES in CBC mode. If a block was accessed, it is however encrypted only once by the user before the eviction.\\
+\noindent\textbf{The Layered method.}
+In this method, the blocks and IVs are encrypted again and again with AES in CBC mode. If a block was accessed, it is however encrypted only once by the user before the eviction.\\
 
-\noindent\textbf{The CTR case.}
-In the case of CTR, the adversary only needs to discover the uncompromised mixes' bindings. 
+\noindent\textbf{The Rebuild method.}
+In this method, the adversary just needs to check whether the client encryption has changed after the wrapping phase 
 
-uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.
+uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.\\
 
 \section{Evaluation}\label{Evaluation}
 \textbf{Layered method.} We now look at the average number of encryption layers a record has before being decrypted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
@@ -1088,6 +1093,56 @@ $$ {\mu'}_i \geq {\lambda'}_i \geq {\mu'}_{n-m+i+1} $$
 \end{theorem}
 
 We are here only interested in an upper-bound of $\lambda*$, as we have $\mu_{2^n+2-{n \choose s}}\leq \lambda_1\leq 1-2\frac{s}{n}$ and $0 \leq \lambda_n \leq \mu_2$, $\lambda* \leq 1-2\frac{s}{n}$. We thus have $\frac{1}{1-\lambda*}\leq\frac{n}{2\cdot s}$
+\end{proof}
+
+\subsection{Proof of Parallel mix-net}\label{proof:pmn}
+\begin{proof}
+This proof is derived from Goodrich and Mitzenmacher~\cite{goodrich2012privacy} who bounded the closeness of a shuffle to the uniform distribution using a compromised parallel mix-net. 
+
+Let $\Phi(t)=\Sigma_{i=1}^n (w_i(t)-1/n)^2$ the sum of square metric with $w_i(t)$ the probability that the $i^{th}$ card after $t$ rounds is the first card from time 0 from the point of view of the adversary.
+
+We have by recurrence that the potential $\Delta\Phi^*$ changes when a group of K card is shuffled during a round as following : $\Delta\Phi^*=\Sigma_{1\leq i\leq n}(w_i-w_j)^2$.
+Thereby,
+
+\begin{align*}
+E[\Delta\Phi] & = \frac{m}{n} \Sigma_{1\leq i\leq n} \Pr((i,j)\ in\ the\ same\ honest\ mix) (w_i-w_j)^2\\
+&=\frac{k-1}{k(n-1)}\cdot \frac{m-m_a}{m} \Sigma_{i<j}(w_i-w_j)^2\\
+&=\frac{(m-m_a)(k-1)}{2n(n-1)}\Sigma_{1\leq i\leq n}(w_i-w_j)^2
+\end{align*}
+
+\begin{align*}
+E[\Delta\Phi/\Phi]&=\frac{(m-m_a)(k-1)}{2n(n-1)}\frac{\Sigma_{i,j}((w_i-1/n)-(w_j-1/n))^2}{\Sigma_k (w_k-1/n)^2}\\
+&=\frac{(m-m_a)(k-1)}{2n(n-1)}\frac{\Sigma_{i,j}(x_i-x_j)^2}{\Sigma_k x_k^2} \text{ with $x_i=w_i-1$}\\
+&=\frac{(m-m_a)(k-1)}{n-1} 
+\end{align*}
+
+Since $\Sigma_k x_k=0$, we have :$$\Sigma_{i,j}(x_i-x_j)^2 = \Sigma_{i,j}(x_i-x_j)^2 + 2\left(\Sigma_k x_k^2 \right)^2  = 2n\Sigma_k x_k^2$$
+
+We have,
+\begin{align*}
+E[\Phi(t+1)] &= (1-\frac{(m-m_a)(k-1)}{n-1}) E[\Phi(t)]\\
+E[\Phi(t)]&= (1-\frac{(m-m_a)(k-1)}{n-1})^t
+\end{align*} 
+
+We want to find the conditions on $c$ such that the corrupted parallel mix-net can mix in $t=bc\log(n)$  such that  $n^{-2b} < E[\Phi(t)]< n^{-b}$.
+\begin{align*}
+E[\Phi(t)]&< n^{-b}\\
+(1-\frac{(m-m_a)(k-1)}{n-1})^t&< n^{-b}\\
+(1-\frac{(m-m_a)(k-1)}{n-1})^{bc\log(n)}&< n^{-b}\\
+bc\log(n) \cdot \log(1-\frac{(m-m_a)(k-1)}{n-1}) &< -b \log(n)\\
+c\cdot \log(1-\frac{(m-m_a)(k-1)}{n-1}) &< -1\\
+c \cdot\log(1+ \frac{1}{\frac{n-1}{(m-m_a)(k-1)}- 1}) &> 1\\
+\end{align*}
+
+Using Taylor series, assuming that $n-1>>(m-m_a)(k-1)$, let $y = \frac{n-1}{(m-m_a)(k-1)}-1$:
+
+\begin{align*}
+c&> 1 / \log(1+ \frac{1}{y})\\
+c&> \left( \frac{1}{y} +o\left(\frac{1}{y}\right)\right)^{-1}\\
+c&> y -  o\left(1\right)\simeq \frac{m}{m-m_a} -o(1)\\
+\end{align*}
+
+Thus, when shuffling $n$ cards with n a parallel mix-net composed of $m$ mixes out of which $m_a$ were compromised, we need $t>b\cdot \frac{m}{m-m_a} \log(n) $ rounds before the expected sum of squares error $E[\Phi(t)]$ between the card assignment probabilities and the uniform distribution is at most $1/n^b$ for any fixed $b>1$.
 \end{proof}
 
 \subsection{Proof of Fake access}
