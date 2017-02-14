@@ -864,48 +864,48 @@ $indices \gets \{,\}$;\\
 
 \section{Security Proof}\label{Security}
 
-We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round.  The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
+We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
 
-We argue that the adversary can win the game in only two ways: decrypting the records or finding out the records' position before eviction. 
+As stated before, the security game consists in the adversary giving to the client two query sequences to process before triggering the eviction. To win the game the adversary must after the eviction choose with probability higher than $1/2 +\epsilon$ which sequence was processed.
+
+We argue that the adversary can win the game in only two ways: decrypting all the records or finding out the records' position before the eviction. 
 
 \subsection{In Search of the Lost Position.}
 
 \noindent\textbf{Cascade mix-net.}
 In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the honest mixes. \george{} \\
 
-\noindent\textbf{Parallel Rebuild mix-net.}
+\noindent\textbf{Parallel mix-net.}
 In this design, chunks of the database are exchanged between mixes during $r=2m\log(n)$ rounds. The adversary can benefit of the fact that some records may never go to the uncompromised mixes (with probability $p=(1-1/m)^r << 1$) to win the game.\\
-Goodrich in 2012 ~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. We derived from their theorem a more precise condition for all but one compomised mixes (see Appendix~\ref{proof:pmn}). In that case, we need the mix-net  to shuffle the records during $t=bm\log(n)$ rounds so that the expected sum of square error between the card assignment probabilities and the uniform distribution is at most $1/n^b$.
+
+\noindent\textit{Rebuild method.}Goodrich in 2012~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. We derived from their theorem a more precise condition for all but one compomised mixes (see Appendix~\ref{proof:pmn}). In that case, we need the mix-net  to shuffle the records during $t=bm\log(n)$ rounds so that the expected sum of square error between the card assignment probabilities and the uniform distribution is at most $1/n^b$.
 
 The value we chose $r=2m\log(n)$, give us a closeness better than $1/n^2 = o(1/n)$, we can consider the scheme secure.\\
 
-\noindent\textbf{Parallel Layered mix-net.}
+\noindent\textit{Layered method.}
 In this scheme, we propose to maintain the randomness of the database after it was first shuffled by the client with evictions of $r=\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$ rounds (c.f. Theorem~\ref{sec:kOM}).
 The theorem's indistinguishability assumption holds as we do not remove any permutation layer, thus the design is secure.
 
 \subsection{In Search of the Lost Key.}
-We assume here the adversary knows the invariant position of some of the records he asked the user to query. \\
-
+ 
 \noindent\textbf{The Layered method.}
-In this method, the blocks and IVs are encrypted again and again with AES in CBC mode. If a block was accessed, it is however encrypted only once by the user before the eviction.\\
+In this method, we prevent any timing attack with offline decryption, the adversary thereby cannot distinguish whether a record was accessed recently or not. The encryptions keys being never shared, a polynomial adversary cannot break the AES CBC encryption.\\
 
 \noindent\textbf{The Rebuild method.}
-In this method, the adversary just needs to check whether the client encryption has changed after the wrapping phase 
-
-uncompromised mix blindings are never known by the adversary as the records are encrypted with AES-CTR when being (un)blinded. Thereby, the records after the unwrapping are undistinguishable from random arrays, and the adversary cannot see which records were accessed.\\
+In this method, the adversary just need to break one layer of encryption after the wrapping phase. However as the encryptions keys are not shared between mixes, a polynomial adversary cannot break the AES CTR encryption.
 
 \section{Evaluation}\label{Evaluation}
-\textbf{Layered method.} We now look at the average number of encryption layers a record has before being decrypted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e]\leq(n/s)\cdot H_n )$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number, and the expected number of layers per card is $E[r]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
+\textbf{Layered method.} We look here at the average number of encryption layers $e$ a record has before being decrypted. Making the assumption that the record access distribution is uniform, we can represent the problem of accessing all records at least once as a coupon collector problem. In that case, we expect $E[e_{all}]\leq(n/s)\cdot H_n$ evictions before all records have been fetched once with $H_n$ the $n^{th}$ harmonic number. The expected number of encryption layers per record before decryption is however $E[e]\leq{r/s} \cdot \left ( \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right )$. For $n=10^6$ and $s=\sqrt{n}$, we have $E[e]\approx 15 \cdot 10^3$ and $E[r]\approx 7\cdot 10^3 \cdot r$.
 \begin{proof}
 Lets $\tau_n$ be the random number of coupons collected when the first set contains every $n$ types. We have, $E[\tau_n]=n\sum_{i=1}^n \frac{1}{i} = n \cdot H_n$.
 Since we fetch $s$ unique records per eviction (we cannot fetch a record already in the stash), the previous result is an upper bound of the number of requests needed and so the expected number of eviction is $E[e]\leq n/s\ H_n$.
 
 We now want to find the average number of encryption layers per record before decryption, this is equivalent to finding the average number of evictions before a record is deciphered. 
-Hence we have, $E[r]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
+Hence we have, $E[e]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
 \end{proof}
 
-To reduce these numbers, we modify the access method as written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, choosing a parameter $d$ high enough yields a better approximation of the uniform distribution assumption. We would have thus $E[e]\leq n/(sd) \cdot H_n $ and $E[r] \leq{r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
-With $d=\sqrt(n)$, we now have $E[e]\leq 15$ and $E[r]\leq 7$.
+To reduce these numbers, we modify the access method written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, with $d$ high enough, yields a better approximation of the uniform distribution assumption and we would obtain  $E[e_{all}]\leq n/(sd) \cdot H_n $ and $E[e] \leq {r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
 \subsection{Implementation and Benchmark}\label{Implementation}
 \subsection{Performances}\label{Performance}
 performance per enc, performance per design, performance with implementation
@@ -913,38 +913,20 @@ performance per enc, performance per design, performance with implementation
 Comparison of our schemes
 
 \begin{table*}
-\begin{minipage}[t][][b]{.475\textwidth}
 \vspace{0pt}
 \centering
-\begin{tabular}{*4c}
+\begin{tabular}{l *4c}
 \toprule
-    				& $C_{comp}$  	 & $C_{comm}$		& $C_{access}$\\
+    					& \#Rounds (r).	 			& Computation cost							& Communication cost						& Additional  storage\\
 \midrule
-Cascade - CBC   &  17.5 		& 19.1   		& 17.5  \\
-Cascade - CTR   &  11.8 		& 12.7   		& 29.3  \\
-Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
-Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
+Cascade - Layered   &  $m$ 				& $m \cdot ( n  C_{E}+ C_{\Pi}(n) )$   						& $(r+1) \cdot C_{com}(n)$  					&$n\log(n)+ k m$\\
+Cascade - Rebuild   &  $3m$ 				& $m  \cdot ( 4 n  C_{E}+ 2 C_{\Pi}(n)) $  						& $(r+1) \cdot C_{com}(n)$  					&$km$\\
+Parallel - Layered  &  $\frac{m}{2} \log\left( \frac{n}{s}\right)$  & $\frac{m}{2} \log\left (\frac{n}{s}\right) \cdot (\frac{n}{m} C_{E} + C_{\Pi}\left(\frac{n}{m}\right) )$   			& $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$  	&$n \log(n) + k (m+1)$\\
+Parallel - Rebuild  &  $4m\log(n) +  m$  	& $(4\log(n) + 2) n \cdot C_{E} + 4m\log(n) \cdot C_{\Pi}\left(\frac{n}{m}\right)$   	& $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$  	&$k (m+1)$\\
 \bottomrule
 \end{tabular}
 \centering
-\caption{Cost comparison of designs.}
-\end{minipage}
-\hfill
-\begin{minipage}[t][][b]{.475\textwidth}
-\vspace{0pt}
-\begin{tabular}{*4c}
-\toprule
-    				& $m=3$  	 & $m=5$		& $m=7$\\
-\midrule
-Cascade - CBC   &  17.5 		& 19.1   		& 17.5  \\
-Cascade - CTR   &  11.8 		& 12.7   		& 29.3  \\
-Parallel - CBC  &  6.6  		&  5.6   		& 35.9  \\
-Parallel - CTR  &  6.6  		&  5.6   		& 35.9  \\
-\bottomrule
-\end{tabular}
-\centering
-\caption{Time comparison of designs,\\with $n=\frac{1024^3}{4\cdot 1024}$, $s=\sqrt n$.}
-\end{minipage}
+\caption{Cost comparison of the designs, \\ with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
 \end{table*}
 
 
