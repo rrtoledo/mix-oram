@@ -906,11 +906,34 @@ Hence we have, $E[e]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \l
 
 To reduce these numbers, we modify the access method written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, with $d$ high enough, yields a better approximation of the uniform distribution assumption and we would obtain  $E[e_{all}]\leq n/(sd) \cdot H_n $ and $E[e] \leq {r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
 With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
-\subsection{Implementation and Benchmark}\label{Implementation}
-\subsection{Performances}\label{Performance}
+
+
+\subsection{Implementation, Benchmark and Performances}\label{Implementation}
+
+xxx line of Python ...
+
+Amazon EC2 with CPU ...
+
+
+\begin{table}[H]
+\vspace{0pt}
+\centering
+\begin{tabular}{l *3c}
+\toprule
+    					& 3 mixes	  	& 5 mixes		& 7 mixes	\\
+\midrule
+Cascade Layered  	& 0 				& 0 				& 0 			\\
+Cascade Rebuild  	& 0 				& 0 				& 0 			\\
+Parallel Layered 	& 0 				& 0 				& 0 			\\
+Parallel Rebuild  	& 0 				& 0 				& 0 			\\
+\bottomrule
+\end{tabular}
+\centering
+\caption{Performance (s) of the designs \\ for the eviction of xxx records of yykbit.}
+\end{table}
+
 performance per enc, performance per design, performance with implementation
-\subsection{Comparison}\label{Comparison}
-Comparison of our schemes
+
 
 \begin{table*}
 \vspace{0pt}
@@ -928,6 +951,11 @@ Parallel - Rebuild  &  $4m\log(n) +  m$  	& $(4\log(n) + 2) n \cdot C_{E} + 4m\l
 \centering
 \caption{Cost comparison of the designs, \\ with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
 \end{table*}
+
+
+\subsection{Comparison}\label{Comparison}
+Comparison of our schemes
+
 
 
 \section{Discussion}\label{Discussion}
