@@ -638,6 +638,7 @@ In this section, we replace the cascade configuration of the mix-net with a para
 
 During the eviction process, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $mix_i$ fetches the indices in $\llbracket i\cdot n/m : (i+1)n/m \llbracket$. The mixes, after receiving the records, permute them with private permutation seeds and finally send them to the mix-net according to public permutation seeds. At the end of the eviction, the mixes uploads the records back to the database on their assigned indices.
 
+\iffalse
 \begin{figure*}
 \centering
 \begin{minipage}[c]{0.475\textwidth}
@@ -721,7 +722,145 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \end{minipage}
 \centering
 \caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
+
 \end{figure*} 
+\fi
+
+
+\begin{figure*}
+\begin{tikzpicture}[auto,
+thin, 
+scale=0.5,
+block/.style={draw, fill=white, rectangle, font=\small}]
+
+\node[draw, cylinder, shape border rotate=90, anchor = west, minimum height=11em] 		(0)		{$\text{DB}$};
+
+\node[block, align=center]							(B0)[right of=0, yshift=1em,  xshift=1em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A0)[above of=B0, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,1}$\color{white}'}]			(C0)[below of=B0, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B1)[right of=B0, xshift=1.75em]		{$M_2$};
+\node[block, anchor= north, align=center]			(A1)[above of=B1, yshift=0.5em]		{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,2}$\color{white}'}]			(C1)[below of=B1, yshift=-0.5em]		{$M_3$};
+
+\node[draw=none, fill=none]    		(X1)[right of=B1, xshift=-.5em]	[rotate=-90]{\textbf{...}};
+
+\node[block, align=center]							(B2)[right of=B1,  xshift=1.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A2)[above of=B2, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r-1}$\color{white}'}]			(C2)[below of=B2, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B3)[right of=B2,  xshift=1.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A3)[above of=B3, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r}$\color{white}'}]			(C3)[below of=B3, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B4)[right of=B3,  xshift=0.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A4)[above of=B4, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center]			(C4)[below of=B4, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B5)[right of=B4,  xshift=0.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A5)[above of=B5, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center]			(C5)[below of=B5, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B6)[right of=B5,  xshift=0.75em ]		{$M_2$};	
+\node[block, anchor= north, align=center]			(A6)[above of=B6, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,1}'$}]			(C6)[below of=B6, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B7)[right of=B6,  xshift=1.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A7)[above of=B7, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,2}'$}]			(C7)[below of=B7, yshift=-0.5  em]	{$M_3$};
+
+\node[draw=none, fill=none]    		(X1)[right of=B7, xshift=-.5em]	[rotate=-90]{\textbf{...}};
+
+\node[block, align=center]							(B8)[right of=B7,  xshift=1.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A8)[above of=B8, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r-1}'$}]			(C8)[below of=B8, yshift=-0.5em]	{$M_3$};
+
+\node[block, align=center]							(B9)[right of=B8,  xshift=1.75em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A9)[above of=B9, yshift=0.5em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r}'$}]			(C9)[below of=B9, yshift=-0.5em]	{$M_3$};
+
+\node[draw, cylinder, shape border rotate=90, anchor = east, minimum height=11em] 	(00)[right of=B9, xshift=1em, yshift=-1em]				{$\text{DB}$};
+
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em,xshift=-1em]A0.north east) -- ([yshift=2em, xshift=1em]A3.north west) node[above, pos=0.5, yshift=1em] {Unwrapping phase};
+
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em,xshift=-1em]A3.north east) -- ([yshift=2em,xshift=1em]A6.north west) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
+
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em,xshift=-1em]A6.north east) -- ([yshift=2em,xshift=1em]A9.north west) node[above, pos=0.5, yshift=1em] {Wrapping phase};
+
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=9.2em]0.north east) -- ([yshift=4em]0.north east) node {};
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=2.7em]0.north east) -- ([yshift=1.3em]0.south east) node {};
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=0.2em]0.south east) -- ([yshift=-5.4em]0.south east) node {};
+
+
+\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=9.2em]00.north west) -- ([yshift=4em]00.north west) node {};
+\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=2.7em]00.north west) -- ([yshift=1.3em]00.south west) node {};
+\draw[decoration={brace,mirror,  amplitude=0.5em}, decorate]([yshift=0.2em]00.south west) -- ([yshift=-5.4em]00.south west) node {};
+
+\path[->, midway]
+ ([yshift=6.6em,xshift=1em]0.north east) edge node				{} (A0.west)
+ ([yshift=2em,xshift=1em]0.east) edge node						{} (B0.west)
+ ([yshift=-2.6em,xshift=1em]0.south east) edge node				{} (C0.west)
+
+ (A0.east) edge node[above,yshift=0.5em]	{$\sigma_{pub,1}$} 	(A1)
+ (A0.east) edge node						{} 					(B1)
+ (A0.east) edge node						{} 					(C1)
+ (B0.east) edge node						{} 					(A1)
+ (B0.east) edge node						{} 					(B1)
+ (B0.east) edge node						{} 					(C1)
+ (C0.east) edge node						{} 					(A1)
+ (C0.east) edge node						{} 					(B1)
+ (C0.east) edge node						{} 					(C1)
+ 
+ (A2.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r}$} 	(A3)
+ (A2.east) edge node						{} 					(B3)
+ (A2.east) edge node						{} 					(C3)
+ (B2.east) edge node						{} 					(A3)
+ (B2.east) edge node						{} 					(B3)
+ (B2.east) edge node						{} 					(C3)
+ (C2.east) edge node						{} 					(A3)
+ (C2.east) edge node						{} 					(B3)
+ (C2.east) edge node						{} 					(C3)
+
+ 
+ (A3.east) edge node						{}				 	(B4)
+ (B3.east) edge node						{} 					(C4)
+ (C3.east) edge node						{} 					(A4)
+ (A4.east) edge node						{}				 	(B5)
+ (B4.east) edge node						{} 					(C5)
+ (C4.east) edge node						{} 					(A5)
+ (A5.east) edge node						{}				 	(B6)
+ (B5.east) edge node						{} 					(C6)
+ (C5.east) edge node						{} 					(A6)
+ 
+ (A6.east) edge node[above,yshift=.5em]	{$\sigma_{pub,1}'$}		(A7)
+ (A6.east) edge node						{} 					(B7)
+ (A6.east) edge node						{} 					(C7)
+ (B6.east) edge node						{} 					(A7)
+ (B6.east) edge node						{} 					(B7)
+ (B6.east) edge node						{} 					(C7)
+ (C6.east) edge node						{} 					(A7)
+ (C6.east) edge node						{} 					(B7)
+ (C6.east) edge node						{} 					(C7)
+
+ (A8.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r}'$}	(A9)
+ (A8.east) edge node						{} 					(B9)
+ (A8.east) edge node						{} 					(C9)
+ (B8.east) edge node						{} 					(A9)
+ (B8.east) edge node						{} 					(B9)
+ (B8.east) edge node						{} 					(C9)
+ (C8.east) edge node						{} 					(A9)
+ (C8.east) edge node						{} 					(B9)
+ (C8.east) edge node						{} 					(C9)
+ 
+ (A9.east) edge node						{} 					([yshift=6.6em,xshift=-1em]00.north west)
+ (B9.east) edge node						{} 					([yshift=2em,xshift=-1em]00.west)
+ (C9.east) edge node						{} 					([yshift=-2.6em,xshift=-1em]00.south west);
+
+\end{tikzpicture}
+\centering
+\caption{Parallel mix-net: Rebuild method (all phase) and Layered method (only the Wrapping phase)}\label{fig:Par}
+\end{figure*}
+
 
 %
 \subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
@@ -768,7 +907,7 @@ $$ \tau(\epsilon) \leq \frac{n}{2\cdot k}  \cdot \left [ \left( \log \left (\fra
 %
 We now consider the mix-net as a collection of mixes communicating to each other. The eviction algorithm is composed of the unwrapping (for the rebuild method) and the wrapping phases which consist each of $r$ rounds.
 
-The mixes have each been allocated a chunk of the database ($mix_idx$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seed to compute which record to send to each mix as written in Algorithm~\ref{alg:PRA}.
+The mixes have each been allocated a chunk of the database ($mix_{idx}$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seed to compute which record to send to each mix as written in Algorithm~\ref{alg:PRA}.
 
 
 \begin{algorithm}
@@ -835,7 +974,7 @@ b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b
 b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
 
-\noindent\textit{Mix Operations.} During the first time $r$ rounds, the records are unwrapped of their previous encryption and permutation layers. ... . Then the group of $n/m$ records are encrypted and decrypted in $m$ parallel cascades, i.e. the public permutation is fixed. Finally, the mixes start wrapping up the records in $r$ rounds. ... . \todo{} \\
+\noindent\textit{Mix Operations.} During the first $r$ rounds, the records are first sorted, then  unwrapped (permuted and decrypted with the old keys and seeds) and sent to the mix-net according to the public record allocation. Then the groups of $n/m$ records are encrypted and decrypted in $m$ parallel cascades. Finally, the records are sorted, wrapped (encrypted and permuted with the new ones) and sent to the mix-net according to the public allocation during the last $r$ rounds.\\
 
 \noindent\textit{Client Operations.} To recover a record remote position, the client derive from the $m+1$ alphas the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.\\
 
@@ -918,7 +1057,7 @@ With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
 Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
 Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $\frac{m}{2} \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $4m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
 Mix Communication cost & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$\\
-Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )+ 2C_{\Pi}(n)]$\\
+Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
 Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
 Client Additional storage & $n\log(n)+ k m$ & $km$ &$n\log(n)+ k (m+1)$ & $k(m+1)$ \\
 \bottomrule
