@@ -739,53 +739,57 @@ thin,
 scale=0.5,
 block/.style={draw, fill=white, rectangle, font=\small}]
 
-\node[draw, cylinder, shape border rotate=90, anchor = west, minimum height=11em] 		(0)		{$\text{DB}$};
+\node[draw, cylinder, shape border rotate=90, anchor = west, minimum height=12.5em, minimum width=3em] 		(0)		{$\text{DB}$};
 
-\node[block, align=center]							(B0)[right of=0, yshift=1em,  xshift=1em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A0)[above of=B0, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,1}$\color{white}'}]			(C0)[below of=B0, yshift=-0.5em]	{$M_3$};
+\node[block, align=center]							(B0)[right of=0, yshift=.75em,  xshift=1em ]		{$M_2$};
+\node[block, anchor= north, align=center]			(A0)[above of=B0, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,1}$\color{white}'}]			(C0)[below of=B0, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B1)[right of=B0, xshift=1.75em]		{$M_2$};
-\node[block, anchor= north, align=center]			(A1)[above of=B1, yshift=0.5em]		{$M_1$};
-\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,2}$\color{white}'}]			(C1)[below of=B1, yshift=-0.5em]		{$M_3$};
+\node[block, anchor= north, align=center]			(A1)[above of=B1, yshift=0.8em]		{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,2}$\color{white}'}]			(C1)[below of=B1, yshift=-0.8em]		{$M_3$};
 
-\node[draw=none, fill=none]    		(X1)[right of=B1, xshift=-.5em]	[rotate=-90]{\textbf{...}};
+\node[draw=none, fill=none]    		(XB1)[right of=B1, xshift=-.5em]	{\textbf{...}};
+\node[draw=none, fill=none]    		(XA1)[right of=A1, xshift=-.5em]	{\textbf{...}};
+\node[draw=none, fill=none]    		(XC1)[right of=C1, xshift=-.5em]	{\textbf{...}};
 
 \node[block, align=center]							(B2)[right of=B1,  xshift=1.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A2)[above of=B2, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r-1}$\color{white}'}]			(C2)[below of=B2, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A2)[above of=B2, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r-1}$\color{white}'}]			(C2)[below of=B2, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B3)[right of=B2,  xshift=1.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A3)[above of=B3, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r}$\color{white}'}]			(C3)[below of=B3, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A3)[above of=B3, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{\color{white}'\color{black}$\sigma_{i,r}$\color{white}'}]			(C3)[below of=B3, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B4)[right of=B3,  xshift=0.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A4)[above of=B4, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center]			(C4)[below of=B4, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A4)[above of=B4, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center]			(C4)[below of=B4, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B5)[right of=B4,  xshift=0.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A5)[above of=B5, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center]			(C5)[below of=B5, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A5)[above of=B5, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center]			(C5)[below of=B5, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B6)[right of=B5,  xshift=0.75em ]		{$M_2$};	
-\node[block, anchor= north, align=center]			(A6)[above of=B6, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{$\sigma_{i,1}'$}]			(C6)[below of=B6, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A6)[above of=B6, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,1}'$}]			(C6)[below of=B6, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B7)[right of=B6,  xshift=1.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A7)[above of=B7, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{$\sigma_{i,2}'$}]			(C7)[below of=B7, yshift=-0.5  em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A7)[above of=B7, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,2}'$}]			(C7)[below of=B7, yshift=-0.8  em]	{$M_3$};
 
-\node[draw=none, fill=none]    		(X1)[right of=B7, xshift=-.5em]	[rotate=-90]{\textbf{...}};
+\node[draw=none, fill=none]    		(XB7)[right of=B7, xshift=-.5em]	{\textbf{...}};
+\node[draw=none, fill=none]    		(XA7)[right of=A7, xshift=-.5em]	{\textbf{...}};
+\node[draw=none, fill=none]    		(XC7)[right of=C7, xshift=-.5em]	{\textbf{...}};
 
 \node[block, align=center]							(B8)[right of=B7,  xshift=1.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A8)[above of=B8, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r-1}'$}]			(C8)[below of=B8, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A8)[above of=B8, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r-1}'$}]			(C8)[below of=B8, yshift=-0.8em]	{$M_3$};
 
 \node[block, align=center]							(B9)[right of=B8,  xshift=1.75em ]		{$M_2$};
-\node[block, anchor= north, align=center]			(A9)[above of=B9, yshift=0.5em ]	{$M_1$};
-\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r}'$}]			(C9)[below of=B9, yshift=-0.5em]	{$M_3$};
+\node[block, anchor= north, align=center]			(A9)[above of=B9, yshift=0.8em ]	{$M_1$};
+\node[block, anchor = south, align=center,label=below:{$\sigma_{i,r}'$}]			(C9)[below of=B9, yshift=-0.8em]	{$M_3$};
 
-\node[draw, cylinder, shape border rotate=90, anchor = east, minimum height=11em] 	(00)[right of=B9, xshift=1em, yshift=-1em]				{$\text{DB}$};
+\node[draw, cylinder, shape border rotate=90, anchor = east, minimum height=12.5em, minimum width=3em] 	(00)[right of=B9, xshift=1em, yshift=-.75em]				{$\text{DB}$};
 
 \draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em,xshift=-1em]A0.north east) -- ([yshift=2em, xshift=1em]A3.north west) node[above, pos=0.5, yshift=1em] {Unwrapping phase};
 
@@ -793,19 +797,19 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 
 \draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em,xshift=-1em]A6.north east) -- ([yshift=2em,xshift=1em]A9.north west) node[above, pos=0.5, yshift=1em] {Wrapping phase};
 
-\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=9.2em]0.north east) -- ([yshift=4em]0.north east) node {};
-\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=2.7em]0.north east) -- ([yshift=1.3em]0.south east) node {};
-\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=0.2em]0.south east) -- ([yshift=-5.4em]0.south east) node {};
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=12em]0.east) -- ([yshift=6em]0.east) node {};
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=4.5em]0.east) -- ([yshift=-1.5em]0.east) node {};
+\draw[decoration={brace, amplitude=0.5em}, decorate]([yshift=-3em]0.east) -- ([yshift=-9em]0.east) node {};
 
+\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=12em]00.west) -- ([yshift=6em]00.west) node {};
+\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=4.5em]00.west) -- ([yshift=-1.5em]00.west) node {};
+\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=-3em]00.west) -- ([yshift=-9em]00.west) node {};
 
-\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=9.2em]00.north west) -- ([yshift=4em]00.north west) node {};
-\draw[decoration={brace, mirror, amplitude=0.5em}, decorate]([yshift=2.7em]00.north west) -- ([yshift=1.3em]00.south west) node {};
-\draw[decoration={brace,mirror,  amplitude=0.5em}, decorate]([yshift=0.2em]00.south west) -- ([yshift=-5.4em]00.south west) node {};
 
 \path[->, midway]
- ([yshift=6.6em,xshift=1em]0.north east) edge node				{} (A0.west)
- ([yshift=2em,xshift=1em]0.east) edge node						{} (B0.west)
- ([yshift=-2.6em,xshift=1em]0.south east) edge node				{} (C0.west)
+ ([yshift=8.9em,xshift=1em]0.east) edge node				{} (A0.west)
+ ([yshift=1.5em,xshift=1em]0.east) edge node						{} (B0.west)
+ ([yshift=-5.9em,xshift=1em]0.east) edge node				{} (C0.west)
 
  (A0.east) edge node[above,yshift=0.5em]	{$\sigma_{pub,1}$} 	(A1)
  (A0.east) edge node						{} 					(B1)
@@ -817,7 +821,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (C0.east) edge node						{} 					(B1)
  (C0.east) edge node						{} 					(C1)
  
- (A2.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r}$} 	(A3)
+ (A2.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r-1}$} 	(A3)
  (A2.east) edge node						{} 					(B3)
  (A2.east) edge node						{} 					(C3)
  (B2.east) edge node						{} 					(A3)
@@ -848,7 +852,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (C6.east) edge node						{} 					(B7)
  (C6.east) edge node						{} 					(C7)
 
- (A8.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r}'$}	(A9)
+ (A8.east) edge node[above,yshift=.5em]	{$\sigma_{pub,r-1}'$}	(A9)
  (A8.east) edge node						{} 					(B9)
  (A8.east) edge node						{} 					(C9)
  (B8.east) edge node						{} 					(A9)
@@ -858,13 +862,13 @@ block/.style={draw, fill=white, rectangle, font=\small}]
  (C8.east) edge node						{} 					(B9)
  (C8.east) edge node						{} 					(C9)
  
- (A9.east) edge node						{} 					([yshift=6.6em,xshift=-1em]00.north west)
- (B9.east) edge node						{} 					([yshift=2em,xshift=-1em]00.west)
- (C9.east) edge node						{} 					([yshift=-2.6em,xshift=-1em]00.south west);
+ (A9.east) edge node						{} 					([yshift=8.9em,xshift=-1em]00.west)
+ (B9.east) edge node						{} 					([yshift=1.5em,xshift=-1em]00.west)
+ (C9.east) edge node						{} 					([yshift=-5.9em,xshift=-1em]00.west);
 
 \end{tikzpicture}
 \centering
-\caption{Parallel mix-net: Rebuild method (all phase) and Layered method (only the Wrapping phase)}\label{fig:Par}
+\caption{Parallel mix-net: Rebuild method (all phase) and Layered method (only the Wrapping phase) with 3 mixes.}\label{fig:Par}
 \end{figure*}
 
 
