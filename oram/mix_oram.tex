@@ -164,10 +164,10 @@ An adversary gives to the user two ORAM query sequences $\text{seq}_k$ and $\tex
 \end{secgme} 
 %
 
-\noindent\textbf{Rationales.} We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about permutation and encryption.\\
+\noindent\textbf{Rationales.} We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about permutation and encryption. Let $\kappa$ be our security parameter, $\kappa$ represents the length of our encryption keys and seeds.\\
 
-\noindent\textbf{Costs.} We denote the communication costs by $\omega_M$ for the number of \emph{bits} sent by the ORAM, $\gamma_M$ by the client, and $\mu_M$ sent per mix. 
-We group aggregate all the computation costs (encryption, shuffle and secret generation), and denote them $\omega_P$ for the ORAM, $\gamma_P$ for the client, and $\mu_P$ per mix. 
+\noindent\textbf{Costs.} We are interested on one side in the costs incurred by the client for recovering a record index, for decrypting a record and the extra space needed, on the other side in the total costs incurred by the mixes encrypting the records, permuting them and the transferring them.
+Some operations can be preprocessed by the mixes while the records are being transferred, as the key and seeds generation and the record allocation, and as thus will not be the main focus. \george{} 
 %
 \subsection{Cryptographic Primitives}
 
@@ -176,13 +176,12 @@ ORAM systems make use of pseudo random generators (PRG) and seeds to make the ma
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption mechanism to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.
-
 Advanced Encryption Standard (AES)~\cite{daemen2013design} was conceived for high speed and low RAM requirements. It can present throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3~\cite{mcwilliams2014hardware} which makes it the ideal choice for ORAM.
 
-To minimize the size of the instructions stored and sent by the client, we make use of elements of a cyclic group of prime order satisfying the decisional Diffie-Hellman assumption. The mixes make use of these elements and derive the different permutation seeds and encryption keys with the a key derivation function, such as the HKDF~\cite{krawczyk2010cryptographic}, and refresh the them at each round by blinding them with the shared secrets as in \cite{danezis2009sphinx}. 
+To reduce the mix instructions length, we make use of elements of a elliptic curve group of prime order satisfying the decisional Diffie-Hellman assumption. The mixes can derive from these elements permutation seeds and encryption keys for several rounds thanks to the use of blinding factors. We use for this purpose a key derivation function, such as the HKDF~\cite{krawczyk2010cryptographic}, and blind the elements every round with the shared secrets as in~\cite{danezis2009sphinx}. Thanks to this, in order to obtain 128bit security we only need to send only a 32B element per mix.
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
-In this section, we first introduce two different methods we use to randomize the records during the eviction. We then present simple but expensive Mix-ORAM schemes before optimizing them with the use of distributed shuffle algorithms. 
+In this section, we first introduce two methods to randomize the records during the eviction. We then present simple but expensive Mix-ORAM schemes before optimizing them with distributed shuffle algorithms. 
 %
 \subsection{Mix and User encryption methods}\label{Enc}
 We present here two ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-net encrypts and permutes the records and how the client recovers a record plain text.
@@ -1065,7 +1064,7 @@ With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
 \midrule
 \#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
 Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
-Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $\frac{m}{2} \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $4m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
+Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $4 m n C_{\Pi}(n)$ & $m \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $8m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
 Mix Communication cost & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}(n)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$ & $(r+1) \cdot C_{com}\left(\frac{n}{m}\right)$\\
 Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
 Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
