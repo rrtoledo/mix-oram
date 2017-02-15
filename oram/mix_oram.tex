@@ -303,30 +303,34 @@ $rec.data \gets dec\left(k,\ IV0,\ rec.data \right )$;\\
 \end{algorithm}
 
 \begin{figure*}
-\begin{tikzpicture}[auto, semithick, node distance= 6.5em]
+\begin{tikzpicture}[auto, semithick, node distance= 6em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em,  label={[align=center, yshift=1em]\textbf{Status}\\$E_{k0}, (\Pi_\sigma, E_{k1})$}]    	(X)				  {DB};
-\node[draw, rectangle, align=center, label=below:{$D\left ( k_0  \right )$}, label=above:{$\Pi_{\sigma}^{-1}$}]   		(A)[right of=X]   {$all\ mixes$};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{10}'  \right )$}, label=below:{$D\left ( k_{10}  \right )$}]    		(B1)[right of=A]    { $mix_1 $ };
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{11}'  \right )$}, label=below:{$D\left ( k_{11}  \right )$}]    		(B2)[right of=B1]   { $mix_2$};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_{12}'  \right )$}, label=below:{$D\left ( k_{12}  \right )$}]    		(B3)[right of=B2]   { $mix_3 $};
-\node[draw, rectangle, align=center, label=above:{$E\left ( k_0'  \right )$}, label=below:{$\Pi_{\sigma'}$}]    		(C)[right of=B3]   {$all\ mixes$};
-\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em, label={[align=center, yshift=1em] \textbf{Status}\\$E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$}]    	(Y)[right of=C]	  {DB};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em,  label={[align=center, yshift=0.5em]\textbf{Status} \\$k_0, (\sigma, k_1)$}]    	(X)				  {DB};
+\node[draw, rectangle, align=center, label=below:{\color{white}'\color{black}$k_{1,i=1..m}$\color{white}'}, label=above:{${\sigma_{i=1..m}}$}]   		(A)[right of=X, yshift=1em]   {$all\ mixes$};
+\node[draw, rectangle, align=center, label=below:{$k_{0,1}',\ k_{0,1}$}]    		(B1)[right of=A]    { $M_1$};
+\node[draw=none, fill=none] (XX)[right of=B1, xshift=-2em] {...};
+\node[draw, rectangle, align=center,label=below:{$k_{0,j}',\ k_{0,j} $}]    		(B2)[right of=XX, xshift=-2em]   { $M_j$};
+\node[draw=none, fill=none] (YY)[right of=B2, xshift=-2em] {...};
+\node[draw, rectangle, align=center, label=below:{$k_{0,m}',\  k_{0,m} $}]    		(B3)[right of=YY, xshift=-2em]   { $M_m $};
+\node[draw, rectangle, align=center, label=below:{$k_{1,i=1..m}'$}, label=above:{$\sigma_{i=1..m}'$}]    		(C)[right of=B3]   {$all\ mixes$};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em, label={[align=center, yshift=0.5em] \textbf{Status}\\$k_0', (\sigma', k_1')$}]    	(Y)[right of=C,yshift=-1em]	  {DB};
 
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]A.north west) -- ([yshift=2em]A.north east) node[above, pos=0.5, yshift=1em, align=center] {Unwrapping \\ E/$\Pi$ phase};
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]B1.north west) -- ([yshift=2em]B3.north east) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
-\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2em]C.north west) -- ([yshift=2em]C.north east) node[above, pos=0.5, yshift=1em, align=center] {Wrapping \\ E/$\Pi$ phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=1em, xshift=-.75em]A.north west) -- ([yshift=1em,xshift=.75em]A.north east) node[above, pos=0.5, yshift=1em, align=center] {Unwrapping \\ D/$\Pi^{-1}$ phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=1em, xshift=-.75em]B1.north west) -- ([yshift=1em,xshift=.75em]B3.north east) node[above, pos=0.5, yshift=1em] {Simple E/D phase};
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=1em, xshift=-.75em]C.north west) -- ([yshift=1em,xshift=.75em]C.north east) node[above, pos=0.5, yshift=1em, align=center] {Wrapping \\ E/$\Pi$ phase};
 
 \path[->]
-(X.east) edge     	node{}    	(A.west)
+([yshift=1em]X.east) edge     	node{}    	(A.west)
 (A.east) edge     	node{}    	(B1.west)
-(B1.east) edge		node{}		(B2.west)
-(B2.east) edge		node{}		(B3.west)
+(B1.east) edge		node{}		(XX.west)
+(XX.east) edge		node{}		(B2.west)
+(B2.east) edge		node{}		(YY.west)
+(YY.east) edge		node{}		(B3.west)
 (B3.east) edge     	node{}    	(C.west)
-(C.east) edge     	node{}    	(Y.west);
+(C.east) edge     	node{}    	([yshift=1em]Y.west);
 \end{tikzpicture}
 \centering
-\caption{Eviction under the Rebuild method, with encryptions (E) and decryptions (D) and permutations ($\Pi$) and three mixes.} \label{fig:rebuild}
+\caption{Eviction under the Rebuild method, with encryptions (with the keys $k$) and permutations (with the seeds $\sigma$).} \label{fig:rebuild}
 \end{figure*} 
 
 \noindent\textbf{Rebuild method.} The rebuild method aims at replacing all the mix encryption and permutation layers with new ones. The difficulty of this method is to replace the layers in a manner such that the intermediaries never see the underlying client encryption in order to prevent an adversary from observing which record was accessed.
@@ -335,8 +339,9 @@ In order to achieve this, the records are encrypted and decrypted in two phases 
 Before sending the records to the untrusted storage, the client encrypts the plain-text three times. The records are first encrypted with the client own private keys and fixed counters, then with the keys generated from the secrets shared with the mixes and fixed counters. Finally the records are permuted and encrypted at the same time, with the permutation seeds and encryption keys generated from the shared secrets.
 For the sake of conciseness, we summarize the state of the database with the status $E_{k0}, (\Pi_\sigma, E_{k1})$ that must be understood as the database was first encrypted with the encryption keys $k0$ and then at the same time permuted and encrypted with the permutation seeds $\sigma$ and the encryption keys $k1$.\\
 
-During the eviction (c.f. Figure~\ref{fig:rebuild}), the mixes first unravel the last layer $(\Pi_\sigma, E_{k1})$ by executing $(\Pi_{\sigma}^{-1}, D(k1))$ during an unwrapping E/$\Pi$ phase. At the end of it, the database is then in the original sequence and encrypted under $E_{k0}$ only. 
-The mixes then start E/D phase where the records are encrypted with $E(k_{0i}')$ before being decrypting with $D(k_{0i})$ by each mix $mix_i$ thanks to AES-CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k0'}$ only. Finally, the wrapping E/$\Pi$ phase starts with the mixes encrypting and permuting at the same time the records executing $(\Pi_{\sigma'}, E_{k1})$. The database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k0'}, (\Pi_{\sigma'}, E_{k1'})$.\\  
+During the eviction (c.f. Figure~\ref{fig:rebuild}), the mixes first unwrap the last layer $(\Pi_\sigma, E_{k_1})$ by executing $(\Pi_{\sigma_i}^{-1}, D(k_1))$ with the varying indices as counters during the D/$\Pi^{-1}$ phase. At the end of it, the database is then in the original sequence and encrypted under $E_{k_0}$ only. 
+The mixes then start E/D phase where the records are encrypted with the $k_{0,i}'$ before being decrypting with the $k_{0,i}$ by each mix $mix_i$ thanks to AES-CTR commutativity and the invariant counter. The database is now in the original sequence and encrypted under $E_{k_0'}$ only. 
+Finally, the wrapping E/$\Pi$ phase starts with the mixes encrypting and permuting at the same time the records executing $(\Pi_{\sigma'}, E_{k_1})$ with the varying indices as counters. The database is now permuted in the random order $\Pi_{\sigma'}$ and encrypted under $E_{k_0'}, (\Pi_{\sigma'}, E_{k_1'})$.\\  
 
 When retrieving a record, as shown in Alg~\ref{alg:racc}, the client has to compute the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Alg~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. After updating the cache with the encryption of the record to read or write, the latter is sent back.
 
@@ -396,34 +401,40 @@ $rec \gets decrypt(rec, k_{i,0}, index )$;\\
 %
 \subsection{A simple Mix-ORAM}\label{SMO}
 %
-We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered encryption method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma}$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma'}$.\\
+We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma_1}(DB)$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma_2}(DB)$.\\
 
-\noindent\textbf{Layered Cascade.} The design sends the whole database through the mix-net where each mix adds a new permutation and a new encryption layers. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and encrypted with the keys $k_i$. After randomization, the database is encrypted with both $k_i$ and $k_i'$ and permuted with both seeds $\sigma_i',\ \sigma_i$, as shown in Fig~\ref{fig:ASMO_L}.\\
+\noindent\textbf{Layered Cascade.} The whole database is sent through the mix-net where each mix adds a new permutation and encryption layer as shown in Fig~\ref{fig:ASMO_L}.
+Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and encrypted with the old keys $k_i$, we have $\Pi_{\sigma_1}\left (DB\right)=\Pi_{\sigma}\left (DB\right)$.
+After randomization, the database is encrypted with both $k_i$ and $k_i'$ and permuted with both seeds $\sigma_i$ and $\sigma_i'$, we thus have $\Pi_{\sigma_2}\left (DB\right)=\Pi_{\sigma'}\left(\Pi_{\sigma}\left(DB\right)\right)$.
 %
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
 \begin{adjustbox}{width=\textwidth}
 \centering
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5.5em]
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{$k_{i=1..m} $},label=below:{$\sigma_{j=1..m}$}]    	(0)				  {DB};
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{$k_{i=1..m} $},label=above:{\color{white}'\color{black}$\sigma_{i=1..m}$\color{white}'}]    	(0)				  {DB};
 	
-\node[draw, rectangle]   		(A)[right of=0, label=above:{$E(k_1')$},label=below:{$\Pi(\sigma_1')$}]   {\small $Mix_{1}$};
+\node[draw, rectangle]   		(A)[right of=0, yshift=1em, label=below:{$k_1'$},label=above:{$\sigma_1'$}]   {\small $M_{1}$};
 
-\node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
+\node[draw=none, fill=none]    		(X)[right of=A, xshift=-1em]   {\small $...$};
 
-\node[draw, rectangle]    		(B)[right of=X, label=above:{$E(k_m')$},label=below:{$\Pi(\sigma_m')$}]   {\small $Mix_m$};
+\node[draw, rectangle]    		(B)[right of=X, xshift=-1em,label=below:{$k_j'$},label=above:{$\sigma_j'$}]   {\small $M_j$};
 
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{$k_{i=1..m},\ k_{i=1..m}' $},label=below:{$\sigma_{j=1..m},\ \sigma_{j=1..m}'$}]    	(00)[right of=B]				  {DB};	
+
+\node[draw=none, fill=none]    		(Y)[right of=B, xshift=-1em]   {\small $...$};
+
+\node[draw, rectangle]    		(C)[right of=Y, xshift=-1em, label=below:{$k_m'$},label=above:{$\sigma_m'$}]   {\small $M_m$};
+
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{$k_{i=1..m},\ k_{i=1..m}' $},label=above:{$\sigma_{i=1..m},\ \sigma_{i=1..m}'$}]    	(00)[right of=C, yshift=-1em]				  {DB};	
 
 \path
-(0.east) edge     	node[align=center]{}    	(A.west)
-
+([yshift=1em]0.east) edge     	node[align=center]{}    	(A.west)
 (A.east) edge     	node{}    	(X.west)
-
 (X.east) edge     	node{}    	(B.west)
-
-(B.east) edge     	node[align=center]{}    	(00.west)
+(B.east) edge     	node{}    	(Y.west)
+(Y.east) edge     	node{}    	(C.west)
+(C.east) edge     	node[align=center]{}    	([yshift=1em]00.west)
 ;
 
 \end{tikzpicture}
@@ -443,7 +454,7 @@ To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each 
 \alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=hkdf(ss_i)
 \end{align*}
 
-\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i$ and permutes the records  with the seed $\sigma_{i}$ and sent to $mix_{i+1}$ (or the database if $i=m$).\\
+\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i'$, permutes them with the seed $\sigma_{i}'$ and sends them to $mix_{i+1}$ (or the database if $i=m$).\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -472,64 +483,59 @@ $data \gets send\_DB(db, data)$;\\
 \label{alg:CL}
 \end{algorithm}
 
-\noindent\textit{Client Operations.} To find a record position in the database, the client just needs to look at the current index in the record index.\\
+\noindent\textit{Client Operations.} After starting the eviction, the client updates the record index with the new record indices. To find a record position in the database, the client just needs to look up at the current index in the record index.\\
 
 \noindent\textit{Costs.}
 As the whole database is sent through the mix-net, the mix communication cost is $ \cdot m \cdot n \cdot b$. The client communication is $m \cdot (32+ m\cdot (ip +ports)+ token)$.
 The computation cost for the client is ..., and ... per mix  \todo{}.\\
 
 
-\noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and the records encrypted with the keys $k_i$ and their index as counter. After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$.
-The mixes operates as as depicted in Fig~\ref{fig:ASMO_R}: they first decrypt and unwrap the records, then change the inner encryption by encrypting with the new keys and decrypting with the old, and finally wrap and encrypt again with the new keys.
-
+\noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption as shown in Fig~\ref{fig:ASMO_R}. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and the records encrypted with the keys $k_i$ and their index as counter, we have $\sigma_1=\sigma$.
+After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$, we thus have $\sigma_1=\sigma'$.
 
 \begin{figure}[H]
 \begin{minipage}{0.475\textwidth}
 \begin{adjustbox}{width=\textwidth}
-\begin{tikzpicture}[->, auto, semithick, node distance = 5em, every loop/.style={<-}]
+\begin{tikzpicture}[ auto, semithick, node distance = 5em, scale=0.5, every loop/.style={<-}]
 \tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
 
-
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{\small $k_{i=1..m}$},label=below:{\small $\sigma_{j=1..m}$}]    	(0)				  {DB};
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{\small $k_{i=1..m}$},label=above:{\small $\sigma_{i=1..m}$}]    	(0)				  {DB};
 
 \node[draw=none, fill=none]    		(00)[below of=0]   {};
 
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=above:{\small $k_{i=1..m}'$},label=below:{\small $\sigma_{j=1..m}'$}]    	(000)	[below of=00]			  {DB};
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{\small $k_{i=1..m}'$},label=above:{\small $\sigma_{j=1..m}'$}]    	(000)	[below of=00]			  {DB};
 	
-\node[draw, rectangle, label=above:{\small $D(k_1)$},label=below:{\small $\Pi^{-1}(\sigma_1)$}]   		(A)[right =of 0.north east, anchor = north]   {\small $Mix_{1}$};
+\node[draw, rectangle, label=below:{\small $k_{1,1}$},label=above:{\small $\sigma_{1}$}]   		(A)[right =of 0, yshift=1em, xshift=-2em]   {\small $M_{1}$};
 
-\node[draw, rectangle, label=above:{\small $E(k_{m+1}')$},label=below:{\small $D(k_{m+1})$}] (A')[below of=A]{\small $Mix_{1}$};
+\node[draw, rectangle, label=below:{\small $k_{0,1}', k_{0,1}$}] (A')[below of=A]{\small $M_{1}$};
 
-\node[draw, rectangle, label=above:{\small $E(k_m')$},label=below:{\small $\Pi(\sigma_1')$}]   		(A'')[below=of A', anchor = south]   {\small $Mix_{1}$};
+\node[draw, rectangle, label=below:{\small $k_{1,m}'$},label=above:{\small $\sigma_1'$}]   		(A'')[below=of A', anchor = south]   {\small $M_{1}$};
 
-\node[draw=none, fill=none]    		(X)[right of=A]   {\small $...$};
-\node[draw=none, fill=none]    		(X')[right of=A']   {\small $...$};
-\node[draw=none, fill=none]    		(X'')[right of=A'']   {\small $...$};
+\node[draw=none, fill=none]    		(X)[right of=A, xshift=-1em]   {\small $...$};
+\node[draw=none, fill=none]    		(X')[right of=A', xshift=-1em]   {\small $...$};
+\node[draw=none, fill=none]    		(X'')[right of=A'', xshift=-1em]   {\small $...$};
 
-\node[draw, rectangle, label=above:{\small $E(k_m)$},label=below:{\small $\Pi^{-1}(\sigma_m)$}]    		(B)[right of= X]   {\small $Mix_m$};
-\node[draw, rectangle, label=above:{\small $E(k_{2m}')$},label=below:{\small $D(k_{2m})$}]    		(B')[right of=X']   {\small $Mix_{m}$};
-\node[draw, rectangle, label=above:{\small $E(k_m')$},label=below:{\small $\Pi(\sigma_m')$}]    		(B'')[right of= X'']   {\small $Mix_m$};
+\node[draw, rectangle, label=below:{\small $k_{1,m}$},label=above:{\small $\sigma_m$}]    		(B)[right of= X, xshift=-1em]   {\small $M_m$};
+\node[draw, rectangle, label=below:{\small $k_{0,m}', k_{0,m}$}]    		(B')[right of=X', xshift=-1em]   {\small $M_{m}$};
+\node[draw, rectangle, label=below:{\small $k_{1,m'}$},label=above:{\small $\sigma_m'$}]    		(B'')[right of= X'', xshift=-1em]   {\small $M_m$};
 
-\path 
-([yshift=0.47em]0.east) edge    node{}    	(A.west)
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2.5em, xshift=2.5em]B.north east) -- ([yshift=-2.5em,xshift=2em]B.south east) node[right, pos=0.5, xshift=1em, align=center] {D/$\Pi^{-1}$ phase};
 
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2.5em, xshift=2.5em]B'.north east) -- ([yshift=-2.5em,xshift=2em]B'.south east) node[right, pos=0.5, xshift=1em, align=center] {E/D phase};
+
+\draw[decoration={brace, amplitude=1em}, decorate]  ([yshift=2.5em, xshift=2.5em]B''.north east) -- ([yshift=-2.5em,xshift=2em]B''.south east) node[right, pos=0.5, xshift=1em, align=center] {E/$\Pi$ phase};
+
+\path [->]
+([yshift=2em]0.east) edge    node{}    	(A.west)
 (A.east) edge node{}    	(X.west)
-
 (X.east) edge node{}    	(B.west)
-
 (B.east) edge[bend left] node{} ([yshift=1ex]B'.east)
-
 ([yshift=1ex]B'.west) edge[align=center] node{} 	([yshift=1ex]X'.east)
-
 ([yshift=1ex]X'.west) edge[align=center]  node{}   	([yshift=1ex]A'.east)
-
 ([yshift=-1ex]A'.east) edge[align=center] node{} (B''.west)
-
 ([yshift=-1ex]B''.west) edge    node{}  ([yshift=-1ex]X''.east)
-
 ([yshift=-1ex]X''.west) edge    node{}  ([yshift=-1ex]A''.east)
-
-([yshift=-1ex]A''.west) edge node{} (000.east);
+([yshift=-1ex]A''.west) edge node{} ([yshift=1.6em]000.east);
 
 
 \end{tikzpicture}
