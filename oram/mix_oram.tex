@@ -899,9 +899,9 @@ We now consider the RTS process in that scenario and suppose the records (the bi
 
 \begin{secthm}
 An oblivious merge (OM) of 2 indistinguishable sets of respective size $n$ and $s$ elements requires $\tau$ rounds of 2-RTS such that any arranging is possible, with
-$$\tau(\epsilon) \leq \frac{n}{2}  \cdot \left [ \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - \frac{2}{s} \log \left( 4 \cdot \epsilon\right) \right ] $$%&\\
+$$\tau(\epsilon) \leq \frac{n}{2}  \cdot \log \left (\frac{n}{s}\right)$$%&\\
 \begin{proof}
-See Appendix~\ref{proof:OM}.
+See Appendix~\ref{proof:OM}.\george{}
 \end{proof}
 \end{secthm}
 
@@ -909,7 +909,7 @@ As we could see that $k$-RTS decreased the mixing time by at least a factor $k$,
 
 \begin{seccjt}\label{sec:kOM}
 A $k$-oblivious Merge ($k$-OM) of 2 indistinguishable sets of $n$ and $s$ element requires $\tau$ rounds such that any order is equally possible, with
-$$ \tau(\epsilon) \leq \frac{n}{2\cdot k}  \cdot \left [ \left( \log \left (\frac{n}{s}-0.5\right) +\mathcal{O}\left(1\right) \right ) - \frac{2}{s} \log \left( 4 \cdot \epsilon\right) \right ] $$
+$$ \tau(\epsilon) \leq \frac{m}{2}  \cdot \log \left (\frac{n}{s}\right) $$
 \end{seccjt}
 %
 \subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
@@ -1032,7 +1032,7 @@ The value we chose $r=2m\log(n)$, give us a closeness better than $1/n^2 = o(1/n
 
 \noindent\textit{Layered method.}
 In this scheme, we propose to maintain the randomness of the database after it was first shuffled by the client with evictions of $r=\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$ rounds (c.f. Theorem~\ref{sec:kOM}).
-The theorem's indistinguishability assumption holds as we do not remove any permutation layer, thus the design is secure.
+We can reuse the previous proof with $w_i(t)$ being now the probability the $i^{th}$ record at the $t^{th}$ round was in the cache at first and $\Phi(t)=\Sigma w_i(t) - s/n$, we obtain $r>m\log(n/s)$.\george{}
 
 \subsection{In Search of the Lost Key.}
  
@@ -1186,12 +1186,12 @@ We want to find the minimum $t$ such that $1-\frac{6}{\mu}\geq \epsilon$, which 
 $$\log\left(\frac{n\cdot (1-\epsilon)}{6}\right) \geq 2\cdot k\cdot t \cdot \log \left ( \frac{n}{n-1} \right )$$
 As $\log(1+x) \leq x$, the previous inequality holds if $\log\left(\frac{n\cdot (1-\epsilon)}{6}\right) \geq   \frac{2kt}{n-1} $ which means that if $t\leq \frac{n-1}{2k}\cdot \log\left ( \frac{n(1-\epsilon)}{6}\right )$ then $d(t)\geq \epsilon$.
 Thus,
-$$\tau \left (\epsilon \right ) \geq \frac{n-1}{2k} \ln(n\cdot \frac{1-\epsilon}{6}) $$.
+$$\tau \left (\epsilon \right ) \geq \frac{n-1}{2k} \ln(n\cdot \frac{1-\epsilon}{6}) $$
 \end{proof}
 
 \subsection{Proof of Oblivious Merge}\label{proof:OM}
 \begin{proof}
-We want to find the mixing time $\tau(\epsilon)$ of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$ and $1-\lambda^*$ is the spectral gap,
+We want to find the mixing time $\tau(\epsilon)$ of our oblivious merge of two sets of indistinguishable elements. To do so, we use the bound of the mixing time of an irreducible ergodic Markov Chain, where $p = \frac{1}{|V|}$, with the volume $V={n \choose s}$, and $1-\lambda^*$ is the spectral gap,
 $$\frac{\lambda^*}{1-\lambda^*} \cdot \log\left(\frac{1}{2 \epsilon} \right)\leq \tau(\epsilon) \leq \frac{1}{1-\lambda^*}\cdot \log \left( \frac{1}{2 \epsilon \cdot \sqrt{p}}\right) $$
 
 We now want to find a bound for $\lambda^*$. We represent the arranging of merge of the 2 distinct sets by the graph $\mathcal{G}$, a $k$-regular graph with $v$ vertices corresponding to the different orderings and the undirected edges to transpositions of two elements.
@@ -1226,7 +1226,7 @@ Consider the vector $x \in \mathbb{C}^\mathcal{G}$ such that $x_a = \chi(a)$. Th
 \end{lemma}
 
 \begin{theorem}
-The Cayley graph $Cay_{n,s}$ has for eigenvalues $\mu_0 = 1 > \mu_1 \geq ... \geq \mu_n$ with, 
+The Cayley graph $Cay_{n,s}$ has for eigenvalues $\mu_0 = 1 > \mu_1 \geq ... \geq \mu_{n-1}$ with, 
 $$\mu_r = \frac{1}{\left | \mathcal{S} \right |} \sum_{i=1}^{min(r, n-r)} \left ( -1 \right )^i {r \choose i}{n-r \choose s-i}\\$$
 \end{theorem}
 
@@ -1257,14 +1257,14 @@ Let $M$ be a Hermitian $n \times n$ matrix with eigenvalues ${\mu'}_0\geq ... \g
 $$ {\mu'}_i \geq {\lambda'}_i \geq {\mu'}_{n-m+i+1} $$
 \end{theorem}
 
-We are here only interested in an upper-bound of $\lambda*$, as we have $\mu_{2^n+2-{n \choose s}}\leq \lambda_1\leq 1-2\frac{s}{n}$ and $0 \leq \lambda_n \leq \mu_2$, $\lambda* \leq 1-2\frac{s}{n}$. We thus have $\frac{1}{1-\lambda*}\leq\frac{n}{2\cdot s}$
+We are here only interested in an upper-bound of $\lambda*$, as we have $\mu_{2^n+2-{n \choose s}}\leq \lambda_1\leq 1-2\frac{s}{n}$ and $0 \leq \lambda_n \leq \mu_2$, $\lambda* \leq 1-2\frac{s}{n}$. We thus have $\frac{1}{1-\lambda*}\leq\frac{n}{2\cdot s}$ and $\log {n \choose s} \approx s(\log(n/s-0.5)+1) -1/2\log(2\pi s)$ when $n \gg s$.
 \end{proof}
 
 \subsection{Proof of Parallel mix-net}\label{proof:pmn}
 \begin{proof}
 This proof is derived from Goodrich and Mitzenmacher~\cite{goodrich2012privacy} who bounded the closeness of a shuffle to the uniform distribution using a compromised parallel mix-net. 
 
-Let $\Phi(t)=\Sigma_{i=1}^n (w_i(t)-1/n)^2$ the sum of square metric with $w_i(t)$ the probability that the $i^{th}$ card after $t$ rounds is the first card from time 0 from the point of view of the adversary.
+Let $w_i(t)$ the probability the $i^{th}$ record at the $t^{th}$ round was the first record at start, the sum of square metric $\Phi(t)=\Sigma_{i=1}^n (w_i(t)-1/n)^2$, $n$ the number of cards, $m$ the number of mixes out of which $m_a$ are corrupted and $k=n/m$.
 
 We have by recurrence that the potential $\Delta\Phi^*$ changes when a group of K card is shuffled during a round as following : $\Delta\Phi^*=\Sigma_{1\leq i\leq n}(w_i-w_j)^2$.
 Thereby,
@@ -1281,7 +1281,7 @@ E[\Delta\Phi/\Phi]&=\frac{(m-m_a)(k-1)}{2n(n-1)}\frac{\Sigma_{i,j}((w_i-1/n)-(w_
 &=\frac{(m-m_a)(k-1)}{n-1} 
 \end{align*}
 
-Since $\Sigma_k x_k=0$, we have :$$\Sigma_{i,j}(x_i-x_j)^2 = \Sigma_{i,j}(x_i-x_j)^2 + 2\left(\Sigma_k x_k^2 \right)^2  = 2n\Sigma_k x_k^2$$
+We obtain the previous result as we have $\Sigma_k x_k=0$, and so :$$\Sigma_{i,j}(x_i-x_j)^2 = \Sigma_{i,j}(x_i-x_j)^2 + 2\left(\Sigma_k x_k^2 \right)^2  = 2n\Sigma_k x_k^2$$
 
 We have,
 \begin{align*}
@@ -1289,7 +1289,8 @@ E[\Phi(t+1)] &= (1-\frac{(m-m_a)(k-1)}{n-1}) E[\Phi(t)]\\
 E[\Phi(t)]&= (1-\frac{(m-m_a)(k-1)}{n-1})^t
 \end{align*} 
 
-We want to find the conditions on $c$ such that the corrupted parallel mix-net can mix in $t=bc\log(n)$  such that  $n^{-2b} < E[\Phi(t)]< n^{-b}$.
+We want to find the conditions on $c$ such that the corrupted parallel mix-net can mix in $t=bc\log(n)$  such that $n[\Phi(t)]< n^{-b}$.
+
 \begin{align*}
 E[\Phi(t)]&< n^{-b}\\
 (1-\frac{(m-m_a)(k-1)}{n-1})^t&< n^{-b}\\
@@ -1299,12 +1300,10 @@ c\cdot \log(1-\frac{(m-m_a)(k-1)}{n-1}) &< -1\\
 c \cdot\log(1+ \frac{1}{\frac{n-1}{(m-m_a)(k-1)}- 1}) &> 1\\
 \end{align*}
 
-Using Taylor series, assuming that $n-1>>(m-m_a)(k-1)$, let $y = \frac{n-1}{(m-m_a)(k-1)}-1$:
-
+Using Taylor series, assuming that $n-1\gg(m-m_a)(k-1)$, 
 \begin{align*}
-c&> 1 / \log(1+ \frac{1}{y})\\
-c&> \left( \frac{1}{y} +o\left(\frac{1}{y}\right)\right)^{-1}\\
-c&> y -  o\left(1\right)\simeq \frac{m}{m-m_a} -o(1)\\
+&c \cdot (\frac{1}{\frac{n-1}{(m-m_a)(k-1)}- 1} +o(n/k)) > 1 \\
+&c> \frac{n-1}{(m-m_a)(k-1)}- 1 \simeq \frac{m}{m-m_a} -o(1)\\
 \end{align*}
 
 Thus, when shuffling $n$ cards with n a parallel mix-net composed of $m$ mixes out of which $m_a$ were compromised, we need $t>b\cdot \frac{m}{m-m_a} \log(n) $ rounds before the expected sum of squares error $E[\Phi(t)]$ between the card assignment probabilities and the uniform distribution is at most $1/n^b$ for any fixed $b>1$.
