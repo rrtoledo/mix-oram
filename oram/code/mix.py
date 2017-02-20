@@ -3,6 +3,8 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from petlib.cipher import Cipher
 import random, sys
+from collections import namedtuple
+import threading
 
 #http://stackoverflow.com/questions/3275004/how-to-write-a-twisted-server-that-is-also-a-client
 Keys = namedtuple('Keys', ['b', 'iv', 'kmac', 'kenc', 'seed'])
@@ -13,32 +15,23 @@ class Mix():
 
 	cascade = True
 
-	def __init__(self, name, port, ip, cascade, layered, group, pubk, prvk, pubs, shared):
+	def __init__(self, name, ip, port): 
 		print "Mix: init"
 		self.name = name 		# Name of the mix
 		self.port = port 		# Port of the mix
 		self.ip = ip	 		# IP of the mix
+		
+		self.datas = []
+		self.datalock = threading.lock()
 
-		self.cascade = cascade		# Cascade or Parallel Mix
-		self.layered = layered		# Layered or Rebuild Method
-
-		self.group = group 	# G o g o.byte
-		self.pubk = pubk	# Public key of the mix
-		self.prvk = prvk	# Private key of the mix
-
-		self.pubs = pubs	# Servers and client's public keys
-		self.shared_secrets = shared # Shared secrets 
+		self.mixlist = []
+		self.listlock = threading.lock()
 
 		self.s_factory = ServerFact(self)
 		reactor.listenTCP(self.port, self.s_factory)
 		reactor.run()
 
 	def permute(self, seed, data, inverse):
-		""" Permute list of elements"""
-		""" INPUT: seed, long, the permutation seed""""
-		""" INPUT: data, array, the list of datablocks to permute""""
-		""" INPUT: inverse, bool, if true execute Pi_seed^-1 else Pi_seed""""
-		""" OUTPUT: the list of permuted datablock"""
 		random.seed(seed)
 		perm = random.sample(range(len(data)),len(data))
 		temp=[]
@@ -52,13 +45,6 @@ class Mix():
 		return temp
 
 	def permute_global(self, seed, n, m, index, inverse):
-		""" Compute which indices to send to which mix, used only in parallel case"""
-		""" INPUT: seed, long, the new public permutation seed""""
-		""" INPUT: n, long, the total number of elements""""
-		""" INPUT: m, int, the total number of mixes""""
-		""" INPUT: index, int, the current mix position in the list of mixes""""
-		""" INPUT: inverse, bool, if true execute Pi_seed^-1 else Pi_seed""""
-		""" OUTPUT: the list of list of indices (output[i]=list of indices to send to mix_i)"""
 		random.seed(seed)
 		tosend=[]
 		temp=permute(seed, range(1,n), inverse)	
@@ -68,32 +54,18 @@ class Mix():
 		return tosend
 
 	def sort_global(self, seed, data, inverse):
-		""" Merge and sort data arrays sent by each mix, [[mix 1],...,[mix n]]-->[i*n/m,... (i+1)*n/m-1]"""
-		""" INPUT: seed, long, the old public permutation seed""""
-		""" INPUT: data, arrays of arrays, the ordered list of records received""""
-		""" INPUT: inverse, bool, if true execute Pi_seed^-1 else Pi_seed""""
-		""" OUTPUT: the list of elemts permuted according to Pi_seed(^-1)"""
-		data = [j for i for data for k in i]
+		data = [j for i in data for j in i]
 		order = self.permute_global(previous_seed, n, m, index, inverse)
-		order = [j for i for order for k in i]
+		order = [j for i in order for j in i]
 		zipped = zip(order, data)
 		zipped.sort(key= lambda t: t[0])
 		data = list(zip(*zipped)[1])
 		return data
 		
 	def split(self, tosplit, k):
-		""" Split a list tosplit in list of max k elements """
-		""" INPUT: tosplit, array, list to split"""
-		""" INPUT: k, int, number of elements per split arrays """"
-		""" OUTPUT: the list of split arrays of k elements """
 		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
 
 	def encrypt_ctr(self, key, counter, data):
-		""" Encrypt/Decrypt data with AES in CTR mode """
-		""" INPUT: key, 16byte long encryption key """
-		""" INPUT: counter, 16 byte long counter """
-		""" INPUT: data, data to encrypt """
-		""" OUTPUT: encrypted data """
 		aes = Cipher("AES-128-CTR")
 		enc = aes.enc(key, counter)
 		output = enc.update(data)
@@ -101,39 +73,24 @@ class Mix():
 		return output
 
 	def encrypt_cbc(self, key, datablock):
-		""" Encrypt datablock (IV and data) with AES in CBC mode """
-		""" INPUT: key, 16byte long encryption key """
-		""" INPUT: datablock, datablock=IV,data to encrypt """
-		""" OUTPUT: encrypted data """
 		IV, data = datablock
-		IV0 = #TODO
+		IV0 = 0 #TODO
 		data = self.aes_cbc(key, IV0, data)
-		IV1 = #TODO
+		IV1 = 1 #TODO
 		data = self.aes_cb(key,IV1, IV)
 		datablock = [IV, data]
 		return datablock
 
 	def aes_cbc(self, key, IV, data):
-		""" Encrypt/Decrypt data with AES in CBC mode """
-		""" INPUT: key, 16byte long encryption key """
-		""" INPUT: IV, 16 byte long initialization vector """
-		""" INPUT: data, data to encrypt """
-		""" OUTPUT: encrypted data """
 		aes = Cipher("AES-128-CBC")
 		enc = aes.enc(key, IB)
 		output = enc.update(data)
 		output += enc.finalize()
 		return output		
 
-
 	def KDF(element, idx="A"):
-   		""" The key derivation function for b, iv, keys and seeds """
-		""" INPUT: element, element to derive key from """
-		""" INPUT: idx, padding """
-		""" OUTPUT: blind, IV, encryption key, permutation seed"""
     		keys = sha512(element + idx).digest()
    		return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64])
-
 
 	def cascade_layered(self, instructions, data):
 		if not inverse:
@@ -187,27 +144,48 @@ class ServerProto(Protocol):
 
 	def dataReceived(self, data):
 		print "SF: Data received", data
-		
-		print "encrypt"
-		print "sort"
-		#cipher = self.mix.encrypt(data)
-		#processed_data = self.mix.sort(cipher)
-		pdata = data +"_processedS_"
-		print pdata
-		c_factory = ClientFact(self, pdata)
-		c_factory.protocol = ClientProto
-		#reactor.connectTCP(self.pub[][], self.pub[][], c_factory) #TODO
-		reactor.connectTCP("127.0.0.1", int(self.factory.mix.pub), c_factory)
+		mix = self.factory.mix
+		op, vs, content = data
+		if "STT" in op:
+			ip, port, range1, range2, instt = content
+			c_factory = ClientFact(self, ["GET", vs, [range1, range2]])
+			c_factory.protocol = ClientProto
+			reactor.connectTCP(ip, port, c_factory)
 
-		#c_factory.c_proto.transport.write(data+"_processedS_")
-		#print "data written"
+		else if "PUT" in op:
+			data = content
+			mix.alldata=1
+			
+		else if "MIX" in op:
+			index = -1
+			with mix.listlock:
+				index = mix.mixlist.ips.index(self.transport.getPeer().host)
+			with mix.datalock:
+				if mix.datas[index] == "":
+					mix.data[index]=content
+					mix.alldata+=1
+
+		if "PUT" in op or (cascade and alldata=1) or ((not cascade) and alldata=len(mixlist.ips)):
+			datas = mix.process_data() #TODO
+			db, ips, ports = mix.compute_path() #TODO
+			if not db:
+				c_factories = [] 
+				for i in range(ips):
+					c_factories.extend(ClientFact(self, [ "MIX", vs, datas[i] ]))	
+					c_factories[i].protocol = ClientProto
+					reactor.connectTCP(ips[i], ports[i], c_factories[i])
+			else:
+				c_factory=ClientFact(self, ["PUT", vs, mix.range])
+				c_factory.protocol = ClientProto
+				reactor.connectTCP(mix.db.ip, mix.db.port, c_factory)
+
+		print "data written"
 
 	def connectionLost(self, reason):
 	        print "SF: Connection lost", reason
 
 	def returnData(self, data):
 		self.transport.write(data+"_fromS2_") #TODO
-		#self.flush()
 		self.transport.loseConnection()
 
 	def processData(self, data):
@@ -238,6 +216,7 @@ class ClientProto(Protocol):
         	print "CP: Receive:", data
 		self.factory.s_proto.returnData(data+"_processedC_")
 		self.transport.loseConnection()
+		self.factory.s_proto.returnData(data)
 
 	def connectionLost(self, reason):
         	print "CP: Connection lost", reason
@@ -262,9 +241,9 @@ class ClientFact(ClientFactory):
 
 
 if __name__ == '__main__':
-	if len(sys.argv) <6:
-		print "ERROR: you have entered "+len(sys.argv)+" inputs."
+	if len(sys.argv) <4:
+		print "ERROR: you have entered "+str(len(sys.argv))+" inputs."
 	else:
    
-        	mix = Mix(str(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5])
-		# name port ip group pub
+        	mix = Mix(str(sys.argv[1]), str(sys.argv[2]), int(sys.argv[3]))#, sys.argv[4], sys.argv[5])
+		# name ip port group pub
