@@ -239,13 +239,17 @@ class ServerProto(Protocol):
 		ed=mix.ed
 		epi=mix.epi
 		end=mix.end
-
+		
+		#Call function depending on mixnet cascade/parallel_layered/rebuild
 		if not mix.cascade:
 			if type(datas[0])==list:
 				datas = [datas[i][j] for i in range(len(datas)) for j in range(len(datas[i]))]
 			else:
 				datas= [datas[i] for i in range(len(datas))]
 		print "after merge", datas
+		
+		 
+
 		for i in range(len(datas)):
 				if type(datas[i])==str:
 					datas[i]=datas[i]+mix.name+str(mix.round) #TODO
@@ -298,7 +302,7 @@ class ServerProto(Protocol):
 			c_factory=ClientFact(self, ["PUT", vs, [range1, range2, datas] ])
 			c_factory.protocol = ClientProto
 			reactor.connectTCP(mix.db[0].host, mix.db[0].port, c_factory,5)
-			
+		#update record allocation, blinds and keys (be careful way (b or 1/b))
 		print "data written", datas
 
 	def connectionLost(self, reason):

@@ -7,7 +7,7 @@ from collections import namedtuple
 import threading
 
 #http://stackoverflow.com/questions/3275004/how-to-write-a-twisted-server-that-is-also-a-client
-Keys = namedtuple('Keys', ['b', 'iv', 'kmac', 'kenc', 'seed'])
+Keys = namedtuple('Keys', ['b', 'iv', 'kenc', 'seed'])
 Actor = namedtuple('Mix', ['name', 'port', 'host', 'pubk'])
 
 class Mix():
@@ -15,57 +15,79 @@ class Mix():
 
 	cascade = True
 
-	def __init__(self, name, ip, port): 
+	def __init__(self, name, ip, port, cascade=1, layered=1): 
 		print "Mix: init"
 		self.name = name 		# Name of the mix
 		self.port = port 		# Port of the mix
 		self.ip = ip	 		# IP of the mix
-		
-		self.datas = []
-		self.datalock = threading.lock()
 
-		self.mixlist = []
-		self.listlock = threading.lock()
+		self.cascade=cascade
+		self.layered=layered
+		
+		self.datas = [] # =[[data per mix]]
+		self.datalock = threading.Lock()
+		self.rounds = 0
+
+		self.secrets = [] #[[old],[new]]
+
+		self.db= [] #=[name, ip, port, range]
+
+		self.list = [] # =[[mixnames],[ips],[ports]]
+		self.listlock = threading.Lock()
 
 		self.s_factory = ServerFact(self)
 		reactor.listenTCP(self.port, self.s_factory)
 		reactor.run()
 
 	def permute(self, seed, data, inverse):
+		#Input: permutation seed, data array to permute, inverse boolean
+		#Output: Permuted data array
 		random.seed(seed)
 		perm = random.sample(range(len(data)),len(data))
 		temp=[]
-		if not inverse:
+		if not inverse: #inverse==0, Pi_{seed}(data)
 			for i in range(len(perm)):
 				temp.extend([data[perm[i]]])
-		else:
+		else:#inverse==1, Pi_{seed}^{-1}(data)
 			zipped = zip(perm, data)
 			zipped.sort(key= lambda t: t[0])
 			temp = list(zip(*zipped)[1])
 		return temp
 
 	def permute_global(self, seed, n, m, index, inverse):
+		#Input: next public seed, number of mixes, mix index, inverse boolean (for D/Pi and E/Pi)
+		#Output: Data allocation [[to send to mix_1],...[to send to mix_m]]
+
+		#Calculate public perm
 		random.seed(seed)
 		tosend=[]
 		temp=permute(seed, range(1,n), inverse)	
-		tosend = self.split(temp, n/m)			
+		#Allocate records to all mixes
+		tosend = self.split(temp, n/m)	
+		#Remove all records but the mix's		
 		for i in range(len(tosend)):
 			tosend[i]= [tosend[i][j] for j in range(len(tosend[i])) if tosend[i][j] in range(index*n/m, (index+1)*n/m)]
-		return tosend
+		return tosend 
 
 	def sort_global(self, seed, data, inverse):
+		#Input: previous public seed, data arrays [[data from mix_1],...[from mix_m]], inverse boolean
+		#Output: Data merged and sorted according to previous public seed [rec_{i*n/m},...rec_{(i+1)*n/m-1}]
 		data = [j for i in data for j in i]
 		order = self.permute_global(previous_seed, n, m, index, inverse)
 		order = [j for i in order for j in i]
 		zipped = zip(order, data)
 		zipped.sort(key= lambda t: t[0])
 		data = list(zip(*zipped)[1])
-		return data
+		return data  
 		
 	def split(self, tosplit, k):
+		#Input: Data array to split, length of resulting subarrays
+		#Output: Arrays of arrays of k elements
 		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
 
 	def encrypt_ctr(self, key, counter, data):
+		#Input: Encryption key, counter, data to encrypt/decrypt
+		#Output: Data encrypted under key and counter
 		aes = Cipher("AES-128-CTR")
 		enc = aes.enc(key, counter)
 		output = enc.update(data)
@@ -73,6 +95,8 @@ class Mix():
 		return output
 
 	def encrypt_cbc(self, key, datablock):
+		#Input: Encryption key, datablock=[IV, [label,record]]
+		#Output: Encrypted datablock=[E(IV),E([label,record])]
 		IV, data = datablock
 		IV0 = 0 #TODO
 		data = self.aes_cbc(key, IV0, data)
@@ -82,27 +106,29 @@ class Mix():
 		return datablock
 
 	def aes_cbc(self, key, IV, data):
+		#Input: Encryption key, Initialization vector, data to encrypt
+		#Output: Encrypted data with IV and key
 		aes = Cipher("AES-128-CBC")
 		enc = aes.enc(key, IB)
 		output = enc.update(data)
 		output += enc.finalize()
 		return output		
 
-	def KDF(element, idx="A"):
+	def KDF(element, idx="A"): #Key derivation function
+		#Input: Group element, padding
+		#Output: Key object composed of blind, IV, encryption key and permutation seed of 16 bytes each
     		keys = sha512(element + idx).digest()
    		return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64])
 
 	def cascade_layered(self, instructions, data):
-		if not inverse:
-			self.permute(seed, data, inverse)
+		#Cascade Layered data processing function
+		self.permute(seed, data, inverse)
 		for i in range(len(data)):
 			data[i]=self.encrypt_cbc(key, data[i])
-		if inverse:
-			self.permute(seed, data, inverse)
 		return data
 
 	def cascade_rebuild(self, instructions, data):
-		
+		#Cascade Rebuild data processing function
 		if not inverse:
 			self.permute(seed, data, inverse)
 		for i in range(len(data)):
@@ -112,18 +138,15 @@ class Mix():
 		return data
 
 	def parallel_layered(self, instructions, data):
-
-		data = sort_global( seed, data, inverse)
-		if not inverse:
-			self.permute(seed, data, inverse)
+		#Parallel Layered data processing function
+		data = sort_global( seed, data, inverse)#inverse=0 now
+		self.permute(seed, data, inverse)
 		for i in range(len(data)):
 			data[i]=self.encrypt_cbc(key, i, data[i])
-		if inverse:
-			self.permute(seed, data, inverse)
 		return data
 
 	def parallel_rebuild(self, instructions, data):	
-
+		#Parallel Rebuild data processing function
 		data = sort_global( seed, data, inverse)
 		if not inverse:
 			self.permute(seed, data, inverse)
@@ -132,6 +155,16 @@ class Mix():
 		if inverse:
 			self.permute(seed, data, inverse)
 		return data	
+
+	def compute_path(self):
+		index = self.list[1].index(self.ip)
+		
+		if mix.cascade:
+			if mix.layered:
+				if index != len(self.list[1])-1:
+					return [self.list[1][index+1]],[self.list[2][index+1]]
+				else:
+					return [],[]
 
 class ServerProto(Protocol):
 
@@ -147,7 +180,7 @@ class ServerProto(Protocol):
 		mix = self.factory.mix
 		op, vs, content = data
 		if "STT" in op:
-			ip, port, range1, range2, instt = content
+			mix.db, mix.secrets, mix.list = content
 			c_factory = ClientFact(self, ["GET", vs, [range1, range2]])
 			c_factory.protocol = ClientProto
 			reactor.connectTCP(ip, port, c_factory)
@@ -159,26 +192,40 @@ class ServerProto(Protocol):
 		else if "MIX" in op:
 			index = -1
 			with mix.listlock:
-				index = mix.mixlist.ips.index(self.transport.getPeer().host)
+				index = mix.list.ips.index(self.transport.getPeer().host)
 			with mix.datalock:
 				if mix.datas[index] == "":
 					mix.data[index]=content
 					mix.alldata+=1
 
-		if "PUT" in op or (cascade and alldata=1) or ((not cascade) and alldata=len(mixlist.ips)):
-			datas = mix.process_data() #TODO
-			db, ips, ports = mix.compute_path() #TODO
-			if not db:
-				c_factories = [] 
-				for i in range(ips):
-					c_factories.extend(ClientFact(self, [ "MIX", vs, datas[i] ]))	
-					c_factories[i].protocol = ClientProto
-					reactor.connectTCP(ips[i], ports[i], c_factories[i])
-			else:
-				c_factory=ClientFact(self, ["PUT", vs, mix.range])
-				c_factory.protocol = ClientProto
-				reactor.connectTCP(mix.db.ip, mix.db.port, c_factory)
+		if "PUT" in op or 'MIX' in op and ((mix.cascade and mix.alldata=1) or ((not mix.cascade) and mix.alldata=len(mix.list.ips))):
+			toprocess = []
+			with mix.datalock:
+				toprocess = mix.datas
+				mix.datas=[]
+			self.computeData(toprocess)
+		
 
+	def computeData(self, datas):
+		#Encrypt and permute data in thread
+		#Return to main thread to send data
+		datas=datas+"THREAD"
+		reactor.callFromThread(self.sendData, datas)
+
+	def sendData(self, datas):
+		#Called by function computeData in thread
+		#Send data to mixes/db
+		ips, ports, offset = mix.compute_path()
+		if offset==0:
+			c_factories = [] 
+			for i in range(ips):
+				c_factories.extend(ClientFact(self, [ "MIX", vs, datas[i] ]))	
+				c_factories[i].protocol = ClientProto
+				reactor.connectTCP(ips[i], ports[i], c_factories[i])
+		else:
+			c_factory=ClientFact(self, ["PUT", vs, mix.range])
+			c_factory.protocol = ClientProto
+			reactor.connectTCP(mix.db.ip, mix.db.port, c_factory)
 		print "data written"
 
 	def connectionLost(self, reason):
