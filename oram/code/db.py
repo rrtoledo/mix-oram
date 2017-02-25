@@ -5,32 +5,40 @@ from petlib import pack
 import random, string
 from twisted.internet import reactor, protocol
 
+datadb=[]
 
-class Echo(protocol.Protocol):
+class DB(protocol.Protocol):
     """This is just about the simplest possible protocol"""
     
     def __init__(self):
-	self.data =[]
-	for i in range(10):
-		self.data.extend([str(i)*5])
-	self.data=pack.encode(self.data)
-	print 1, self.data
+	print "init", datadb
 
     def dataReceived(self, data):
+	print "data received", data
         "As soon as any data is received, write it back."
+	data = pack.decode(data)
+	print "data decoded", data
 	op, vs, content = data
 	send = ""
 	if "GET" in op:	
-		range1, range2 = content
-		send = ["PUT", vs, self.data[range1:range2]]
-	else if "PUT" in op:
+		print "in GET"
 		range1, range2, data = content
-		self.data[range1:range2] = data
-		send = ["OK", vs, []]
-	else:
-		send = ["ERR", vs, []]
-        self.transport.write(send)
+		if range2 > len(datadb):
+			range2=len(data)-1
+		send = ["PUT", vs, datadb[range1:range2]]
+	if "PUT" in op:
+		print "in PUT"
+		range1, range2, data = content
+		datadb[range1:range2] = data
+		send = ["ACK", vs, []]
+		print "data now", datadb
+	if "ACK" in op:
+		self.transport.loseConnection()
 
+	if send != "" :
+		print "sending", send
+	        self.transport.write(pack.encode(send))
+ 
 class CustomClass:
 	def __eq__(self, other):
 	        return isinstance(other, CustomClass)
@@ -48,8 +56,10 @@ def dec_CustomClass(code, data):
 
 def main():
     """This runs the protocol on port 8000"""
+    for i in range(9):
+	datadb.extend([str(i)*5])
     factory = protocol.ServerFactory()
-    factory.protocol = Echo
+    factory.protocol = DB
     reactor.listenTCP(8000,factory)
     reactor.run()
 
