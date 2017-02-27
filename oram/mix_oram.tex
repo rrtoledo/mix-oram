@@ -299,7 +299,7 @@ $rec \gets [token, data]$;\\
 
 \vspace{-.4cm}
 
-To start the eviction method, the client sends to the mix-net \emph{Mix instructions} so that each mix can starts the randomization detailed in the \emph{Mix operations}. The client operations, including the modified access method, are detailed in the \emph{Client operations}.\\
+To start the eviction, the client sends \emph{Mix instructions} to the mix-net which  begins the randomization described in the \emph{Mix operations}. The decryption and access methods are detailed in the \emph{Client operations}.\\\\
 
 \noindent\textit{Mix instructions.}
 The client sends to each mix $M_i$ one element of a cyclic group of prime order satisfying the decisional Diffie-Hellman Assumption $\alpha_i$ to perform the permutations and to encrypt the records. Alongside this elements, are sent the list of mixes $(ports,\ ips)$ and the database access information $db$ consisting of the IP addresses and access token.
@@ -314,7 +314,6 @@ To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each 
 
 \noindent\textit{Mix operations.} In this simple scheme, as depicted in Algorithm~\ref{alg:CL}, the mix generate the encryption key and the permutation seed after receiving the instruction. $M_i$ receives a list of encrypted records from the mix $M_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the new encryption key $k_i'$, permutes them with the new seed $\sigma_{i}'$ and sends them to $mix_{i+1}$ (or the database if $i=m$).\\
 
-
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -323,57 +322,92 @@ $k_i,\ \sigma_{i}=hkdf(\alpha_{i}^{x_i})$;\\
 $index \gets list.index(mix_i)$;\\
 \If{$index==0$}
 {
-$data \gets fetch\_DB(db)$;\\
+$data \gets \text{fetch\_DB}(db)$;\\
 }
 \ForAll {$d \in data$}
 {
-	$token, data \gets d$;\\
-	$IV_0 \gets \text{hkdf}(token||k_i, \kappa)$;\\
-	$data \gets \text{encrypt\_cbc}\left(k,\ IV_0,\ data \right )$;\\
-	$IV_1 \gets \text{hkdf}(data || k_i, \kappa)$;\\
-	$token \gets \text{encrypt\_cbc}\left(k,\ IV_1,\ token \right )$;\\
-	$d \gets [token, data]$;\\
+	$d \gets \text{encrypt}\left(k_i,\ d,\ \kappa\right)$;\\
 }
 $data \gets \Pi_{\sigma_i}(data)$\\
 \If{$index !=m$}
 {
-$data \gets \text{send\_mix}(list[index+1], data)$;\\
+$data \gets \text{send\_mix}(list[index+1],\ data)$;\\
 }
 \Else
 {
 $data \gets \text{send\_DB}(db, data)$;\\
 }
-\caption{Layered Cascade mix operation for mix $mix_i$.}
+\caption{Layered Cascade mix operation}
 \label{alg:CL}
 \end{algorithm}
 
-\noindent\textit{Client Operations.} After starting the eviction, the client updates the record index with the new record indices. To find a record position in the database, the client just needs to look up at the current index in the record index.\\
+\noindent\textit{Client Operations.} To decrypt a record, the client uses the Layered Trial and Error Algorithm~\ref{alg:ldec} based on the Decryption Algorithm~\ref{alg:rdec}. The client first removes the client encryption, decrypt the record $r$ times with the shared secrets and decrypts it another time with its private key. If the label is the record index, the process stops, if not the data-block is re-encrypted and the process starts again.
 
-To decrypt a record, the client uses a trial error Algorithm~\ref{alg:ldec} based on a  decryption routine. The client first removes the client encryption, executes the routine $r$ times with the shared secrets and decrypts the data block another time with its private key. If it reads the right label, the process stops, if not the data-block is re-encrypted and it starts again.\\
-When retrieving a record, the client needs to decipher all encryption layers. As the number of encryption layers per record varies, a timing attack can occur letting the adversary guess when the record was last fetched. To prevent the attack, we modify the access method so that the decryption happens offline (c.f. Algorithm~\ref{alg:lacc}). After retrieving a record, the client now directly encrypts it with its own key and updates it in the cache stored locally. The local cache is then uploaded to the remote server.
-After doing so, if it is a write operation, the client overwrite the record with its new version. If it is a read operation, the client locally decrypts the previous encryption and remove the mix encryption layers. And finally, the client save locally an encrypted version of the record.\\ 
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Record and index $rec,\ index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Client private keys $prv$;\\ \qquad Permutation seeds $\sigma$;\\ \qquad Number of rounds $r$; \\ \qquad List of mixes $list= (ips,\ ports)$;}
+$j,e=0$;\\
+$r\gets \textbf{decrypt\_rtn}(prv_e,rec)$;\\
+\While{$rec.data.label != i$}
+{
+\If {$e!=0$}
+{
+$rec \gets \text{encrypt}(prv_{e+1},\ rec)$;\\
+}
+\ForAll{$k \in \llbracket 1 :r \rrbracket $}
+{
+	$m\gets \text{retrieve\_mix}(\sigma,\ e,\ j,\ index,\ list)$;\\
+	$rec \gets \text{decrypt}(k_{m,\ e,\ j}, rec\ \kappa)$;\\
+	$j\gets j-1$;\\
+}
+	$rec \gets \text{decrypt}(prv_e,\ rec, \kappa)$;\\
+    $e\gets e-1$;\\
+}
+\KwOut{rec}
+\caption{Layered Trial Error Algorithm}
+\label{alg:ldec}
+\end{algorithm}
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Record $rec$; \\ \qquad Decryption key $k$; }
+$token, data \gets rec$;\\
+$IV_1 \gets \text{hkdf}(data || k, \kappa)$;\\
+$token \gets \text{decrypt\_cbc}\left(k,\ IV_1,\ token \right )$;\\
+$IV_0 \gets \text{hkdf}(token || k, \kappa)$;\\
+$data \gets \text{decrypt\_cbc}\left(k,\ IV_0,\ data \right )$;\\
+$rec \gets [token,\ data]$\\
+\KwOut{rec}
+\caption{Layered Decryption Algorithm}
+\label{alg:ldecp}
+\end{algorithm}
+
+We moreover modify the Access method, described in algorithm~\ref{alg:lacc}, as follows. When accessing a record, the client now directly encrypts it with its own private key. It then updates it in the local cache before uploading the latter to the remote server.
+After doing so, the client overwrites the record with its new version if the operation is a write ; else, the client locally decrypts the record with the trial and error Algorithm (decrypt\_trial in the code). The client finally encrypts the record a last time with its private key and saves it locally to update it in the next eviction in the cache (update\_cache). \\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{ Local record index $index$; \\ \qquad Operation and data $op,\ towrite$; \\ \qquad Encryption and permutation keys $k,\ \sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
-$j \gets recover\_index(\sigma,\ index)$;\\
-$cache \gets \textbf{fetch\_cache()}$;\\
+$j \gets \text{recover\_index}(index)$;\\
+$cache \gets \text{fetch\_cache()}$;\\
 \ForAll {$rec \in cache$}
 {
-$cache[rec]\gets \textbf{decrypt}(k,\ r,\ \sigma,\ cache[rec])$;\\
+$cache[rec]\gets \text{decrypt}(k,\ r,\ \sigma,\ cache[rec])$;\\
 }
 \If{$record \in cache$}
 {
-$tofetch \gets choose\_dummy()$;\\
+$tofetch \gets \text{choose\_dummy}()$;\\
 }
 \Else
 {
-$tofetch \gets tofetch \{j\}$;\\
+$tofetch \gets \{j\}$;\\
 }
-$record \gets fetch\_record(tofetch, cache)$\\
-$update\_cache(recs \cup \textbf{encrypt}(record))$;\\
-$send\_cache()$;\\
+$record \gets \text{fetch\_record}(tofetch,\ cache)$\\
+$\text{update\_cache}(recs \cup \text{encrypt}(record))$;\\
+$\text{send\_cache}()$;\\
 
 \If {$op!=read$}
 {
@@ -381,58 +415,16 @@ $record \gets \{towrite\}$;\\
 }
 \Else
 {
-$record \gets \textbf{decrypt}(k,\ r,\ \sigma,\ record)$;\\
+$record \gets \text{decrypt\_trial}(k,\ r,\ \sigma,\ record)$;\\
 }
-$save\_in\_recs(\textbf{encrypt}(k,\ record))$;\\
+$\text{save}(recs,\ \text{encrypt}(k,\ record))$;\\
 \KwOut{record}
-\caption{Layered access method}
+\caption{Layered Access Method}
 \label{alg:lacc}
 \end{algorithm}
 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Record and index $record,\ index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Private key $prv$;\\ \qquad Number of rounds $r$; \\ \qquad Permutation seeds $\sigma$;}
-$j,e=0$;\\
-$r\gets \textbf{decrypt\_rtn}(prv_e,rec)$;\\
-\While{$rec.data.label != i$}
-{
-\If {$e!=0$}
-{
-$rec \gets encrypt(prv_{e+1},\ rec)$;\\
-}
-\ForAll{$k \in \llbracket 1 :r \rrbracket $}
-{
-	$m\gets retrieve\_mix(\sigma,\ e,\ j,\ index)$;\\
-	$rec \gets \textbf{decrypt\_rtn}(k_{m,\ e,\ j}, rec)$;\\
-	$j\gets j-1$;\\
-}
-	$rec \gets \textbf{decrypt\_rtn}(prv_e,\ rec)$;\\
-    $e\gets e-1$;\\
-}
-\KwOut{rec}
-\caption{Layered Decryption algorithm}
-\label{alg:ldec}
-\end{algorithm}
-
-The routine, written in Algorithm~\ref{alg:ldecp}, consists in decrypting the record in the opposite way of the encryption. The IV token is first decrypted thanks to an IV generated from the data and the decryption key. It is then used to generate another IV used this time to decrypt the data.
- 
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Record $rec$; \\ \qquad Decryption key $k$; }
-$IV1 \gets PRF(rec.data \cdot k, 128)$;\\
-$rec.token \gets dec\left(k,\ IV1,\ rec.token \right )$;\\
-$IV0 \gets PRF(rec.token\cdot k, 128)$;\\
-$rec.data \gets dec\left(k,\ IV0,\ rec.data \right )$;\\
-\KwOut{rec}
-\caption{Layered decryption routine}
-\label{alg:ldecp}
-\end{algorithm}
-
 \noindent\textit{Costs.}
-As the whole database is sent through the mix-net, the mix communication cost is $ \cdot m \cdot n \cdot b$. The client communication is $m \cdot (32+ m\cdot (ip +ports)+ token)$.
-The computation cost for the client is ..., and ... per mix  \todo{}.\\
+As the whole database is sent through the mix-net, the mix communication cost is $ (m+1) \cdot n \cdot b$, the mix permutation cost is $mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m n C_{cbc}$ with $C_{cbc}$ the cost of encrypting one data block. The client Lookup cost is of the order $O(1)$ thanks to the $n$ indices stored locally for a total of $n\log(n)$ bits. We will discuss of the Decryption cost in the Evaluation Section~\ref{Evaluation} as it depends on the average number of encryption layers, however $\kappa m$ bits are used to store locally the group elements given that we always blind the same $m$ elements.\\
 
 
 \begin{figure*}
