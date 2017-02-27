@@ -57,7 +57,7 @@
 
   \begin{abstract}
 {
-Oblivious RAM is a key technology for privately querying on untrusted storage but is commonly considered impractical due to its high cost. To ensure full privacy, the database has to be periodically randomized, i.e. re-encrypted and shuffled, by the client. The computation and communication costs the client incurs are super linear in the number of records, this deters the use of ORAM for most applications. We propose to lower costs to delegate the randomization process to semi-trusted third parties such that the clients do not incur this overhead. To do so, we present four different designs inspired by mix-net technologies and evaluate them. \todo{results}
+Oblivious RAM is a key technology for privately querying on untrusted storage but is commonly considered impractical due to its high eviction overhead. To ensure full privacy, the database has to be periodically randomized during the eviction, i.e. re-encrypted and shuffled by the client. The computation and communication costs the client incurs are super linear in the number of records, this deters the use of ORAM for most applications. We propose to lower costs to delegate the randomization process to semi-trusted third parties such that the clients do not incur this overhead. To do so, we present four different designs inspired by mix-net technologies and evaluate them. \todo{results}
 }
 \end{abstract}
   \keywords{Oblivious RAM, Mix-net, Private Queries}
@@ -104,8 +104,8 @@ Their advantages include the reduction of the client computation, the possibilit
  \item implementation
 \end{itemize}
 
-We present the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Related} and~\ref{Prelim}, we use random transposition shuffles them in ORAM and together with a mixnet and discuss various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation and compare the costs with several designs in Section~\ref{Evaluation}.
-We finally evaluate our schemes and discuss about the advantages and drawbacks of using mix-nets.
+We present the related work, the ORAM model, its associated threat model and explaining the different costs in Section~\ref{Related} and~\ref{Prelim}, we use random transposition shuffles them in ORAM and together with a mixnet and discuss various optimizations in Section~\ref{Mix-ORAM}. We then present our implementation, compare the costs and evaluate our designs in Section~\ref{Evaluation}.
+We finally discuss about the advantages and drawbacks of using mix-nets ... \todo{dicussion, evaluation}
 %
 
 \section{Related Work}\label{Related}
@@ -132,21 +132,21 @@ This work is inspired by the mix-net technology for its encryption and permutati
 %
 \subsection{Model}\label{Model}
 
-Oblivious RAM systems rely on two data arrays, one we call \emph{database} and comprises the user's encrypted records, and a temporary one we call \emph{cache}, e.g. the shelter in~\cite{goldreich87} of lesser size. The cache fits on the client and used to store the fetched records in order to hide the number of times they were accessed. \raphael{We also assume the client has access to an index making the matching between records' addresses and names, and envisage an additional ORAM memory to store information about the eviction process.}\\
+Oblivious RAM systems rely on two data arrays, one we call \emph{database} and comprises the user's encrypted records, and a temporary one we call \emph{cache}, e.g. the shelter in~\cite{goldreich87} of lesser size. The cache fits on the client and used to store the fetched records in order to hide the number of times they were accessed.\\
 
-\noindent\textbf{Access method:} To do a read or write operation, the client first \raphael{downloads} the cache and checks whether the desired record is present, if so a dummy record is fetched from the database else the desired record. Finally, the fetched element is encrypted and if it is a read operation else overwritten with the provided data for a write operation. The element is then stored locally in the cache before it is sent back to the remote server.\\
+\noindent\textbf{Access method:} To do a read or write operation, the client first check locally in the cache whether the desired record is present, if so a dummy record is fetched from the database else the desired record. Finally, the fetched element is encrypted if the operation is a read else overwritten with the provided data for a write operation. The element is then stored locally in the cache before it is sent back to the remote server.\\
 
-\noindent\textbf{Eviction method:} When the cache is full, the client needs to start the eviction process to empty it and rerandomize the database. To do so, the client first \textit{rebuilds} the database by merging the cache and the database obliviously and afterwards, starts the \textit{oblivious shuffle}.
+\noindent\textbf{Eviction method:} When the cache is full, the client starts the eviction process to empty it and rerandomize the database. To do so, the client first \textit{rebuilds} the database by merging the cache and the database obliviously and afterwards, starts the \textit{oblivious shuffle}.
 
-The \emph{rebuild phase} consists in placing obliviously records from the cache back to the ORAM database. The client begins by downloading the cache, then re-encrypts the records and discards any dummies contained within it. It next fetches all the records previously accessed from the database, and overwrites them one by one with their cached version or with a dummy before updating them back in the database. The cache is now empty.
+The \emph{rebuild phase} consists in placing obliviously records from the cache back to the ORAM database. The client re-encrypts locally the records of the cache and discards any dummies contained within it. It then performs write operations on all the records previously accessed, and overwrites them with their newest version in the cache. The cache is now empty.
 
-The client starts \emph{the oblivious shuffle} by selecting a set of mixes from the mix-net and sending to them randomization instructions containing the list of participating mixes and the seeds used for shuffling and encrypting. When receiving the records, the first mixes fetch their allocated records, encrypt, shuffle and forward them according to these instructions.\raphael{to detail}
+The client can finally starts \emph{the oblivious shuffle}, the subject of this paper. The client first selects a set of mixes which will randomize the database. It then creates and sends to them randomization instructions. This instructions contains the list of participating mixes, the database address, access tokens to fetch allocated records from it and group elements to compute the keys used for shuffling and encrypting. The mixes when receiving the instructions compute the encryption keys and permutation seeds, the first mixes fetch their allocated records from the database, randomize them (encrypt and shuffle with the keys and seeds) and forward them. The records are then randomized by all mixes until they are uploaded back to the database, with a new encryption and in a new order.
 
 \subsection{Security definitions and Threat model}\label{Threat}
 
-We presume here a motivated adversary trying to subvert a target user's privacy. We assume the target user protects its data with an ORAM system,compliant with the Privacy Definition~\ref{def:Oram} introduced by Stefanov et al.~\cite{stefanov2011towards}.
+We presume here a motivated adversary trying to subvert a target user's privacy. We assume the target user protects its data with an ORAM system, compliant with the Privacy Definition~\ref{def:Oram} introduced by Stefanov et al.~\cite{stefanov2011towards}.
 We futhermore assume that all communication between the client, ORAM server and mixes may be intercepted as in the \textit{global passive adversary} assumption.
-Finally, we suppose the adversaries have corrupted a number of machines to achieve their goal, unless said otherwise, the ORAM server and all but one mix are considered compromised. We will assume that the compromised machines behave in a \textit{honest but curious} way in that every operation is correctly performed but passively recorded and all secrets shared with the adversaries.
+Finally, we suppose the adversary has corrupted a number of machines to achieve their goal, unless said otherwise, the ORAM server and all but one mix are considered compromised. We will assume that the compromised machines behave in a \textit{honest but curious} way in that all operation are correctly performed but passively recorded and all secrets shared with the adversary.
 
 \begin{privdef}\label{def:Oram}
 Let's denote a sequence of $k$ queries $\text{seq}_k=\{(\text{op}_1, \text{ad}_1, \text{data}_1), \text{ ...},(\text{op}_k, \text{ad}_k, \text{data}_k)\}$, where $op$ denotes a read or write operation, $ad$ the address where to process the operation and $data$ the block to write if needs be else $\perp$.
@@ -154,45 +154,118 @@ We denote by $ORAM(seq_k)$ the resulting randomized data access from the ORAM pr
 The ORAM guarantees that $ORAM(seq_k)$ and $ORAM(seq'_{k'})$ are computationally indistinguishable if their lengths are equal ($k=k'$).
 \end{privdef}
 
-This work focuses on the ORAM eviction process and more precisely on the oblivious shuffle phase where sequences of data-blocks are shuffled and encrypted in order to hide the records indices after access information has leaked. This problem refers to the eviction of the shelter in the database in the Square Root solution~\cite{ostrovsky1990efficient} and to the eviction of upper partitions in a lower ones in the Hierarchical case~\cite{goldreich1996software}. We evaluate our designs with the following Security Game and consider the adversaries have won the game when discovering the ordering of the remote records.
+This work focuses on the ORAM eviction process and more precisely on the oblivious shuffle phase where sequences of data-blocks are shuffled and encrypted in order to hide the records indices after access information has leaked. This problem refers to the eviction of the shelter in the database in the Square Root solution~\cite{ostrovsky1990efficient} and to the eviction of upper partitions in a lower ones in the Hierarchical case~\cite{goldreich1996software}. We evaluate the security of our designs by looking at the oblivious shuffle information leakage and at the correctness of the cryptography.\\
 
-%
-\begin{secgme}
-An adversary gives to the user two ORAM query sequences $\text{seq}_k$ and $\text{seq}_k'$ of the same size. The user chooses randomly one of the two, executes it and start the eviction. At the end of the eviction the adversary picks which ORAM query sequence was chosen. The adversary wins if the right sequence is chosen with probability higher than $\Pr = \frac{1}{2}+\epsilon$, with $\epsilon\ll\frac{1}{2}$.
-\label{def:Game}
-\end{secgme} 
-%
-
-\noindent\textbf{Model.} We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about permutation and encryption. Let $\kappa$ be our security parameter, $\kappa$ represents the length of our encryption keys and seeds.\\
+\noindent\textbf{Model.} We consider here an ORAM remote server consisting of a database with memory of $n\ b$-bit long data blocks and a cache with memory of $s,\ s\ll n,\ b$-bit long data blocks. We furthermore consider a mix-net composed of $m$ mixes with memory of $n/m$ data blocks, and a client with memory of $s$ data blocks. The ORAM server, the mixes and the client additionally have a small memory of capacity $\mathcal{O}(m)$ to store extra information about the  permutation and encryption. Let $\kappa$ be our security parameter representing the length of our encryption keys and seeds.\\
 
 \noindent\textbf{Costs.} We are interested on one side in the costs incurred by the client for recovering a record index, for decrypting a record and the extra space needed, on the other side in the total costs incurred by the mixes encrypting the records, permuting them and the transferring them.
-Some operations can be preprocessed by the mixes while the records are being transferred, as the key and seeds generation and the record allocation, and as thus will not be the main focus. \george{} 
+Some operations can be preprocessed by the mixes while the records are being transferred, as the key and seeds generation and the record allocation, and as thus will not be the main focus.
 %
 \subsection{Cryptographic Primitives}
 
 \noindent\textbf{PRG \& Seeds.}
-ORAM systems use  pseudo random generators (PRG) and seeds to link remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A PRG is a deterministic algorithm that receives as an input a short random key and stretches it into a long pseudo random stream.\\\
+ORAM systems use pseudo random generators (PRG) and seeds to link remote and real indices. A distribution $\mathcal{D}$ over strings of length $l$ is said pseudo random if $\mathcal{D}$ is indistinguishable from the uniform distribution over strings of length $l$~\cite{katz2014introduction}. That means it is infeasible for any polynomial-time adversary to tell whether the string was sampled accordingly to $D$ or was chosen uniformly at random. A PRG is a deterministic algorithm that receives as an input a short random key and stretches it into a long pseudo random stream.\\\
 
 \noindent\textbf{Encryption.}
 ORAM designs heavily rely on encryption  to obfuscate the database records as the records must be re-encrypted during the eviction and access processes.
 The Advanced Encryption Standard (AES)~\cite{daemen2013design} has high speed and low RAM requirements: it has throughput over 700 MB/s per thread on recent CPUs such as the Intel Core i3~\cite{mcwilliams2014hardware} which makes it the ideal choice for ORAM.
-
 We also make use of elements of a elliptic curve group of prime order satisfying the decisional Diffie-Hellman assumption to compress the instructions sent to the mixes.
 %
 \section{Mix-ORAM}\label{Mix-ORAM}
-In this section, we first introduce two methods to randomize the records during the eviction. We then present simple Mix-ORAM schemes before parallelizing them with distributed shuffle algorithms to increase efficiency.
+In this section, we first introduce two methods to randomize the records during the eviction over a simple cascade mix-net. We then optimize the Mix-ORAM schemes by parallelizing the mix-net with distributed shuffle algorithms to increase efficiency.\\
 
-\todo{present here architecture (c.f figure)}
+
+The whole system is composed of the client, the database and the mix-net.
+The client first generate group elements and send them with other information to each mix. The first mix(es) fetch(es) the records, which will be randomized and transferred through the mix-net. 
+
+
+\begin{figure}[H]
+\begin{minipage}{0.475\textwidth}
+\begin{adjustbox}{width=\textwidth}
+\begin{tikzpicture}[auto, semithick, node distance= 6em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(X)				  {DB};
+\node[draw, rectangle, align=center, minimum height=1em,minimum width=2em]   		(A)[right of=X, yshift=1em]   {};
+\node[draw, rectangle, align=center, minimum height=1em,minimum width=2em]    		(B)[right of=A]    {};
+\node[draw, rectangle, align=center, minimum height=1em,minimum width=2em]    		(C)[right of=B]   {};
+\node[draw, cylinder, shape border rotate=90, minimum height=3em,minimum width=2em]    	(Y)[right of=C,yshift=-1em]	  {DB};
+\node[draw=none, rectangle, align=center]    		(0)[below of=B, yshift=1em]   {client};
+
+\path[->]
+([yshift=1em]X.east) edge     	node{}    	(A.west)
+(A.east) edge     	node{}    	(B.west)
+(B.east) edge     	node{}    	(C.west)
+(C.east) edge     	node{}    	([yshift=1em]Y.west)
+(0.north west) edge node{$\sigma_1$} ([yshift=-1em]A.south)
+(0.north) edge node{$\sigma_i$} ([yshift=-1em]B.south)
+(0.north east) edge node{$\sigma_m$} ([yshift=-1em]C.south);
+\end{tikzpicture}
+\end{adjustbox}
+\end{minipage}
+\centering
+\caption{Mix-ORAM overview.} \label{fig:rebuild}
+\end{figure} 
  
 %
-\subsection{Mix and User encryption methods}\label{Enc}
+\subsection{A simple Mix-ORAM}\label{ASMO}
 We present here two ways to delegate the eviction process to a semi-trusted mix-net. For each method, we show how the mix-net encrypts and permutes the records and how the client recovers a record plain text.
 We assume that all data has first been encrypted with the client private keys  before using ORAM. 
 
-\subsubsection{Layered method.}
-In the Layered method, we use the data structure shown in Table~\ref{ldata} composed of an IV token, and a label appended to the record, e.g. the record local indices. The underlying principle of the layered method is to let the number of encryption and permutation layers grow. The records are encrypted and permuted by the mixes during the eviction, and only decrypted by the client during the access. We moreover make use of the record index to store the current remote indices. % The index takes up $n\cdot log(n)$ bits, 50 MB can store more that $10^8$ indices. 
-Before sending the records to the ORAM database, the client first needs to encrypt and permute them. Each record is thus appended with its local index making together the data in the data structure and a random IV token. The records are then encrypted with the client secret key as stated in Algorithm~\ref{alg:lencp}, and permuted with a newly generated random seed stored locally. Finally the record index is updated with the new record indices. The encryption keys, permutation seeds and the record index may be uploaded to the extra space of the ORAM database.\\
+We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma_1}(DB)$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma_2}(DB)$.\\
 
+\subsubsection{Layered Cascade scheme.}
+In this scheme, we use the the layered encryption method over the cascade mix-net for the eviction of the database. The underlying principle of the layered method is to have the whole database go through mix-net once, each mix adding layers of encryption and permutation on top of the records as depicted in Figure~\ref{fig:ASMO_L}.
+
+\vspace{-.5cm}
+
+\begin{figure}[H]
+\begin{minipage}{0.475\textwidth}
+\begin{adjustbox}{width=\textwidth}
+\centering
+\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
+\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em]    	(0)				  {DB};
+\node[draw=none, fill=none]    		(Oa)[above of=0, align=center]   {$\sigma_{i=1..m}$};
+\node[draw=none, fill=none]    		(0b)[below of=0, yshift=2.5em, align=center]   {$k_{i=1..m}$};
+
+\node[draw, rectangle]   		(A)[right of=0, yshift=1em, label=below:{$k_1'$},label=above:{$\sigma_1'$}]   {\small $M_{1}$};
+
+\node[draw=none, fill=none]    		(X)[right of=A, xshift=-1em]   {\small $...$};
+
+\node[draw, rectangle]    		(B)[right of=X, xshift=-1em,label=below:{$k_j'$},label=above:{$\sigma_j'$}]   {\small $M_j$};
+
+\node[draw=none, fill=none]    		(Y)[right of=B, xshift=-1em]   {\small $...$};
+
+\node[draw, rectangle]    		(C)[right of=Y, xshift=-1em, label=below:{$k_m'$},label=above:{$\sigma_m'$}]   {\small $M_m$};
+
+\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em]    	(00)[right of=C, yshift=-1em]				  {DB};	
+\node[draw=none, fill=none]    		(0Oa)[above of=00, align=center]   {$\sigma_{i=1..m}'$\\$\sigma_{i=1..m}$};
+\node[draw=none, fill=none]    		(00b)[below of=00, yshift=2.5em, align=center]   {$k_{i=1..m}$\\$k_{i=1..m}' $};
+
+\path
+([yshift=1em]0.east) edge     	node[align=center]{}    	(A.west)
+(A.east) edge     	node{}    	(X.west)
+(X.east) edge     	node{}    	(B.west)
+(B.east) edge     	node{}    	(Y.west)
+(Y.east) edge     	node{}    	(C.west)
+(C.east) edge     	node[align=center]{}    	([yshift=1em]00.west)
+;
+
+\end{tikzpicture}
+\end{adjustbox}
+\centering
+\vspace{-0.25cm}
+\caption{Layered simple Mix-ORAM eviction.} \label{fig:ASMO_L}
+\end{minipage}
+\end{figure}
+
+\vspace{-.375cm}
+
+
+In this method, before sending the data to the ORAM server, the client prepares the records by appending to them extra information,and  encrypting and permuting them. The client first concatenates to the records a label, for instance the record indices, and append to them an IV token as shown in Table~\ref{ldata}. It then encrypts the label-records and the IV tokens separately as stated in Algorithm~\ref{alg:lencp},and permute them locally. The client finally uploads the data to the ORAM server and stores the $n$ remote indices safely.
+ 
+\vspace{-.25cm}
+ 
 \begin{table}[H]
 \begin{minipage}[t][][b]{.475\textwidth}
 \vspace{0pt}
@@ -207,21 +280,76 @@ $8\cdot\ceil{\log(n)/8}$ bit  &  $8\cdot\ceil{\log(n)/8}$bit &$b$ bit   \\
 \end{minipage}
 \end{table}
 
-During the eviction, the mixes encrypt both the IV token and the data separately as in Algorithm~\ref{alg:lencp}. They first generate an initialisation array from the IV token and use it to encrypt the data with keys derived from the secrets shared with the client. The first bits of the data are then used to generate another IV to encrypt with the IV token. Before sending the records to the next mixes, the data block needs to be permuted. To do so, the mixes derive from the shared secrets permutation seeds from which the new orders are generated, the data blocks are then sorted according to them.\\
+\vspace{-1.3cm}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{Record $rec$; \\ \qquad Encryption key $k$; }
-$IV_0 \gets PRF(rec.token\cdot k, 128)$;\\
-$rec.data \gets enc\left(k,\ IV_0,\ rec.data \right )$;\\
-$IV_1 \gets PRF(rec.data \cdot k, 128)$;\\
-$rec.token \gets enc\left(k,\ IV_1,\ rec.token \right )$;\\
+$token, data \gets rec$;\\
+$IV_0 \gets \text{hkdf}(token||k_i, \kappa)$;\\
+$data \gets \text{encrypt\_cbc}\left(k,\ IV_0,\ data \right )$;\\
+$IV_1 \gets \text{hkdf}(data || k_i, \kappa)$;\\
+$token \gets \text{encrypt\_cbc}\left(k,\ IV_1,\ token \right )$;\\
+$rec \gets [token, data]$;\\
 \KwOut{rec}
 \caption{Layered encryption primitive}
 \label{alg:lencp}
 \end{algorithm}
 
+\vspace{-.4cm}
+
+To start the eviction method, the client sends to the mix-net \emph{Mix instructions} so that each mix can starts the randomization detailed in the \emph{Mix operations}. The client operations, including the modified access method, are detailed in the \emph{Client operations}.\\
+
+\noindent\textit{Mix instructions.}
+The client sends to each mix $M_i$ one element of a cyclic group of prime order satisfying the decisional Diffie-Hellman Assumption $\alpha_i$ to perform the permutations and to encrypt the records. Alongside this elements, are sent the list of mixes $(ports,\ ips)$ and the database access information $db$ consisting of the IP addresses and access token.
+$$ C \rightarrow M_i\ :\ db,\ \alpha_{i},\ (ports,\ ips) $$
+
+Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption and $q$ the prime order of $\mathcal{G}$. We assume that each mix $M_i$ has a public key $y_i=g^{x_i}\in \mathcal{G}^*$ with $x_i \in_{\mathbb{R}} \mathbb{Z_q}$ its private key. We also assume that the list of $(mix_i, y_i)$ is distributed in a authenticated way thanks to a Public Key Infrastructure.
+To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $M_i$ the element $z_i$. The group elements and mixes' private keys are used to generate the shared secrets $ss$ from which are derived the encryption keys and permutation seeds as follows:
+\begin{align*}
+\alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=\text{hkdf}(ss_i)
+\end{align*}
+
+
+\noindent\textit{Mix operations.} In this simple scheme, as depicted in Algorithm~\ref{alg:CL}, the mix generate the encryption key and the permutation seed after receiving the instruction. $M_i$ receives a list of encrypted records from the mix $M_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the new encryption key $k_i'$, permutes them with the new seed $\sigma_{i}'$ and sends them to $mix_{i+1}$ (or the database if $i=m$).\\
+
+
+\begin{algorithm}
+\SetKwComment{Comment}{//}{}
+\DontPrintSemicolon
+\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data $data$;}
+$k_i,\ \sigma_{i}=hkdf(\alpha_{i}^{x_i})$;\\
+$index \gets list.index(mix_i)$;\\
+\If{$index==0$}
+{
+$data \gets fetch\_DB(db)$;\\
+}
+\ForAll {$d \in data$}
+{
+	$token, data \gets d$;\\
+	$IV_0 \gets \text{hkdf}(token||k_i, \kappa)$;\\
+	$data \gets \text{encrypt\_cbc}\left(k,\ IV_0,\ data \right )$;\\
+	$IV_1 \gets \text{hkdf}(data || k_i, \kappa)$;\\
+	$token \gets \text{encrypt\_cbc}\left(k,\ IV_1,\ token \right )$;\\
+	$d \gets [token, data]$;\\
+}
+$data \gets \Pi_{\sigma_i}(data)$\\
+\If{$index !=m$}
+{
+$data \gets \text{send\_mix}(list[index+1], data)$;\\
+}
+\Else
+{
+$data \gets \text{send\_DB}(db, data)$;\\
+}
+\caption{Layered Cascade mix operation for mix $mix_i$.}
+\label{alg:CL}
+\end{algorithm}
+
+\noindent\textit{Client Operations.} After starting the eviction, the client updates the record index with the new record indices. To find a record position in the database, the client just needs to look up at the current index in the record index.\\
+
+To decrypt a record, the client uses a trial error Algorithm~\ref{alg:ldec} based on a  decryption routine. The client first removes the client encryption, executes the routine $r$ times with the shared secrets and decrypts the data block another time with its private key. If it reads the right label, the process stops, if not the data-block is re-encrypted and it starts again.\\
 When retrieving a record, the client needs to decipher all encryption layers. As the number of encryption layers per record varies, a timing attack can occur letting the adversary guess when the record was last fetched. To prevent the attack, we modify the access method so that the decryption happens offline (c.f. Algorithm~\ref{alg:lacc}). After retrieving a record, the client now directly encrypts it with its own key and updates it in the cache stored locally. The local cache is then uploaded to the remote server.
 After doing so, if it is a write operation, the client overwrite the record with its new version. If it is a read operation, the client locally decrypts the previous encryption and remove the mix encryption layers. And finally, the client save locally an encrypted version of the record.\\ 
 
@@ -230,7 +358,7 @@ After doing so, if it is a write operation, the client overwrite the record with
 \DontPrintSemicolon
 \KwIn{ Local record index $index$; \\ \qquad Operation and data $op,\ towrite$; \\ \qquad Encryption and permutation keys $k,\ \sigma$;\\ \qquad Saved records $recs$;\\ \qquad Number of rounds r;}
 $j \gets recover\_index(\sigma,\ index)$;\\
-$cache \gets \textbf{fetch\_cache()$;\\
+$cache \gets \textbf{fetch\_cache()}$;\\
 \ForAll {$rec \in cache$}
 {
 $cache[rec]\gets \textbf{decrypt}(k,\ r,\ \sigma,\ cache[rec])$;\\
@@ -260,8 +388,6 @@ $save\_in\_recs(\textbf{encrypt}(k,\ record))$;\\
 \caption{Layered access method}
 \label{alg:lacc}
 \end{algorithm}
-
-To decrypt a record, the client uses a trial error Algorithm~\ref{alg:ldec} based on a  decryption routine. The client first removes the client encryption, executes the routine $r$ times with the shared secrets and decrypts the data block another time with its private key. If it reads the right label, the process stops, if not the data-block is re-encrypted and it starts again.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -303,6 +429,11 @@ $rec.data \gets dec\left(k,\ IV0,\ rec.data \right )$;\\
 \caption{Layered decryption routine}
 \label{alg:ldecp}
 \end{algorithm}
+
+\noindent\textit{Costs.}
+As the whole database is sent through the mix-net, the mix communication cost is $ \cdot m \cdot n \cdot b$. The client communication is $m \cdot (32+ m\cdot (ip +ports)+ token)$.
+The computation cost for the client is ..., and ... per mix  \todo{}.\\
+
 
 \begin{figure*}
 \begin{tikzpicture}[auto, semithick, node distance= 6em]
@@ -401,96 +532,6 @@ $rec \gets decrypt(rec, k_{i,0}, index )$;\\
 \label{alg:rdec}
 \end{algorithm}
 %
-\subsection{A simple Mix-ORAM}\label{SMO}
-%
-We consider here the mix-net in a classic cascade configuration and present two designs with either the use of the layered method or the rebuild method. We also want to remind that we consider the database to always be permuted according to a number of seeds, denoted $\Pi_{\sigma_1}(DB)$, the eviction goal being to obviously sort the database to a new state $\Pi_{\sigma_2}(DB)$.\\
-
-\noindent\textbf{Layered Cascade.} The whole database is sent through the mix-net where each mix adds a new permutation and encryption layer as shown in Fig~\ref{fig:ASMO_L}.
-Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and encrypted with the old keys $k_i$, we have $\Pi_{\sigma_1}\left (DB\right)=\Pi_{\sigma}\left (DB\right)$.
-After randomization, the database is encrypted with both $k_i$ and $k_i'$ and permuted with both seeds $\sigma_i$ and $\sigma_i'$, we thus have $\Pi_{\sigma_2}\left (DB\right)=\Pi_{\sigma'}\left(\Pi_{\sigma}\left(DB\right)\right)$.
-%
-\begin{figure}[H]
-\begin{minipage}{0.475\textwidth}
-\begin{adjustbox}{width=\textwidth}
-\centering
-\begin{tikzpicture}[->, auto, semithick,  node distance = 5em]
-\tikzstyle{every state}=[fill=white,draw=black,thick,text=black]
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{$k_{i=1..m} $},label=above:{\color{white}'\color{black}$\sigma_{i=1..m}$\color{white}'}]    	(0)				  {DB};
-	
-\node[draw, rectangle]   		(A)[right of=0, yshift=1em, label=below:{$k_1'$},label=above:{$\sigma_1'$}]   {\small $M_{1}$};
-
-\node[draw=none, fill=none]    		(X)[right of=A, xshift=-1em]   {\small $...$};
-
-\node[draw, rectangle]    		(B)[right of=X, xshift=-1em,label=below:{$k_j'$},label=above:{$\sigma_j'$}]   {\small $M_j$};
-
-
-\node[draw=none, fill=none]    		(Y)[right of=B, xshift=-1em]   {\small $...$};
-
-\node[draw, rectangle]    		(C)[right of=Y, xshift=-1em, label=below:{$k_m'$},label=above:{$\sigma_m'$}]   {\small $M_m$};
-
-\node[draw, cylinder, shape border rotate=90,minimum height=3em,minimum width=2em, label=below:{$k_{i=1..m},\ k_{i=1..m}' $},label=above:{$\sigma_{i=1..m},\ \sigma_{i=1..m}'$}]    	(00)[right of=C, yshift=-1em]				  {DB};	
-
-\path
-([yshift=1em]0.east) edge     	node[align=center]{}    	(A.west)
-(A.east) edge     	node{}    	(X.west)
-(X.east) edge     	node{}    	(B.west)
-(B.east) edge     	node{}    	(Y.west)
-(Y.east) edge     	node{}    	(C.west)
-(C.east) edge     	node[align=center]{}    	([yshift=1em]00.west)
-;
-
-\end{tikzpicture}
-\end{adjustbox}
-\centering
-\caption{Layered simple Mix-ORAM eviction.} \label{fig:ASMO_L}
-\end{minipage}
-\end{figure} 
-
-\noindent\textit{Mix instructions.}
-The client sends to every mix one element of a cyclic group of prime order satisfying the decisional Diffie-Hellman Assumption as in Sphinx~\cite{danezis2009sphinx} $\alpha$ to perform the permutations and to encrypt the records. Alongside this elements, are sent the signed list of mixes $(ports,\ ips)$ and the database access information $db$ consisting of the IP addresses and access token. The client thus send to each mix $mix_i$:
-$$ db,\ \alpha_{i},\ (ports,\ ips) $$
-
-Let $g$ be a generator of the prime-order cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption and $q$ the prime order of $\mathcal{G}$. We assume that each mix $mix_i$ has a public key $y_i=g^{x_i}\in \mathcal{G}^*$ with $x_i \in_{\mathbb{R}} \mathbb{Z_q}$ alongside the presence of a Public Key Infrastructure to distribute an authenticated list of all $(mix_i, y_i)$.
-To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each mix $mix_i$ the element $z_i$. The group element $\alpha$ and the shared secret $ss$ are generated and the encryption keys and permutation seeds are derived as follows:
-\begin{align*}
-\alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=hkdf(ss_i)
-\end{align*}
-
-\noindent\textit{Mix operations.} In this simple scheme, the mix $mix_i$ receives a list of encrypted records from the mix $mix_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the $k_i'$, permutes them with the seed $\sigma_{i}'$ and sends them to $mix_{i+1}$ (or the database if $i=m$).\\
-
-\begin{algorithm}
-\SetKwComment{Comment}{//}{}
-\DontPrintSemicolon
-\KwIn{Database info $db$;\\ \qquad Group elements $\alpha_i$;\\ \qquad List of mixes $list=(ips,\ ports)$;\\ \qquad Private key $x_i$; \\ \qquad Data $data$;}
-$k_i,\ \sigma_{i}=hkdf(\alpha_{i}^{x_i})$;\\
-$index \gets list.index(mix_i)$;\\
-\If{$index==0$}
-{
-$data \gets fetch\_DB(db)$;\\
-}
-\ForAll {$d \in data$}
-{
-	$d \gets encrypt\_cbc(k_i, d)$;\\
-}
-$data \gets \Pi_{\sigma_i}(data)$
-\If{$index !=m$}
-{
-$data \gets send\_mix(list[index+1], data)$;\\
-}
-\Else
-{
-$data \gets send\_DB(db, data)$;\\
-}
-\caption{Layered Cascade mix operation for mix $mix_i$.}
-\label{alg:CL}
-\end{algorithm}
-
-\noindent\textit{Client Operations.} After starting the eviction, the client updates the record index with the new record indices. To find a record position in the database, the client just needs to look up at the current index in the record index.\\
-
-\noindent\textit{Costs.}
-As the whole database is sent through the mix-net, the mix communication cost is $ \cdot m \cdot n \cdot b$. The client communication is $m \cdot (32+ m\cdot (ip +ports)+ token)$.
-The computation cost for the client is ..., and ... per mix  \todo{}.\\
-
 
 \noindent\textbf{Rebuild Cascade.} The design refreshes both permutation and AES-CTR encryption as shown in Fig~\ref{fig:ASMO_R}. Before the randomization starts, the database was permuted with the old seeds $\sigma_i$ and the records encrypted with the keys $k_i$ and their index as counter, we have $\sigma_1=\sigma$.
 After randomization, the database is permuted with the new seeds $\sigma_i'$ and encrypted with the new keys $k_i'$, we thus have $\sigma_1=\sigma'$.
