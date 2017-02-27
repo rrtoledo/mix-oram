@@ -81,8 +81,12 @@ class Mix():
 		self.epi = 0
 		self.end = 0
 
+
 		#Initializing the server
 		self.s_factory = ServerFact(self)
+
+	def run(self):
+		#Run the mix
 		reactor.listenTCP(self.port, self.s_factory)
 		reactor.run()
 
@@ -90,7 +94,8 @@ class Mix():
 		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
 
 	def compute_path(self):
-		#print "MIX: Compute Path"
+		print "MIX: Compute Path"
+		print  self.stt, self.dpi, self.ed, self.epi, self.end
 		ll = -1
 		with self.listlock:
 			ll=len(self.list)
@@ -119,7 +124,7 @@ class Mix():
 						else: # E/Pi phase
 							return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 		else:
-			#print "in Parallel"
+			print "in Parallel"
 			ips =[]
 			ports = []
 			names = []
@@ -128,7 +133,7 @@ class Mix():
 				ports.extend([self.list[i].port])
 				names.extend([self.list[i].name])
 			if self.layered: # Parallel Layered
-				#print "in Layered"
+				print "in Layered"
 				if self.round<self.rounds-1:
 					return ips, ports, names, 0
 				else:
@@ -139,14 +144,17 @@ class Mix():
 					print "in stt epi dpi", self.stt, self.epi, self.dpi
 					return ips, ports, names, 0
 				if self.ed: # E/D phase
+					print "in ed"
 					if self.round != self.rounds +ll:
 						idx = self.index+1
 						if idx==ll:
 							idx=0
 						return [self.list[idx].host],[self.list[idx].port], [self.list[idx].name], 0
 					else:
+						print "last round of ed"
 						return ips, ports, names, 0
 				if self.end:
+					print "in end"
 					return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 
 
@@ -193,7 +201,7 @@ class Mix():
 	def sort_global_in(self, data, order):
 		#Input: previous public seed, data arrays [[data from mix_1],...[from mix_m]], allocation (permute_global(seed, n, m, inverse)), inverse boolean
 		#Output: Data merged and sorted according to previous public seed [rec_{i*n/m},...rec_{(i+1)*n/m-1}]
-		#print "MIX: Sort global in", data, order
+		print "MIX: Sort global in", data, order
 		order = order[self.index]
 		#print order
 
@@ -229,18 +237,26 @@ class Mix():
 
 		received = [zipped[i][1] for i in range(len(zipped))]
 		#print "MIX: Sort global in",received
+
 		return received  
 
 	def sort_global_out(self, data, order):
 		#Input: previous public seed, data array [rec_{i*n/m},...rec_{(i+1)*n/m-1}], allocation (permute_global(seed, n, m, inverse))
 		#Output: Data merged and sorted according to previous public seed [[data from mix_1],...[from mix_m]]
-		#print "MIX: Sort global out", data, order
+		print "MIX: Sort global out", data, order
 		offset = self.index*(self.records/len(self.list))
 		rnge = (self.index+1)*(self.records/len(self.list))
+		#print self.index, offset, rnge
 		tosend= []
 		for i in range(len(self.list)):
 			tosend.extend([[]])
-			tosend[i].extend([data[order[i][j] - offset] for j in range(len(order[i])) if order[i][j] in range(offset, rnge)])
+			#print i, order[i]
+			for j in range(len(order[i])):
+				#print i,j,order[i][j], "in", range(offset,rnge), "?"
+				if order[i][j] in range(offset,rnge):
+					#print i,j,"true adding", data, order[i][j]-offset, data[order[i][j]-offset]
+					tosend[i].extend([data[order[i][j] - offset]])
+			#print "sending to",i,tosend[i]
 
 		#print "MIX: Sort global out",tosend
 		return tosend
@@ -358,6 +374,7 @@ class Mix():
 
 	def update_flags(self):
 		#Update Rebuild methods flags
+		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
 		ll=-1
 		with self.listlock:
 			ll=len(self.list)
@@ -393,7 +410,7 @@ class Mix():
 			self.epi=0
 			self.end=1
 		print "MIX: Update flag", self.round
-
+		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
 
 
 class ServerProto(Protocol):
@@ -433,11 +450,13 @@ class ServerProto(Protocol):
 			if turn not in mix.datas.keys():
 				print "first packet with turn=", turn, mix.datas
 				mix.datas[turn]=[0,[[],[],[]]]
-			mix.datas[turn][0]+=1
 
 		#Stop connection
 		if "ME" not in op:
 			self.transport.loseConnection()
+		else:
+			if turn in mix.datas.keys():
+				mix.datas[turn][0]+=1
 
 		if "STT" in op:
 			#START - receive instructions, initialize the seeds, keys, ivs
@@ -485,6 +504,14 @@ class ServerProto(Protocol):
 					mix.sharedspub[0]=mix.sharedspub[0][::-1]
 					mix.alloc[1]= mix.permute_global(mix.seedspub[0][0],mix.records,len(mix.list),1)# we prepare the first alloc
 
+			print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+			print mix.seedspub
+			for i in range(len(mix.seedspub[0])):
+				print  mix.permute_global(mix.seedspub[0][i],mix.records,len(mix.list),0), "",  mix.permute_global(mix.seedspub[0][i],mix.records,len(mix.list),1)
+			print ""
+			for i in range(len(mix.seedspub[1])):
+				print  mix.permute_global(mix.seedspub[1][i],mix.records,len(mix.list),0), "",  mix.permute_global(mix.seedspub[1][i],mix.records,len(mix.list),1)
+			print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 			if mix.index==0 or not mix.cascade:
 				range1=0
@@ -493,6 +520,7 @@ class ServerProto(Protocol):
 				if not mix.cascade:
 					range1=mix.index*mix.db[1]
 					range2=(mix.index+1)*mix.db[1]
+					print range2, mix.db[1]
 				c_factory = ClientFact(self, ["GET", vs, [range1, range2, ""]])
 				c_factory.protocol = ClientProto
 				reactor.callFromThread(reactor.connectTCP, mix.db[0].host, mix.db[0].port, c_factory,5)
@@ -501,7 +529,7 @@ class ServerProto(Protocol):
 		if "PUT" in op:
 			#PUT - data received from the database
 			print "in PUT"
-			mix.datas[0] = [0, content]
+			mix.datas[0] = [1, content]
 			mix.dbcheck = 1
 			print mix.datas
 			time.sleep(3)			
@@ -526,6 +554,7 @@ class ServerProto(Protocol):
 							idx=i
 						if mix.list[i].name == name: #needed in local
 							idx=i
+					mix.datas[turn][0]+=1
 					mix.datas[turn][1][idx]=cntt
 
 		#Check if data can be sent (look if enough packets were received depending on the mix-net and round)	
@@ -571,7 +600,7 @@ class ServerProto(Protocol):
 		print stt,dpi,ed,epi,end,rnd
 
 		#Sort received data thanks to allocation
-		if not mix.cascade and (epi or dpi or end): #if parallel and not start nor ed
+		if not mix.cascade and (epi or dpi or end or (ed and mix.round==mix.rounds)): #if parallel and not start nor ed
 			print "Sort in", mix.alloc[0], datas
 			datas = mix.sort_global_in(datas, mix.alloc[0])
 		else:
@@ -657,14 +686,14 @@ class ServerProto(Protocol):
 
 		#Sort data thanks to allocation
 		if not mix.cascade: #if parallel and not ed nor end
-			if mix.layered or (not mix.layered and (stt or dpi or epi )):
+			if mix.layered or (not mix.layered and (stt or dpi or epi or (ed and mix.round==mix.rounds+len(mix.list)))):
 				print "Sort out", datas, mix.alloc[1]
 				datas = mix.sort_global_out(datas, mix.alloc[1])
 
-		print "Sorting our before sending finished", datas
+		print "Sorting out before sending finished", datas
 
 		# Merge data array if needed
-		if not mix.cascade and (mix.end or mix.ed ):
+		if not mix.cascade and (mix.end or (mix.ed and mix.round!= mix.rounds+ len(mix.list))):
 			if rnd != mix.rounds+len(mix.list):
 				if type(datas[0])==list:
 					datas = [datas[i][j] for i in range(len(datas)) for j in range(len(datas[i]))]
@@ -677,14 +706,17 @@ class ServerProto(Protocol):
 
 		#update round and flags
 		mix.update_flags()
+		print mix.stt, mix.dpi, mix.ed, mix.epi, mix.end
 
 		#update record allocation
+		print "updating allocs", mix.alloc
 		if not mix.cascade and not mix.ed:
 			inverse = 0
 			if not mix.layered and mix.dpi:
 				print "parallel, dpi"
 				inverse=1
 				mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[0][mix.round],mix.records,len(mix.list),inverse)]
+				print mix.alloc, mix.round
 				#print "UPDATE OLD SEED", mix.round,"/",len(mix.seedspub[0])
 			else:
 				print "parallel not dpi",rnd
@@ -695,9 +727,14 @@ class ServerProto(Protocol):
 				#print "UPDATE NEW seed",rnd,"/",len(mix.seedspub[1])
 		if mix.epi and mix.round==mix.rounds + len(mix.list)+1: 
 			# if rnd=last round of ED (or first EPI round == mix.round), we prepare the alloc of the first round of E/Pi
+			print "last round of ed"
 			mix.alloc[0]= mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)
 			mix.alloc[1]= mix.permute_global(mix.seedspub[1][1],mix.records,len(mix.list), 0)
-
+		if mix.ed and mix.round == mix.rounds:
+			print "firs round ed"
+			mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)]
+		print "SP: updated allocs", mix.alloc
+			
 		if offset==0:
 			c_factories = []
 			for i in range(len(ips)):

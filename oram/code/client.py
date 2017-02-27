@@ -1,164 +1,104 @@
-from twisted.internet.protocol import Protocol, Factory, ClientFactory
-from twisted.internet.defer import Deferred
-from twisted.internet import reactor
+from __future__ import print_function
 from collections import namedtuple
-from petlib.bn import Bn
+from twisted.internet import reactor, protocol
+from twisted.internet.defer import Deferred
+from os import urandom
+from petlib import pack
+import sys
+import base64
+import math
+
 from petlib.ec import EcGroup
 from petlib.ec import EcPt
-import random, sys
-from hashlib import sha512, sha1
-Keys = namedtuple('Keys', ['b', 'iv', 'kmac', 'kenc', 'seed'])
-Actor = namedtuple('Act', ['name', 'port', 'host', 'pubk'])
-
-class Client():
-# Object creating a mix server (client + server) with shuffling and encrypting capabilities
-	data = ""
-	cascade = True
-
-	def __init__(self, name, port, ip, group, priv, pub, pubs, db_token):
-		print "Client: init"
-		self.name = name
-		self.group = group # G o g o.byte
-		self.priv = priv
-		self.pub = pub
-		self.pubs = [Actor(*pubs[i]) for i in range(len(pubs))] #mixes [[ips, ports & public keys]]
-		self.keys = [] #shared secrets with the mixes
-		self.db_token = db_token
+from petlib.bn import Bn
 
 
+Actor = namedtuple('Actor', ['name', 'host', 'port', 'pubk'])
+# a client protocol
 
-		if (self.cascade):
-			self.data = self.sendCascade()
-		else:
-			self.data = self.sendParallel()
+class Client(protocol.Protocol):
 
-		for i in range(len(self.data)):
-			print self.data[i]
+    def __init__(self):
+        print("CP: init")
 
+    def connectionMade(self):
+	print("CP: Connection Made",self.transport.getPeer())
+	self.factory.c_proto=self
+        self.transport.write(self.factory.data)
+    
+    def dataReceived(self, data):
+        print("Server said:", data, self.transport.getPeer())
+        self.transport.loseConnection()
+    
+    def connectionLost(self, reason):
+        print("connection lost")
 
-	def run(self):
-		for i in range(len(self.pubs)):
-			if "M" in self.pubs[i].name:
-				c_factory = ClientFact(self, self.data[i])
-				c_factory.protocol = ClientProto
-				reactor.connectTCP(self.pubs[i].host, self.pubs[i].port, c_factory)
-		reactor.run()
+class clientFactory(protocol.ClientFactory):
+    protocol = Client
 
-
-	def calculate_all(self, pub, rng, setup):
-		G, o, g, o_bytes = setup
-		Bs = [] # list of blinding factors
-		pubs = [] # list of public values shared between Alice and mix nodes
-		shared_secrets = [] # list of shared secret keys between Alice and each mixnode
-
-		rand_nonce = G.order().random()
-		init_pub = rand_nonce * self.pub
-		prod_bs = Bn(1)
+    def __init__(self):#, arch, enc, el1, el2, el3, el4, ports):
+	print("CF: init")
+	self.done = Deferred()
+	self.c_proto = None
 	
-		for i in range(rng):
-			xysec = (self.priv * rand_nonce * prod_bs) * pub
-			shared_secrets.append(xysec)
+	self.G = EcGroup(713)
+	self.o = self.G.order()
+	self.g = self.G.generator()
+	self.o_bytes = int(math.ceil(math.log(float(int(self.o))) / math.log(256)))
+	self.data = ["STT", int(urandom(2).encode('hex'),16), [ Actor("DB", "127.0.0.1", 8000, ""), 3]]
+#	if arch:
+#	    if enc:
+#		self.data[2].extend([["", Bn.from_binary(base64.b64decode(el2))]])
+#		
+#	    else:
+#		self.data[2].extend([[Bn.from_binary(base64.b64decode(el2)), Bn.from_binary(base64.b64decode(el2))]])
+#	else:
+#	    if enc:
+#		self.data[2].extend([["", Bn.from_binary(base64.b64decode(el2))],[["", Bn.from_binary(base64.b64decode(el4))]]])
+#	    else:
+#		self.data[2].extend([ [Bn.from_binary(base64.b64decode(el1)), Bn.from_binary(base64.b64decode(el2))], [Bn.from_binary(base64.b64decode(el3)), Bn.from_binary(base64.b64decode(el4))]])
 
-			# blinding factors
-			k = self.KDF(xysec.export())
-			b = Bn.from_binary(k.b) % o
-			Bs.append(b)
-			prod_bs = (b * prod_bs) % o
-			pubs.append(prod_bs * init_pub)
-		return pubs, shared_secrets
+#	actors=[]
+#	for i in range(len(ports)):
+#		    actors.extend([Actor("M"+str(i), "127.0.0.1", 8001+i, "")])
+#	self.data[2].extend([[actors]])
 
-	def get_record(self, index):
-		print ""
+#    def test(self):
 
-
-	def sendCascade(self):
-		print ""
-		add = []
-		meta = []
-		db = ""
-		for i in range(len(self.pubs)):
-			if "M" in self.pubs[i].name:
-				add.extend([[self.pubs[i].host,self.pubs[i].port]])
-			if "DB" in self.pubs[i].name:
-				db=self.pubs[i]
-		shared_pub, shared_sec = self.calculate_all(self.pubs[i].pubk[0] ,1, self.group)
-		oldkey=1
-		if len(self.keys)!=0:
-			oldkey=self.keys[0] #?
-		meta = [[db.host, db.port, self.db_token, oldkey, shared_pub[0], add]]
-		self.keys=shared_pub
-		return meta
+        #self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) # cascade layered
 
 
-	def sendParallel(self):
-		print ""
-		add = []
-		meta = []
-		db = ""
-		for i in range(len(self.pubs)):
-			if "M" in self.pubs[i].name:
-				add.extend([[self.pubs[i].host, self.pubs[i].port]])
-			if "DB" in self.pubs[i].name:
-				db=self.pubs[i]
-		for i in range(len(self.pubs)):
-			if "M" in self.pubs[i].name:
-				shared_pub, shared_sec = self.calculate_all(self.pubs[i].pubk[0],1, self.group)
-				oldkey=1
-				if len(self.keys)>i:
-					oldkey=self.keys[i] #?
-				temp = [[db.host, db.port, self.db_token, oldkey, shared_pub[0], add]]
-				meta.extend(temp)
-				print self.keys, len(self.keys),i 
-				if (len(self.keys)-i) !=0:
-					print len(self.keys)-i
-					self.keys[i]=shared_pub[0]
-				else:
-					self.keys.extend(shared_pub)
-		return meta
+        #self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #cascade rebuild
 
-	def KDF(self, element, idx="A"):
-		''' The key derivation function for b, iv, keys and seeds '''
-		keys = sha512(element + idx).digest()
-		return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64], keys[64:80])
 
-	
-class ClientProto(Protocol):
-	def __init__(self):
-		print "ClientP: init"
+	#self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], ["", Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], 9, 2, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #parallel layered
 
-	def connectionMade(self):
-		print "ClientP: Connection made"
-		self.transport.write(self.factory.data)
-
-	def dataReceived(self, data):
-        	print "ClientP: Receive:", data
-
-	def connectionLost(self, reason):
-        	print "ClientP: Connection lost", reason
-
-class ClientFact(ClientFactory):
-	protocol = ClientProto
-
-	def __init__(self, c, meta):
-		print "CF: init"
-		self.client = c
-		self.data =meta
-
-	def clientConnectionFailed(self, connector, reason):
-	        print 'CF: Connection failed:', reason.getErrorMessage()
-	        self.done.errback(reason)
-
-	def clientConnectionLost(self, connector, reason):
-	        print 'CF: Connection lost:', reason.getErrorMessage()
-	        self.done.callback(None)
+        self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 5], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g, Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g],15, 2,  [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #parallel rebuild
 
 
 
+    def clientConnectionFailed(self, connector, reason):
+        print("Connection failed - goodbye!")
+        reactor.stop()
+    
+    def clientConnectionLost(self, connector, reason):
+        print("Connection lost - goodbye!")
+        reactor.stop()
 
+
+# this connects the protocol to a server running on port 8000
+def main(port):#arch, enc, el1, el2, el3, el4, ports):
+    f1 = clientFactory()#arch, enc, el1, el2, el3, el4, ports)
+    #for i in range(len(ports)):
+    reactor.connectTCP("localhost", port, f1, 5, ('localhost', 9000))
+    reactor.run()
+   
+
+# this only runs if the module was *not* imported
 if __name__ == '__main__':
-	if len(sys.argv) <6:
-		print "ERROR: you have entered "+str(len(sys.argv))+" inputs."
-	else:
-        	client = Client(str(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], sys.argv[8], sys.argv[9], sys.argv[10])
-		# name port ip group priv pub pubs dbip dbport token
+    if len(sys.argv) <2:
+	print('ERROR')
+    else:
+	main(int(sys.argv[1]))#, int(sys.argv[2]),  str(sys.argv[3]),  str(sys.argv[4]),  str(sys.argv[4]),  str(sys.argv[6]),  str(sys.argv[7]))
+
 

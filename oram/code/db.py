@@ -1,27 +1,19 @@
-# Copyright (c) Twisted Matrix Laboratories.
+2# Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 import msgpack
 from petlib import pack
 import random, string
 from twisted.internet import reactor, protocol
 from os import urandom
-
+import sys
 datadb=[]
 
 class DB(protocol.Protocol):
     """This is just about the simplest possible protocol"""
     
-    def __init__(self, boolean):
+    def __init__(self):
 	print "init", datadb
-	for i in range(9):
-    	    if boolean:
-		datadb.extend([[urandom(16), str(i)*16]])
-	    else:
-		datadb.extend([str(i)*16])
-	factory = protocol.ServerFactory()
-	factory.protocol = DB
-	reactor.listenTCP(8000,factory)
-	reactor.run()
+	print datadb
 
     def dataReceived(self, data):
 	print "data received", data
@@ -39,7 +31,8 @@ class DB(protocol.Protocol):
 	if "PUT" in op:
 		print "in PUT"
 		range1, range2, data = content
-		datadb[range1:range2] = data
+		for i in range(range1, range2):
+			datadb[i] = data[i-range1]
 		send = ["ACK", vs, []]
 		print "data now", datadb
 	if "ACK" in op:
@@ -64,11 +57,20 @@ def dec_CustomClass(code, data):
 
 
 
-def main(boolean):
+def main():#boolean):
     """This runs the protocol on port 8000"""
-    db = DB(boolean)
+    for i in range(15):
+    	#    if boolean:
+	#	datadb.extend([[urandom(16), str(i)*16]])
+	#    else:
+	datadb.extend([str(i)*4])
+    factory = protocol.ServerFactory()
+    factory.protocol = DB
+    reactor.listenTCP(8000,factory)
+    reactor.run()
+    #db = DB()#boolean)
 
 # this only runs if the module was *not* imported
 if __name__ == '__main__':
-    main(int(sys.argv[1]))
+    main()#int(sys.argv[1]))
 
