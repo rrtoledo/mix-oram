@@ -4,14 +4,24 @@ import msgpack
 from petlib import pack
 import random, string
 from twisted.internet import reactor, protocol
+from os import urandom
 
 datadb=[]
 
 class DB(protocol.Protocol):
     """This is just about the simplest possible protocol"""
     
-    def __init__(self):
+    def __init__(self, boolean):
 	print "init", datadb
+	for i in range(9):
+    	    if boolean:
+		datadb.extend([[urandom(16), str(i)*16]])
+	    else:
+		datadb.extend([str(i)*16])
+	factory = protocol.ServerFactory()
+	factory.protocol = DB
+	reactor.listenTCP(8000,factory)
+	reactor.run()
 
     def dataReceived(self, data):
 	print "data received", data
@@ -54,16 +64,11 @@ def dec_CustomClass(code, data):
 
 
 
-def main():
+def main(boolean):
     """This runs the protocol on port 8000"""
-    for i in range(9):
-	datadb.extend([str(i)*5])
-    factory = protocol.ServerFactory()
-    factory.protocol = DB
-    reactor.listenTCP(8000,factory)
-    reactor.run()
+    db = DB(boolean)
 
 # this only runs if the module was *not* imported
 if __name__ == '__main__':
-    main()
+    main(int(sys.argv[1]))
 
