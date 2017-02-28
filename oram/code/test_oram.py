@@ -9,10 +9,13 @@ from petlib.ec import EcGroup
 from petlib.ec import EcPt
 from petlib.bn import Bn
 from os import urandom
+from collections import namedtuple
 
 import pytest
 
-def test_aes_enc_dec():
+Keys = namedtuple('Keys', ['b', 'iv', 'kenc', 'seed'])
+
+def test_ctr_enc_dec():
 
 	aes = Cipher("AES-128-CTR")
 	key = urandom(16)
@@ -28,6 +31,62 @@ def test_aes_enc_dec():
 	plaintext += dec.finalize()
 
 	assert ipt == plaintext
+
+def test_cbc_enc_dec():
+
+	aes = Cipher("AES-128-CBC")
+	key = urandom(16)
+	iv = urandom(16)
+	ipt = "Hello"
+
+	enc = aes.enc(key, iv)
+	ciphertext = enc.update(ipt)
+	ciphertext += enc.finalize()
+
+	dec = aes.dec(key, iv)
+	plaintext = dec.update(ciphertext)
+	plaintext += dec.finalize()
+
+	assert ipt == plaintext
+
+def KDF(self, element, idx="A"): #Key derivation function
+	#Input: Group element, padding
+	#Output: Key object composed of blind, IV, encryption key and permutation seed of 16 bytes each
+	keys = sha512(element + idx).digest()
+	return Keys(keys[:16], keys[16:32], keys[32:48], keys[48:64])
+
+def test_cbc_oram_enc_dec():
+
+	aes = Cipher("AES-128-CBC")
+	key = urandom(16)
+	iv = urandom(16)
+	ipt = [urandom(16), "Hello"]
+	
+	IV, data = ipt
+	IV0 = KDF(iv, IV).iv
+	enc = aes.enc(key, IV0)
+	data = enc.update(data)
+	data += enc.finalize()
+	IV1 = KDF(iv, data[0:16]).iv
+	enc = aes.enc(key, IV1)
+	IV = enc.update(IV)
+	IV += enc.finalize()
+	datablock = [IV, data]
+
+	IV, data = datablock
+	IV1 = KDF(iv, data[0:16]).iv
+	dec = aes.dec(key, IV1)
+	IV = dec.update(IV)
+	IV += dec.finalize()
+	IV0 = KDF(iv, IV).iv
+	dec = aes.dec(key, IV0)
+	data = dec.update(data)
+	data += dec.finalize()
+	datablock = [IV, data]
+
+
+	assert ipt == datablock
+
 
 
 def test_permutation():
