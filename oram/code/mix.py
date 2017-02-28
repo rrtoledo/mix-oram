@@ -518,7 +518,7 @@ class ServerProto(Protocol):
 			mix.datas[0] = [1, content]
 			mix.dbcheck = 1
 			print mix.datas
-			time.sleep(3)			
+			time.sleep(5)			
 
 		if "MIX" in op and not "ME" in op: 
 			#MIX = receive data from mixes except host
