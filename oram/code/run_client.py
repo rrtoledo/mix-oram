@@ -8,7 +8,6 @@ from client import clientFactory
 from twisted.protocols import basic
 from twisted.internet import stdio, reactor
 from twisted.application import service, internet
-
 import petlib.pack
 from binascii import hexlify
 import os.path
@@ -22,12 +21,12 @@ try:
 	#mix.readInData('example.db')
 	#print "Public key: " + hexlify(mix.pubk.export())
 	
-	ips=['localhost','localhost','localhost']
+	ips=['34.251.168.214','34.249.66.110','34.250.248.33']
 	ports = [8001, 8002, 8003]
 
 	client = clientFactory(ips, ports)
 
-	tcp_client = internet.TCPClient('localhost', 9000, client)	
+	tcp_client = internet.TCPClient('34.251.168.214', 8001, client)	
 	application = service.Application("Client")	
 	tcp_client.setServiceParent(application)
 
