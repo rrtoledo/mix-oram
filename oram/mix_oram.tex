@@ -423,7 +423,7 @@ $\text{save}(recs,\ \text{encrypt}(k,\ record))$;\\
 \end{algorithm}
 
 \noindent\textit{Costs.}
-As the whole database is sent through the mix-net, the mix communication cost is $ (m+1) \cdot n \cdot b$, the mix permutation cost is $mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m n C_{cbc}$ with $C_{cbc}$ the cost of encrypting one data block. The client Lookup cost is of the order $O(1)$ thanks to the $n$ indices stored locally for a total of $n\log(n)$ bits. We will discuss of the decryption cost in the Evaluation Section~\ref{Evaluation} as it depends on the average number of encryption layers, however $\kappa m$ bits are used to store locally the group elements given that we always blind the same $m$ elements.\\
+As the whole database is sent through the mix-net, the mix communication cost is $ (m+1) \cdot n \cdot b$, the mix permutation cost is $mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m n C_{cbc}$ with $C_{cbc}$ the cost of encrypting one data block. The client Lookup cost is of the order $O(1)$ thanks to the $n$ indices stored locally for a total of $n\log(n)$ bits. We will discuss of the decryption cost in the Evaluation Section~\ref{Evaluation} as it depends on the average number of encryption layers, however $2\kappa m$ bits are used to store locally the group elements given that we always blind the same $m$ elements.\\
 
 
 \begin{figure*}
@@ -537,7 +537,7 @@ $send\_mix(receiver, data)$;\\
 \label{alg:RCmix}
 \end{algorithm}
 
-\noindent\textit{Client operations.} To find a record index, the client uses the $rm$ last seeds as depicted in Algorithm~\ref{alg:CRIL} where the last computed index is the one sought, the other are stored to facilitate the record decryption.
+\noindent\textit{Client operations.} To find a record index, the client uses the last $m$ seeds to simulate the mix permutations as depicted in Algorithm~\ref{alg:CRIL} where the last record recovered is the sought one. The look up is furthermore used to compute and save intermediary indices to facilitate the record decryption. 
 
 When retrieving a record, as shown in Algorithm~\ref{alg:racc}, the client first computes the record's remote index using the permutation seeds. The client saves all intermediary and final indices and use them as counters to decrypt the record sequentially $r$ times as written in Algorithm~\ref{alg:rdec}. The client then decrypts the record with all the shared secrets and its own encryption key together with the original index as counter to reveal the plain-text. the client then updates the encryption of the record to read or write in the local cache, and uploads the latter back to the ORAM server.\\
 
@@ -613,103 +613,14 @@ $indices \gets \{,\}$;\\
 \end{algorithm}
 
 \noindent\textit{Costs.}
-As the whole database is sent through the mix-net three times, the mix communication cost is $ (3m) \cdot n \cdot b$, the mix permutation cost is $2mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m4 n C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m C_{\Pi}(n)$. The client decryption cost is $2mC_{ctr}$, and the group elements stored on the client represents $\kappa m$ bits.\\
+As the whole database is sent through the mix-net three times, the mix communication cost is $ (3m) \cdot n \cdot b$, the mix permutation cost is $2mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m4 n C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m C_{\Pi}(n)$. The client decryption cost is $2mC_{ctr}$, and the group elements stored on the client represents $2\kappa m$ bits.\\
 
-\noindent\textbf{Partial Conclusion.} These two designs are not efficient as only a mix work at a time. To increase the mix-net efficiency, we study in the following section parallelization to distributing the workload among mixes.
+These two designs are not efficient as they do no fully utilize the mixes capacity. To increase the mix-net efficiency, we study in the following section parallelization to distribute the workload among mixes while keeping the shuffle oblivious.
 % 
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
-In this section, we replace the cascade configuration of the mix-net with a parallel one and simulate random transposition shuffles (RTS) thanks to the use of private and public permutations as shown in Figure~\ref{fig:Par}. We also calculate the number of rounds needed to reach perfect security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
+In this section, we replace the cascade configuration of the mix-net with a stratified one and simulate random transposition shuffles (RTS) thanks to the use of private and public permutations as shown in Figure~\ref{fig:Par}. We also calculate the number of rounds needed to reach good security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
 
-During the eviction process, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $mix_i$ fetches the indices in $\llbracket i\cdot n/m : (i+1)n/m \llbracket$. The mixes, after receiving the records, permute them with private permutation seeds and finally send them to the mix-net according to public permutation seeds. At the end of the eviction, the mixes uploads the records back to the database on their assigned indices.
-
-\iffalse
-\begin{figure*}
-\centering
-\begin{minipage}[c]{0.475\textwidth}
-\begin{tikzpicture}[->,
-auto,
-semithick, 
-scale=0.5,
-block/.style={draw, fill=white, rectangle, font=\small}]
-
-\node[block, align=center]							(B)		{$\textbf{Mix}_k$ \\ $ S_{k,r}$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r}$};
-\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r}$};
-
-\node[block, align=center]							(B')[left of=B, xshift=-5em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r-1}$};
-\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r-1}$};
-\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r-1}$};
-
-
-\node[block, anchor = east, minimum height=12em]		(1)[right of=B, xshift = 3em]		{$\text{DB}$};
-
-
-\path[->, midway]
- (A')		edge node[above,yshift=4ex]		{$\sigma_{pub,r}$} 	(A.west)
- (A')		edge node		{} 					(B.west)
- (B')		edge node		{} 					(C.west)
- (B') 		edge node		{} 					(A.west)
- (C') 		edge node		{} 					(A.west)
- (C') 		edge node		{} 					(C.west)
-
- (A.east) edge node[sloped, above]	{} 	([yshift=-2ex]1.north west)
- (B.east) edge node[sloped, above]	{} 	(1)
- (C.east) edge node[sloped, above]	{} 	([yshift=2ex]1.south west);
- 
-\end{tikzpicture}
-\centering
-\caption*{Last rounds of wrapping} \label{fig:WAS}
-\end{minipage}
-\hfill
-\begin{minipage}[c]{0.475\textwidth}
-\begin{tikzpicture}[->,
-auto,
-thin, 
-scale=0.5,
-block/.style={draw, fill=white, rectangle, font=\small}]
-
-
-\node[block, anchor = west, minimum height=12em] 		(0)		{$\text{DB}$};
-
-\node[block, align=center]							(B)[right of=0, xshift=3em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r}^{-1}$};
-\node[draw=none, fill=none]    		(X)[above of=B, yshift=-1em]		[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y)[below of=B, yshift=1em]		[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A)[above of=B, yshift=1em]		{$\textbf{Mix}_1$ \\ $ \sigma_{1,r}^{-1}$};
-\node[block, anchor = south, align=center]			(C)[below of=B, yshift=-1em]		{$\textbf{Mix}_m$ \\ $ \sigma_{m,r}^{-1}$};
-
-\node[block, align=center]							(B')[right of=B, xshift=5em]		{$\textbf{Mix}_k$ \\ $ \sigma_{k,r-1}^{-1}$};
-\node[draw=none, fill=none]    		(X')[above of=B', yshift=-1em]	[rotate=-90]{...};
-\node[draw=none, fill=none]    		(Y')[below of=B', yshift=1em]	[rotate=-90]{...};
-\node[block, anchor= north, align=center]			(A')[above of=B', yshift=1em]	{$\textbf{Mix}_1$ \\ $ \sigma_{1,r-1}^{-1}$};
-\node[block, anchor = south, align=center]			(C')[below of=B', yshift=-1em]	{$\textbf{Mix}_m$ \\ $ \sigma_{m,r-1}^{-1}$};
-
-
-\path[->, midway]
- ([yshift=-2ex]0.north east) edge node[sloped, above]{} (A.west)
- (0) edge node[sloped, above]{} (B.west)
- ([yshift=2ex]0.south east) edge node[sloped, above]{} (C.west)
-
- (A.east) edge node[above,yshift=4ex]	{$\sigma_{pub,r}^{-1}$} 	(A')
- (A.east) edge node						{} 					(B')
- (A.east) edge node						{} 					(C')
- (B.east) edge node						{} 					(A')
- (C.east) edge node						{} 					(B')
- (C.east) edge node						{} 					(C');
- 
-\end{tikzpicture}
-\centering
-\caption*{First rounds of unwrapping} \label{fig:UAS}
-\end{minipage}
-\centering
-\caption{Wrapping and corresponding unwrapping.}\label{fig:Par}
-
-\end{figure*} 
-\fi
-
+During the eviction process, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $M_i$ fetches the records whose indices are comprised in $\llbracket i\cdot n/m : (i+1)n/m -1 \rrbracket$. The mixes, after receiving the records, permute them with private permutation seeds and encrypt them with the private encryption seeds. Finally the records are forwarded in the the mix-net according public record allocation computed from public permutation seeds. At the end of the eviction, the mixes upload the records back to the database on their assigned indices.
 
 \begin{figure*}
 \begin{tikzpicture}[auto,
@@ -1047,7 +958,7 @@ Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $2 m n C_{\Pi}(n)$ & $m \log\lef
 Mix Communication cost & $(m+1) \cdot C_{com}(n)$ & $r \cdot C_{com}(n)$ & $[m^2(2r+1)+2m] \cdot C_{com}\left(\frac{n}{m}\right)$ & $[2m^2r+2m] \cdot C_{com}\left(\frac{n}{m}\right)$\\
 Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
 Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
-Client Additional storage & $n\log(n)+ k m$ & $km$ &$n\log(n)+ k (m+1)$ & $k(m+1)$ \\
+Client Additional storage & $n\log(n)+ 2 \kappa m$ & $km$ &$n\log(n)+ 2 \kappa  (m+1)$ & $2 \kappa  (m+1)$ \\
 \bottomrule
 \end{tabular}
 \centering
