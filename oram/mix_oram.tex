@@ -1024,7 +1024,13 @@ Parallel Rebuild  	& 0 				& 0 				& 0 			\\
 \caption{Performance (s) of the designs \\ for the eviction of xxx records of yykbit.}
 \end{table}
 
-performance per enc, performance per design, performance with implementation
+performance per enc, performance per design, performance with implementation\todo{}
+
+\raphael{Ania example} We implement the Loopix system prototype in 4000 lines of Python 2.7 code for mix nodes, providers and clients, including unit-tests, deployment, and orchestration code. Loopix source code is available under an open-source license5. We use the Twisted 15.5.0 network library for networking; as well as the Sphinx mix packet format6 and the cryptographic tools from the petlib7 library. Thus, we implement Loopix as a multi-thread system, with cryptographic processing happening in a thread pool separated from the rest of the operationsinthemainthreadloop. 
+
+ExperimentalSetup. Wepresentanexperimentalperformance evaluation of the Loopix system running on the AWS EC2 platform. All mix nodes and providers run as separate instances. Mix nodes are deployed on m4.4xlarge instances running EC2 Linux on 2.3GHz machines with 64GB RAM memory. Wehighlightthateachclientruns as a separate process and uses a unique port for transporting packets. Thus, our performance measurements are obtained by simulating a running system with independent clients8. In order to measure the system performance, we run six mix nodes, arranged in a stratiﬁed topology with three layers, each layer composed of two mix nodes.. Allmeasurementsaretakefromnetwork trafﬁc dumps using tcpdump.
+Bandwidth. First, we evaluate the maximum bandwidth of mix nodes by measuring the rate at which a single mix node processes messages, for an increasing overall rate at which users send messages. 
+
 
 
 \section{Discussion}\label{Discussion}
