@@ -1,4 +1,5 @@
 from twisted.internet.protocol import Protocol, Factory, ClientFactory
+from twisted.application import service, internet
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from petlib.cipher import Cipher
@@ -81,35 +82,26 @@ class Mix():
 		self.epi = 0
 		self.end = 0
 
-
-		#Initializing the server
-		self.s_factory = ServerFact(self)
-
-	def run(self):
-		#Run the mix
-		reactor.listenTCP(self.port, self.s_factory)
-		reactor.run()
-
 	def split(self, tosplit, k):
 		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
 
 	def compute_path(self):
 		print "MIX: Compute Path"
-		print  self.stt, self.dpi, self.ed, self.epi, self.end
+		#print  self.stt, self.dpi, self.ed, self.epi, self.end
 		ll = -1
 		with self.listlock:
 			ll=len(self.list)
 		if self.cascade:
-			#print "in Cascade"
-			#print self.index, self.round
+			##print "in Cascade"
+			##print self.index, self.round
 			if self.layered: # Cascade Layered
-				print "in Layered"
+				#print "in Layered"
 				if self.index != ll-1:
 					return [self.list[self.index+1].host],[self.list[self.index+1].port], [self.list[self.index+1].name], 0
 				else:
 					return [self.db[0].host],[self.db[0].port], ["DB"], self.db[1]
 			else: # Cascade Rebuild
-				#print "in Rebuild"
+				##print "in Rebuild"
 				if self.dpi or self.stt: # D/Pi phase
 					if self.index != ll-1:
 						return [self.list[self.index+1].host],[self.list[self.index+1].port], [self.list[self.index+1].name], 0
@@ -124,7 +116,7 @@ class Mix():
 						else: # E/Pi phase
 							return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 		else:
-			print "in Parallel"
+			#print "in Parallel"
 			ips =[]
 			ports = []
 			names = []
@@ -133,28 +125,28 @@ class Mix():
 				ports.extend([self.list[i].port])
 				names.extend([self.list[i].name])
 			if self.layered: # Parallel Layered
-				print "in Layered"
+				#print "in Layered"
 				if self.round<self.rounds-1:
 					return ips, ports, names, 0
 				else:
 					return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 			else: # Parallel Rebuild
-				print "in Rebuild"
+				#print "in Rebuild"
 				if self.stt or self.epi or self.dpi: # Permutation phases
-					print "in stt epi dpi", self.stt, self.epi, self.dpi
+					#print "in stt epi dpi", self.stt, self.epi, self.dpi
 					return ips, ports, names, 0
 				if self.ed: # E/D phase
-					print "in ed"
+					#print "in ed"
 					if self.round != self.rounds +ll:
 						idx = self.index+1
 						if idx==ll:
 							idx=0
 						return [self.list[idx].host],[self.list[idx].port], [self.list[idx].name], 0
 					else:
-						print "last round of ed"
+						#print "last round of ed"
 						return ips, ports, names, 0
 				if self.end:
-					print "in end"
+					#print "in end"
 					return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 
 
@@ -195,7 +187,7 @@ class Mix():
 		#Remove all records but the mix's	
 		for i in range(len(tosend)):
 			tosend[i]= [tosend[i][j] for j in range(len(tosend[i]))]# if tosend[i][j] in range(self.index*n/m, (self.index+1)*n/m)]
-		#print "tosend filtered", tosend
+		##print "tosend filtered", tosend
 		return tosend 
 
 	def sort_global_in(self, data, order):
@@ -203,23 +195,23 @@ class Mix():
 		#Output: Data merged and sorted according to previous public seed [rec_{i*n/m},...rec_{(i+1)*n/m-1}]
 		print "MIX: Sort global in", data, order
 		order = order[self.index]
-		#print order
+		##print order
 
 		perm=[]
 		for i in range(len(order)):
 			perm.extend([[i,order[i]]])
-		#print perm
+		##print perm
 		perm.sort(key=lambda t:t[1])
 		
 		indices=[]
 		for i in range(len(self.list)):
 			indices.extend([[]])
 
-		#print order, self.records, len(self.list)
+		##print order, self.records, len(self.list)
 		for i in range(len(order)):
 			indices[order[i] / (self.records/len(self.list))].append(order[i])
 		indices = [j for i in indices for j in i]
-		#print indices
+		##print indices
 
 		if type(data[0])==list:
 			data=[data[i][j] for i in range(len(data)) for j in range(len(data[i]))]
@@ -227,16 +219,16 @@ class Mix():
 			data= [data[i] for i in range(len(data))]
 		
 		zipped = zip(indices, data)
-		#print zipped
+		##print zipped
 		zipped.sort(key= lambda t: t[0])
 		data=[zipped[i][1] for i in range(len(zipped))]
 		
 		zipped=zip(perm,data)
 		zipped.sort(key= lambda t: t[0][0])
-		#print zipped
+		##print zipped
 
 		received = [zipped[i][1] for i in range(len(zipped))]
-		#print "MIX: Sort global in",received
+		##print "MIX: Sort global in",received
 
 		return received  
 
@@ -246,19 +238,19 @@ class Mix():
 		print "MIX: Sort global out", data, order
 		offset = self.index*(self.records/len(self.list))
 		rnge = (self.index+1)*(self.records/len(self.list))
-		#print self.index, offset, rnge
+		##print self.index, offset, rnge
 		tosend= []
 		for i in range(len(self.list)):
 			tosend.extend([[]])
-			#print i, order[i]
+			##print i, order[i]
 			for j in range(len(order[i])):
-				#print i,j,order[i][j], "in", range(offset,rnge), "?"
+				##print i,j,order[i][j], "in", range(offset,rnge), "?"
 				if order[i][j] in range(offset,rnge):
-					#print i,j,"true adding", data, order[i][j]-offset, data[order[i][j]-offset]
+					##print i,j,"true adding", data, order[i][j]-offset, data[order[i][j]-offset]
 					tosend[i].extend([data[order[i][j] - offset]])
-			#print "sending to",i,tosend[i]
+			##print "sending to",i,tosend[i]
 
-		#print "MIX: Sort global out",tosend
+		##print "MIX: Sort global out",tosend
 		return tosend
 		
 	def split(self, tosplit, k):
@@ -302,7 +294,7 @@ class Mix():
 
 	def cascade_rebuild(self, seed, key, iv, inverse, data):
 		#Cascade Rebuild data processing function
-		print "MIX: Cascade Rebuild enc/perm"
+		#print "MIX: Cascade Rebuild enc/perm"
 		if not inverse and not self.ed:
 			data=self.permute(seed, data, inverse)
 
@@ -327,7 +319,7 @@ class Mix():
 	def parallel_rebuild(self, seed, key, iv, inverse, data):	
 		#Parallel Rebuild data processing function
 		if not inverse and not self.ed:
-			print "Par Rebuild enc/perm : permute", seed, data, inverse
+			#print "Par Rebuild enc/perm : permute", seed, data, inverse
 			data=self.permute(seed, data, inverse)
 
 		aes = Cipher("AES-128-CTR")
@@ -338,11 +330,12 @@ class Mix():
 		#	data[i] += enc.finalize()
 
 		if inverse and not self.ed:
-			print "Par Rebuild enc/perm : permute", seed, data, inverse
+			#print "Par Rebuild enc/perm : permute", seed, data, inverse
 			data=self.permute(seed, data, inverse)
 		return data
 
 	def computeFromSharedSecrets(self, element):
+		print "MIX: Compute from Shared Secrets"
 		shared_secrets = [] # list of shared secret keys between Client and each mixnode
 		Bs = [] # list of blinding factors
 		IVs=[] # list of elements for IVs
@@ -425,7 +418,7 @@ class ServerProto(Protocol):
 
 	def dataReceived(self, data):
 		#Function called when some data is received from the made connection
-		#print "SP: Data received", self.transport.getPeer()
+		#print "SP: Data received", self.transport.getPeer() #, data
 		reactor.callInThread(self.dataParser, data)		
 
 	def dataParser(self,data):
@@ -448,7 +441,7 @@ class ServerProto(Protocol):
 
 		if "MIX" in op:
 			if turn not in mix.datas.keys():
-				print "first packet with turn=", turn, mix.datas
+				#print "first packet with turn=", turn, mix.datas
 				mix.datas[turn]=[0,[[],[],[]]]
 
 		#Stop connection
@@ -460,7 +453,7 @@ class ServerProto(Protocol):
 
 		if "STT" in op:
 			#START - receive instructions, initialize the seeds, keys, ivs
-			#print "in STT"
+			print "in STT"
 			
 			mix.stt=1
 			mix.dpi=0
@@ -481,6 +474,7 @@ class ServerProto(Protocol):
 				mix.list[i]=Actor(mix.list[i][0],mix.list[i][1],mix.list[i][2],mix.list[i][3])
 				if mix.name in mix.list[i].name:
 					mix.index = i
+			print "my index", mix.index
 
 			if not mix.cascade:
 				a, b, mix.seedspub[1], mix.sharedspub[1]= mix.computeFromSharedSecrets(mix.elpub[1])
@@ -504,14 +498,6 @@ class ServerProto(Protocol):
 					mix.sharedspub[0]=mix.sharedspub[0][::-1]
 					mix.alloc[1]= mix.permute_global(mix.seedspub[0][0],mix.records,len(mix.list),1)# we prepare the first alloc
 
-			print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-			print mix.seedspub
-			for i in range(len(mix.seedspub[0])):
-				print  mix.permute_global(mix.seedspub[0][i],mix.records,len(mix.list),0), "",  mix.permute_global(mix.seedspub[0][i],mix.records,len(mix.list),1)
-			print ""
-			for i in range(len(mix.seedspub[1])):
-				print  mix.permute_global(mix.seedspub[1][i],mix.records,len(mix.list),0), "",  mix.permute_global(mix.seedspub[1][i],mix.records,len(mix.list),1)
-			print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 			if mix.index==0 or not mix.cascade:
 				range1=0
@@ -520,7 +506,7 @@ class ServerProto(Protocol):
 				if not mix.cascade:
 					range1=mix.index*mix.db[1]
 					range2=(mix.index+1)*mix.db[1]
-					print range2, mix.db[1]
+					#print range2, mix.db[1]
 				c_factory = ClientFact(self, ["GET", vs, [range1, range2, ""]])
 				c_factory.protocol = ClientProto
 				reactor.callFromThread(reactor.connectTCP, mix.db[0].host, mix.db[0].port, c_factory,5)
@@ -536,19 +522,19 @@ class ServerProto(Protocol):
 
 		if "MIX" in op and not "ME" in op: 
 			#MIX = receive data from mixes except host
-			#print "in MIX"
+			print "in MIX"
 
 			index = -1
 			with mix.datalock:
 				if mix.cascade:
-					#print "in cascade"
+					print "in cascade"
 					cntt, name =content
 					mix.datas[turn][1]=cntt
 				else:
-					#print "not cascade", 
+					print "not cascade", 
 					idx = -1
 					cntt, name = content
-					#Lookinf for sender identity to find location where to save the data
+					#Looking for sender identity to find location where to save the data
 					for i in range(len(mix.list)):
 						if mix.list[i].port == self.transport.getPeer().port and mix.list[i].host == self.transport.getPeer().host:
 							idx=i
@@ -572,13 +558,14 @@ class ServerProto(Protocol):
 					print idx,mix.datas[idx], mix.datas
 			
 		if "PUT" in op or ('MIX' in op and ( (mix.cascade) or ((not mix.cascade) and mix.round==idx and ( receive==len(mix.list) or ((mix.ed)  and ((mix.round==mix.rounds and receive==len(mix.list)) or (mix.round>mix.rounds)) )))) ):
-			#Data can be sent, Start computing
+			print "Data can be sent, Start computing"
+			print op, mix.cascade, mix.round, idx, mix.rounds, len(mix.list), mix.ed
 
 			#Erasing data to send from mix.datas
 			toprocess = []
 			with mix.datalock:
 				toprocess = mix.datas[min(mix.datas.keys())][1]
-				print "deleting ",min(mix.datas.keys()), mix.datas[min(mix.datas.keys())]
+				#print "deleting ",min(mix.datas.keys()), mix.datas[min(mix.datas.keys())]
 				del mix.datas[min(mix.datas.keys())]
 
 			#Calling process Data
@@ -597,7 +584,7 @@ class ServerProto(Protocol):
 		epi=mix.epi
 		end=mix.end
 		rnd=mix.round
-		print stt,dpi,ed,epi,end,rnd
+		#print stt,dpi,ed,epi,end,rnd
 
 		#Sort received data thanks to allocation
 		if not mix.cascade and (epi or dpi or end or (ed and mix.round==mix.rounds)): #if parallel and not start nor ed
@@ -609,7 +596,7 @@ class ServerProto(Protocol):
 					datas=[datas[i][j] for i in range(len(datas)) for j in range(len(datas[i]))]
 			else:
 				datas= [datas[i] for i in range(len(datas))]
-		print "After Sorting in when receiving finished", datas
+		#print "After Sorting in when receiving finished", datas
 		
 
 
@@ -658,7 +645,7 @@ class ServerProto(Protocol):
 			else:
 				print "Parallel Rebuild Permute"
 				if epi or ed or end:
-					print rnd-offset ,mix.seedsprv[1][rnd-offset]
+					#print rnd-offset ,mix.seedsprv[1][rnd-offset]
 					seed = mix.seedsprv[1][rnd-offset]
 					key = mix.keysprv[1][rnd-offset]
 					iv = mix.ivsprv[1][rnd-offset]
@@ -680,7 +667,7 @@ class ServerProto(Protocol):
 	def sendData(self, datas, vs, stt, dpi, ed, epi, end, rnd):
 		#Called by function computeData in thread
 		#Sort data and send it to mixes/db
-		print "SP: Send Data", datas
+		print "SP: Send Data"#, datas
 		
 		mix = self.factory.mix
 
@@ -717,21 +704,21 @@ class ServerProto(Protocol):
 				inverse=1
 				mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[0][mix.round],mix.records,len(mix.list),inverse)]
 				print mix.alloc, mix.round
-				#print "UPDATE OLD SEED", mix.round,"/",len(mix.seedspub[0])
+				##print "UPDATE OLD SEED", mix.round,"/",len(mix.seedspub[0])
 			else:
 				print "parallel not dpi",rnd
 				rndd = mix.round
 				if not mix.layered:
 					rndd = rndd - mix.rounds - len(mix.list)
 				mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[1][rndd],mix.records,len(mix.list),inverse)]
-				#print "UPDATE NEW seed",rnd,"/",len(mix.seedspub[1])
+				##print "UPDATE NEW seed",rnd,"/",len(mix.seedspub[1])
 		if mix.epi and mix.round==mix.rounds + len(mix.list)+1: 
 			# if rnd=last round of ED (or first EPI round == mix.round), we prepare the alloc of the first round of E/Pi
 			print "last round of ed"
 			mix.alloc[0]= mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)
 			mix.alloc[1]= mix.permute_global(mix.seedspub[1][1],mix.records,len(mix.list), 0)
 		if mix.ed and mix.round == mix.rounds:
-			print "firs round ed"
+			print "first round ed"
 			mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)]
 		print "SP: updated allocs", mix.alloc
 			
@@ -775,46 +762,60 @@ class ServerProto(Protocol):
 			c_factory.protocol = ClientProto
 			reactor.connectTCP(mix.db[0].host, mix.db[0].port, c_factory,5)
 
-		print "data sent to mixes/db", datas 
+		print "data sent to mixes/db"#, datas 
 
 	def connectionLost(self, reason):
-	        print "SP: Connection lost", reason
+	        #print "SP: Connection lost", reason
 		self.factory.s_protos.remove(self)
 
 
-class ServerFact(Factory):
+class MixServer(Factory):
 	protocol = ServerProto
 
-	def __init__(self, mix):
-		print "SF: init"
-		self.mix = mix
+	def __init__(self, name, ip, port, prvk, cascade=1, layered=1):
+		#print "SF: init"
+		self.port=port
+		self.mix = Mix(name, ip, port, prvk, cascade, layered)
 		self.s_protos = []
+		#self.run()
+
+
+	def run(self):
+		#Run the MixServer
+		#print "Run MixServer"
+		#tcp_server = internet.TCPServer(self.port, self.mix)	
+
+		#application = service.Application("Mixnode")
+		#tcp_server.setServiceParent(application)
+		reactor.listenTCP(self.port, self)
+		reactor.run()
+
 
 class ClientProto(Protocol):
 
 	def __init__(self):
-		print "CP: init"
+		#print "CP: init"
 		self.cdata =""
 
 	def connectionMade(self):
 		# Function called when connection made with DB
 		# Send GET packet previously made
-		print "--- CP: Connection made", self.factory.data, self.transport.getPeer()
+		print "--- CP: Connection made",  self.transport.getPeer() #self.factory.data,
 		self.factory.c_protos.append(self)
 		self.cdata=self.factory.data
 		self.transport.write(pack.encode(self.factory.data))
-		print "--- CP: Connection done", self.factory.data, self.transport.getPeer()
+		print "--- CP: Connection done", self.transport.getPeer() #self.factory.data, 
 
 	def dataReceived(self, data):
 		# Function called when data received from DB
 		# Forward data received to the Server
-        	print "CP: Receive:", data, self.transport.getPeer()
+        	print "CP: Receive:", self.transport.getPeer() #data, 
 		self.transport.loseConnection()
 		self.cdata =data
 		self.factory.s_proto.dataReceived(data)
 
 	def connectionLost(self, reason):
-        	print "CP: Connection lost", reason, self.cdata
+        	print "CP: Connection lost", reason#, self.data
 		self.factory.c_protos.remove(self)
 
 
@@ -822,25 +823,26 @@ class ClientFact(ClientFactory):
 	protocol = ClientProto
 
 	def __init__(self, s_proto, data):
-		print "CF: init",data
+		#print "CF: init",data
 		self.done = Deferred()
 		self.s_proto = s_proto
 		self.c_protos = []
 		self.data = data
 
 	def clientConnectionFailed(self, connector, reason):
-	        print 'CF: Connection failed:', reason.getErrorMessage()
+	        #print 'CF: Connection failed:', reason.getErrorMessage()
 	        self.done.errback(reason)
 
 	def clientConnectionLost(self, connector, reason):
-	        print 'CF: Connection lost:', reason.getErrorMessage()
+	        #print 'CF: Connection lost:', reason.getErrorMessage()
 	        self.done.callback(None)
 
 
 if __name__ == '__main__':
 	if len(sys.argv) <6:
-		print "ERROR: you have entered "+str(len(sys.argv))+" inputs."
+		#print "ERROR: you have entered "+str(len(sys.argv))+" inputs."
 		print "name ip port prvk cascade layered expected"
 	else:
-        	mix = Mix(str(sys.argv[1]), str(sys.argv[2]), int(sys.argv[3]), str(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]))
+        	mixnode = MixServer(str(sys.argv[1]), str(sys.argv[2]), int(sys.argv[3]), str(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]))
+		mixnode.run()
 		# name ip port prvk cascade layered
