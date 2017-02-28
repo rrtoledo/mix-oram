@@ -922,27 +922,31 @@ $indices \gets \{,\}$;\\
 
 \vspace{-1cm}
 
-\section{Security Proof}\label{Security}
+\section{Security Argument}\label{Security}
 
 We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
 
 We argue that the adversary can win the game in only two ways: decrypting all the records or finding out the records' position before the eviction. 
 
+\vspace{-.5cm}
+
 \subsection{In Search of the Lost Position.}
 
 \noindent\textbf{Cascade mix-net.}
-In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the honest mixes. \george{} \\
+In this architecture, the whole database is sent from a mix to another. To know the index of any block, the adversary needs to retrieve the group elements sent to the honest mixes.\\
 
 \noindent\textbf{Parallel mix-net.}
-In this design, chunks of the database are exchanged between mixes during $r=2m\log(n)$ rounds. The adversary can benefit of the fact that some records may never go to the uncompromised mixes (with probability $p=(1-1/m)^r << 1$) to win the game.\\
+In this design, chunks of the database are exchanged between mixes during $r=2m\log(n)$ rounds. The adversary can benefit of the fact that some records may never go to the uncompromised mixes (with probability $p=(e^{-r/m} << 1$).\\
 
-\noindent\textit{Rebuild method.}Goodrich in 2012~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. We derived from their theorem a more precise condition for all but one compomised mixes (see Appendix~\ref{proof:pmn}). In that case, we need the mix-net  to shuffle the records during $t=bm\log(n)$ rounds so that the expected sum of square error between the card assignment probabilities and the uniform distribution is at most $1/n^b$.
+\noindent\textit{Rebuild method.} Goodrich in 2012~\cite{goodrich2012anonymous}, proved the security of such scheme using the sum of squares metric. We derived from their theorem a more precise condition for all but one compomised mixes (see Appendix~\ref{proof:pmn}). In that case, we need the mix-net  to shuffle the records during $t=bm\log(n)$ rounds so that the expected sum of square error between the card assignment probabilities and the uniform distribution is at most $1/n^b$.
 
 The value we chose $r=2m\log(n)$, give us a closeness better than $1/n^2 = o(1/n)$, we can consider the scheme secure.\\
 
 \noindent\textit{Layered method.}
 In this scheme, we propose to maintain the randomness of the database after it was first shuffled by the client with evictions of $r=\frac{m}{2} \cdot log\left ( \frac{n}{s} \right )$ rounds (c.f. Theorem~\ref{sec:kOM}).
 We can reuse the previous proof with $w_i(t)$ being now the probability the $i^{th}$ record at the $t^{th}$ round was in the cache at first and $\Phi(t)=\Sigma w_i(t) - s/n$, we obtain $r>m\log(n/s)$.\george{}
+
+\vspace{-.5cm}
 
 \subsection{In Search of the Lost Key.}
  
