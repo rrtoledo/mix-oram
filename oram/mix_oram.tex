@@ -310,8 +310,7 @@ To generate the $\alpha$s, the client pick at random in $\mathbb{Z}_q$ for each 
 \alpha_i &= g^{z_i}\ ;\ ss_i = y_i^{z_i}\ ;\ k_i,\ \sigma_i=\text{hkdf}(ss_i)
 \end{align*}
 
-
-\noindent\textit{Mix operations.} In this simple scheme, as depicted in Algorithm~\ref{alg:CL}, the mix generate the encryption key and the permutation seed after receiving the instruction. $M_i$ receives a list of encrypted records from the mix $M_j$ (or fetch the database if $i=0$). The mix $mix_i$ encrypts the records with the new encryption key $k_i'$, permutes them with the new seed $\sigma_{i}'$ and sends them to $mix_{i+1}$ (or the database if $i=m$).\\
+\noindent\textit{Mix operations.} As depicted in Algorithm~\ref{alg:CL}, the mix $M_i$ first generates the encryption key and the permutation seed. $M_i$ then receives a list of encrypted records from the mix $M_j$ (or fetch the database if $i=0$), and encrypts the records with the new encryption key $k_i'$, permutes it with the new seed $\sigma_{i}'$ and sends it to $mix_{i+1}$ (or the database if $i=m$).\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -340,14 +339,16 @@ $data \gets \text{send\_DB}(db, data)$;\\
 \label{alg:CL}
 \end{algorithm}
 
-\noindent\textit{Client Operations.} To decrypt a record, the client uses the Layered Trial and Error Algorithm~\ref{alg:ldec} based on the Decryption Algorithm~\ref{alg:rdec}. The client first removes the client encryption, decrypt the record $r$ times with the shared secrets and decrypts it another time with its private key. If the label is the record index, the process stops, if not the data-block is re-encrypted and the process starts again.
+\noindent\textit{Client Operations.} The client can find the record index locally as it was stored before the eviction. To decrypt a record, the client uses the Layered Trial and Error Algorithm~\ref{alg:ldec} based on the Decryption Algorithm~\ref{alg:rdec}. The client first removes the client encryption, decrypt the record $r$ times with the shared secrets and decrypts it another time with its private key. If the label is the record index, the process stops, if not the data-block is re-encrypted and the process starts again.
+
+\vspace{-.5cm}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
 \KwIn{Record and index $rec,\ index$;  \\ \qquad Shared encryption keys $k_{mix,eviction,round}$;\\ \qquad Client private keys $prv$;\\ \qquad Permutation seeds $\sigma$;\\ \qquad Number of rounds $r$; \\ \qquad List of mixes $list= (ips,\ ports)$;}
 $j,e=0$;\\
-$r\gets \textbf{decrypt\_rtn}(prv_e,rec)$;\\
+$r\gets \text{decrypt}(prv_e,rec)$;\\
 \While{$rec.data.label != i$}
 {
 \If {$e!=0$}
@@ -368,6 +369,8 @@ $rec \gets \text{encrypt}(prv_{e+1},\ rec)$;\\
 \label{alg:ldec}
 \end{algorithm}
 
+\vspace{-1.25cm}
+
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
 \DontPrintSemicolon
@@ -383,7 +386,9 @@ $rec \gets [token,\ data]$\\
 \label{alg:ldecp}
 \end{algorithm}
 
-We moreover modify the Access method, described in algorithm~\ref{alg:lacc}, as follows. When accessing a record, the client now directly encrypts it with its own private key. It then updates it in the local cache before uploading the latter to the remote server.
+\vspace{-.5cm}
+
+We moreover modify the Access method, described in Algorithm~\ref{alg:lacc}, as follows. When accessing a record, the client now directly encrypts it with its own private key. It then updates it in the local cache before uploading the latter to the remote server.
 After doing so, the client overwrites the record with its new version if the operation is a write ; else, the client locally decrypts the record with the trial and error Algorithm (decrypt\_trial in the code). The client finally encrypts the record a last time with its private key and saves it locally to update it in the next eviction in the cache (update\_cache). \\
 
 \begin{algorithm}
@@ -533,7 +538,7 @@ $receiver \gets list[index-1]$;\\
 }
 $send\_mix(receiver, data)$;\\
 }
-\caption{Rebuild Cascade mix operation for $mix_i$.}
+\caption{Rebuild Cascade mix operation}
 \label{alg:RCmix}
 \end{algorithm}
 
@@ -613,14 +618,16 @@ $indices \gets \{,\}$;\\
 \end{algorithm}
 
 \noindent\textit{Costs.}
-As the whole database is sent through the mix-net three times, the mix communication cost is $ (3m) \cdot n \cdot b$, the mix permutation cost is $2mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $m4 n C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m C_{\Pi}(n)$. The client decryption cost is $2mC_{ctr}$, and the group elements stored on the client represents $2\kappa m$ bits.\\
+As the whole database is sent through the mix-net three times, the mix communication cost is $ (3m) \cdot n \cdot b$, the mix permutation cost is $2mn C_{\Pi}(n)$ with $C_{\Pi}(n)$ the cost of permuting $n$ elements and the encryption cost $4 m n C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m C_{\Pi}(n)$. The client decryption cost is $2mC_{ctr}$, and the group elements stored on the client represents $2\kappa m$ bits.\\
 
 These two designs are not efficient as they do no fully utilize the mixes capacity. To increase the mix-net efficiency, we study in the following section parallelization to distribute the workload among mixes while keeping the shuffle oblivious.
 % 
 \subsection{Parallelizing the Eviction process.}\label{Parallel}
 In this section, we replace the cascade configuration of the mix-net with a stratified one and simulate random transposition shuffles (RTS) thanks to the use of private and public permutations as shown in Figure~\ref{fig:Par}. We also calculate the number of rounds needed to reach good security by presenting firstly the mixing time of $k$-RTS before introducing ORAM assumptions to reduce the expected time to achieve randomness.
 
+\iffalse
 During the eviction process, we assign chunks of the database to each mix: when the eviction starts, each mix fetches its assigned chunk, for instance $M_i$ fetches the records whose indices are comprised in $\llbracket i\cdot n/m : (i+1)n/m -1 \rrbracket$. The mixes, after receiving the records, permute them with private permutation seeds and encrypt them with the private encryption seeds. Finally the records are forwarded in the the mix-net according public record allocation computed from public permutation seeds. At the end of the eviction, the mixes upload the records back to the database on their assigned indices.
+\fi
 
 \begin{figure*}
 \begin{tikzpicture}[auto,
@@ -765,37 +772,40 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \subsubsection{$k$-Random Transposition Shuffle.}\label{kRTS}
 % Def of RTS. RTS can be broken down in independant rounds which is nice for amortization. RTS can be made oblivious by making the permutations locally. The mixing time for RTS is high, we look at oblivious k-RTS.
 Random Transposition Shuffles (RTS) are widely used models in the study of card shuffling. It consists in a player picking randomly a couple of cards from a same deck, permuting them according to a coin toss and putting them back at the same location.
-These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.\\
-We can already see why RTS are natural candidates for amortized ORAMs : if they can be broke down in independent rounds which can be spread over several entities and time, so can a randomization process based on them. Furthermore, having the client (player) permuting the data blocks (cards) locally is enough to make RTS oblivious to the eyes of an adversary.
-Diaconis in 1986~\cite{aldous1986shuffling} has proved that the RTS mixing time of a deck of $n$ cards is of the order  $O\left(n\log(n)\right)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and transposes locally $k$ distinct cards to make the scheme more efficient. We stress the difference between doing successively $k/2$ transpositions and what we call $k$-RTS: in the first case, an element can be transposed several times in a row which leads to a different probability distribution. The result we present affirms that  $k$-RTS converges to the uniform distribution more rapidly than repeating normal RTS.  
+These steps, usually called a round, are then repeated until the deck of cards has been properly shuffled, i.e. until every card arranging is possible.
+
+RTS are natural candidates for amortized ORAMs : the rounds are independent and can be run by different entities over time. 
+Diaconis et al. in 1986~\cite{aldous1986shuffling} have proved that the RTS mixing time of a deck of $n$ cards is of the order  $O\left(n\log n \right)$. We thus first look at oblivious $k$-RTS, an RTS where the client picks and transposes locally $k$ distinct cards to make the scheme more efficient. We stress the difference between doing successively $k/2$ transpositions and what we call $k$-RTS: in the first case, an element can be transposed several times in a row of $k/2$ transpositions while in $k$-RTS it is transposed at most once. The result we present affirms that  $k$-RTS converges to the uniform distribution more rapidly than repeating normal RTS.  
 
 \begin{secthm}
 \textbf{Mixing time of $k$-RTS.} A $k$-random permutation shuffle of a $n$ card game reaches the uniform distribution in $\tau$ rounds, such that
-$$E(\tau) < \frac{2}{k}\cdot\frac{n^2}{n+1}\cdot \left ( \log(n) + \mathcal{O}(1) \right ) $$
+$$E(\tau) < \frac{2 n}{k}\cdot \log(n)$$
 \begin{proof}
 See Appendix~\ref{proof:kRTS}.
 \end{proof}
 \end{secthm}
 
-This theorem gives an upper bound of the number of rounds for $k/2$ disjoint transpositions. However, we use in practice PRG keys which make a permutation of the $k$ elements. This permutation can be decomposed as a sequence of transpositions which may not be disjoint or of size $k$. Hence when using PRG seeds, we converge even faster to the uniform distribution. We thus consider that in practice an oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(\frac{n}{k}\cdot \log(n)\right)$.
+This theorem gives an upper bound of the number of rounds for $k/2$ disjoint transpositions. However, we use in practice PRG keys which do not guarantee that $k$ transpositions are done. The permutation done with the PRG can be decomposed as a sequence of transpositions which may not be disjoint or of size $k$. Hence when using PRG seeds, we converge even faster to the uniform distribution. We thus consider that in practice an oblivious $k$-RTS implies computation and communication cost of the order of $\mathcal{O} \left(\frac{n}{k}\cdot \log(n)\right)$.\\
 
-When different parties, the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve by another factor $m$ the eviction computation time. However, as some mixes can have been compromised by the adversary we ask each mix to perform $2 m\log n$ rounds to guarantee privacy.
+To simulate the $k$-RTS over the stratified mix-net we allocate to each mix a range of indices, for instance the mix $M_i$ fetches the records whose indices are comprised in $\llbracket i\cdot n/m : (i+1)n/m -1 \rrbracket$. To simulate a $k$ \emph{Random} Transposition Shuffle over the stratified mix-net, each mix fetch their allocated record and permute them privately. However, another permutation has to be done on all the indices so that the mixes upload the records to the database with the random ones. 
+
+When the $m$ mixes in our case, perform in parallel the $k$-RTS, we can improve in theory by another factor $m$ the eviction computation time. To guarantee privacy however, in the case that all but one mix are compromised, we need the honest mix to perform $r=2 m\log n$ rounds hence each mix performs $r$ rounds.
 %
 \subsubsection{Oblivious Merge}\label{OM}
 Before the eviction algorithm is run, the database can be divided in two sets of records depending on whether or not they were retrieved by the user. As such, the database can be represented as a simple binary array of $n$ bits out of which $s$ are 1s, the accessed ones, and $n-s$ are 0s, the others.
-We argue that in this representation, elements of the same sets are indistinguishable to the adversary thanks to prior encryptions and permutations and thus, less rounds are necessary to obliviously shuffle the database from this state. Indeed, this assumption significantly reduces the number of possible orders in the adversarial view, there are  ${n \choose s}$ orders instead of $n!$ (using the Bars and Stripes theorem).
+We argue that in this representation, elements of the same sets are indistinguishable to the adversary thanks to prior encryptions and permutations and thus, fewer rounds are necessary to obliviously shuffle the database from this state. Indeed, this assumption significantly reduces the number of possible orders in the adversarial view, there are  ${n \choose s}$ orders instead of $n!$ (using the Stars and Bars theorem~\ref{feller1950probability}).
 
-We now consider the RTS process in that scenario and suppose the records (the bits) are re-encrypted before being permuting such that the merge of the two sets is oblivious to the adversary.
+We now consider the RTS process in that scenario and assume the records (the bits) are re-encrypted before being permuted such that the merge of the two sets is oblivious to the adversary.
 
 \begin{secthm}
 An oblivious merge (OM) of 2 indistinguishable sets of respective size $n$ and $s$ elements requires $\tau$ rounds of 2-RTS such that any arranging is possible, with
 $$\tau(\epsilon) \leq \frac{n}{2}  \cdot \log \left (\frac{n}{s}\right)$$%&\\
 \begin{proof}
-See Appendix~\ref{proof:OM}.\george{}
+See Appendix~\ref{proof:OM}.
 \end{proof}
 \end{secthm}
 
-As we could see that $k$-RTS decreased the mixing time by at least a factor $k$, and does so independently of the items to shuffle, we make the following conjecture.
+The $k$-RTS decreased the mixing time by at least a factor $k$, and does so independently of the items to shuffle, we make the following conjecture.
 
 \begin{seccjt}\label{sec:kOM}
 A $k$-oblivious Merge ($k$-OM) of 2 indistinguishable sets of $n$ and $s$ element requires $\tau$ rounds such that any order is equally possible, with
@@ -808,6 +818,7 @@ We now consider the mix-net as a collection of mixes communicating to each other
 
 The mixes have each been allocated a chunk of the database ($mix_{idx}$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seed to compute which record to send to each mix as written in Algorithm~\ref{alg:PRA}.
 
+\vspace{-.25cm}
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -825,17 +836,20 @@ $mixes \gets []$;\\
 \label{alg:PRA}
 \end{algorithm}
 
-\noindent\textbf{Layered method.} In this design, chunks of the database are attributed to each mix which keep encrypting and permuting the records. Before the eviction, the database is permuted with the old seeds $\sigma_i$ and encrypted with the old encryption keys $k_i$. Afterwards, the records are encrypted with both $k_i$ and $k_i'$, permuted with both $\sigma_i$ and $\sigma_i'$, and the indices are saved in the record index. 
-As no permutation layer is removed, the record indistinguishability assumption holds, the eviction can then consist of $r= m/2 \ \log(n/s)$ rounds. \\
+\vspace{-1.25cm}
+
+\subsubsection{Parallel Layered scheme.}
+In this design, chunks of the database are assigned to each mix which keep encrypting and permuting the records. Before the eviction, the database is permuted with the old seeds $\sigma_i$ and encrypted with the old encryption keys $k_i$. Afterwards, the records are encrypted with both $k_i$ and $k_i'$, permuted with both $\sigma_i$ and $\sigma_i'$, and the indices are saved in the record index. 
+As no permutation layer is ever removed, the record indistinguishability assumption holds, the eviction can then consist of $r= m/2 \ \log(n/s)$ rounds. \\
 
 \noindent\textit{Mix Instructions.}
-The client need to send to each mix the session keys to access the database $(id,\ token)$, the total number of records $n$, the elements used to compute the encryption keys and permutation seeds $(\alpha_i, \alpha_{pub, i})$, the number of rounds $r$, and the ordered $list=(ports,\ ips)$ of the mixes participating in the eviction. The client thus send :
-$$db,\ \alpha_i,\ \alpha_{pub, i},\ n,\ r,\ list$$
+The client need to send to each mix the session keys to access the database $(id,\ token)$, the total number of records $n$, the elements used to compute the encryption keys and permutation seeds $(\alpha_i, \beta_i)$, the number of rounds $r$, and the ordered $list=(ports,\ ips)$ of the mixes participating in the eviction. The client thus send :
+$$C \rightarrow M_i\ :\ db,\ \alpha_i,\ \beta_{i},\ n,\ r,\ list$$
 
-As for the previous schemes, we have $g$ a generator of the prime-order $q$ cyclic group $\mathcal{G}$ satisfying the Diffie-Hillman Assumption. We assume that each mix $mix_i$ has a private key $x_i$ and a public key $y_i$, and the client the private and public key $x_c,\ y_c$ ; all public keys being distributed thanks to a PKI in a authenticated manner.
-We also assume the mixes have exchanged with the client private random elements $m_i \in_{\mathbb{R}} \mathbb{Z_q}$. 
-The client sends to the mix $mix_{i\in 1..m}$ $\alpha_i$ generated with a random element of $\mathbb{Z}_q$, $\beta_i$ computed from the $m_i$ to compute the shared secrets $ss_i,\ sk$ and the encryption keys $k_i$ and the permutation seeds $\sigma$ as follows :
- 
+The encryption keys $k_i$ and the permutation seeds $\sigma$ are generated as follows :
+
+\vspace{-.5cm}
+
 \begin{align*}
 \alpha_{i,0} &= g^{z_i}, &ss_{i,0 }&= y_{i,0}^{z_i}, &k_{i,0},\ \sigma_{i,0}&=hkdf(ss_{i,0})\\
 \beta_{i, 0} &= g^{\Pi_{j\neq i}m_j}, &sk_0 &= \beta_{i,0}^{m_i}, &\sigma_{pub, 0}&=hkdf( sk_0)
@@ -844,22 +858,28 @@ The client sends to the mix $mix_{i\in 1..m}$ $\alpha_i$ generated with a random
 We furthermore refresh the permutation seeds and encryption keys at each round thanks to blinding the group elements. Let $h_b : \mathcal{G}^* \rightarrow \mathbb{Z}_{q}^*$ the hash function we use for computing blinding factors, we can then compute the $\alpha$ and $\beta$ for the round $j+1$ as follows:
 \begin{align*}
 b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b_{i,k}}\\
-b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
+b_{pub,j+1}&=h_b(sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
+
+\vspace{-.5cm}
 
 \noindent\textit{Mix operations.} In this scheme the mix $mix_i$ receive a list of encrypted record from all mixes (or the database). It first merges the record lists and  sorts them to the natural order thanks to the public seed. It then encrypts each record and permute them according to the private key and seed. It finally computes the record allocation arrays (c.f. Algorithm~\ref{alg:PRA}) before sending the records accordingly to them.\\
 
-\noindent\textit{Client operations.} To find a record position in the database, the client simply needs to look at the current index in the record index.\\
+\noindent\textit{Client operations.} The client can find the record index locally as it was stored before the eviction. To decrypt a record, the client uses the same Layered Trial and Error algorithm, depicted in Algorithm~\ref{alg:ldec}, with the new number of rounds and a different function to retrieve the list of mixes storing the record during the different rounds.
+The access method is the same as described in Algorithm~\ref{alg:lacc}. \\
 
-\noindent\textit{Costs.} The communication costs are ... and the computation costs ... .\\
+\noindent\textit{Costs.} The mix communication cost is $ (r+2) \cdot n \cdot b$, the mix permutation cost is $m \log(n/s) \cdot C_{\Pi}(n/m)$ with $C_{\Pi}(n/m)$ the cost of permuting $n/m$ elements and the encryption cost $m/2 \log(n)\cdot  C_{cbc}$ with $C_{cbc}$ the cost of encrypting one data block. The client Lookup cost is of the order $O(1)$ as the indices, i.e. $n\log n$ bit, are stored locally. The client decryption cost will be talked in the evaluation (Section~\ref{Evaluation}), and the group elements stored on the client represents $2\kappa m$ bits.
 
-\noindent\textbf{Rebuild method.}
-When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.\\
-At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and old key.\\
+\vspace{-.5cm}
+
+\subsubsection{Parallel Rebuild method.}
+When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.
+
+At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and the old key.\\
 
 \noindent\textit{Mix Instructions.}
 The client sends the same instructions as in the Parallel Layered design but with double the amount of group elements $\alpha$, the old and the new ones. The message format is then : 
-$$db,\  \alpha_i,\ \alpha_i',\ \alpha_{pub},\ \alpha_{pub}',\ n,\ r,\ list$$
+$$C \rightarrow M_i\ :\ db,\  \alpha_i,\ \alpha_i',\ \beta,\ \beta',\ n,\ r,\ list$$
 
 To derive the permutation seeds $\sigma$ and encryption keys $k$, we make use of the random private elements $z,i$ and $m_i$, the public and private keys $y$ and $x$.
 \begin{align*}
@@ -875,7 +895,7 @@ b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{
 
 \noindent\textit{Mix Operations.} During the first $r$ rounds, the records are first sorted, then  unwrapped (permuted and decrypted with the old keys and seeds) and sent to the mix-net according to the public record allocation. Then the groups of $n/m$ records are encrypted and decrypted in $m$ parallel cascades. Finally, the records are sorted, wrapped (encrypted and permuted with the new ones) and sent to the mix-net according to the public allocation during the last $r$ rounds.\\
 
-\noindent\textit{Client Operations.} To recover a record remote position, the client derive from the $m+1$ alphas the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.\\
+\noindent\textit{Client Operations.} To access and decrypt a record, the client uses the same algorithms as in the Cascade Rebuild scheme but decrypt for $m$ more rounds.  To recover a record remote position, the client derive from the $m+1$ group elements the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.\\
 
 \begin{algorithm}
 \SetKwComment{Comment}{//}{}
@@ -898,13 +918,13 @@ $indices \gets \{,\}$;\\
 \label{alg:PIL}
 \end{algorithm}
 
-\noindent\textit{Costs.} The communication costs are ... and the computation costs ... .\\
+\noindent\textit{Costs.} The mix communication cost is $ (2m+r+2) \cdot n \cdot b$, the mix permutation cost is $8m \log n \cdot C_{\Pi}(n/m)$ with $C_{\Pi}(n/m)$ the cost of permuting $n/m$ elements and the encryption cost $n (4 \log n +2) \cdot C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m (C_{\Pi}(n)+C_{\Pi}(n/m))$. The client decryption cost is $(r+m) C_{ctr}$, and the group elements stored on the client represents $2\kappa (m+1)$ bits.\\
+
+\vspace{-1cm}
 
 \section{Security Proof}\label{Security}
 
 We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
-
-As stated before, the security game consists in the adversary giving to the client two query sequences to process before triggering the eviction. To win the game the adversary must after the eviction choose with probability higher than $1/2 +\epsilon$ which sequence was processed.
 
 We argue that the adversary can win the game in only two ways: decrypting all the records or finding out the records' position before the eviction. 
 
@@ -955,7 +975,7 @@ With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
 \#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
 Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
 Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $2 m n C_{\Pi}(n)$ & $m \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $8m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
-Mix Communication cost & $(m+1) \cdot C_{com}(n)$ & $r \cdot C_{com}(n)$ & $[m^2(2r+1)+2m] \cdot C_{com}\left(\frac{n}{m}\right)$ & $[2m^2r+2m] \cdot C_{com}\left(\frac{n}{m}\right)$\\
+Mix Communication cost & $(m+1) \cdot C_{com}(n)$ & $r \cdot C_{com}(n)$ & $m(r+2) \cdot C_{com}\left(\frac{n}{m}\right)$ & $m(2r+m+2) \cdot C_{com}\left(\frac{n}{m}\right)$\\
 Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
 Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
 Client Additional storage & $n\log(n)+ 2 \kappa m$ & $km$ &$n\log(n)+ 2 \kappa  (m+1)$ & $2 \kappa  (m+1)$ \\
