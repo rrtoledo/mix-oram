@@ -1,0 +1,41 @@
+import os
+import sys
+current_path = os.getcwd()
+print "Current Path: %s" % current_path
+sys.path += [current_path]
+
+from client import Client
+from twisted.protocols import basic
+from twisted.internet import stdio, reactor
+from twisted.application import service, internet
+
+import petlib.pack
+from binascii import hexlify
+import os.path
+
+try:
+	#data = file("publicMixnode.bin", "rb").read()
+	#_, name, port, host, _ = petlib.pack.decode(data)
+
+	# Create the mix
+	client = Client()
+	#mix.readInData('example.db')
+	#print "Public key: " + hexlify(mix.pubk.export())
+	
+	ips=['localhost']
+	ports = [8001]
+
+	for i in range(len(ips)):
+		tcp_client = internet.TCPlient(ips[i], ports[i], client)	
+
+	# Create a cmd line controller
+	# stdio.StandardIO(MixnodeEcho(mix))
+
+	application = service.Application("Client")
+	tcp_server.setServiceParent(application)
+	
+except Exception, e:
+	print str(e)
+
+
+
