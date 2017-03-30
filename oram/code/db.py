@@ -1,5 +1,6 @@
-2# Copyright (c) Twisted Matrix Laboratories.
+# Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
+from __future__ import division
 import msgpack
 from petlib import pack
 import random, string
@@ -9,6 +10,8 @@ from twisted.application import service, internet
 from os import urandom
 import sys
 import threading 
+from math import ceil, log, floor
+
 
 class DBProto(protocol.Protocol):
     """This is just about the simplest possible protocol"""
@@ -60,17 +63,25 @@ class DBProto(protocol.Protocol):
 class DBServer(Factory):
 	protocol = DBProto
 
-	def __init__(self,  port, layered=1):
+	def __init__(self,  port, layered, n, size, m):
 		print "DBF: init"
 		self.port=port
 		self.data=[]
 		self.datalock= threading.Lock()
+		nn = int(ceil(n/m)*m)
 		with self.datalock:
-			for i in range(9):
-				if layered:
-					self.data.extend([[urandom(16), str(i)*16]])
+			for i in range(nn):
+				temp=""
+				if i==0:
+					temp=str(0)*size
 				else:
-					self.data.extend([str(i)*4])
+					power = int(floor(log(nn)))
+					temp=str(0)*(size-power)+str(i)
+				if layered:
+					self.data.extend([[urandom(16), temp]])#urandom(size)]])
+				else:
+					self.data.extend([temp])#[urandom(size)])
+		print "data ready", len(self.data)#, self.data
 
 	def run(self):
 		reactor.listenTCP(port, self)
@@ -87,12 +98,12 @@ class DBServer(Factory):
 		reactor.listenTCP(self.port, self)
 		reactor.run()
 
-def main(port, layered):#boolean):
+def main(port, layered, n, size, m):#boolean):
 	"""This runs the protocol"""
-	db = DBServer(port, layered)
+	db = DBServer(port, layered, n, size, m)
 	db.run()  
 
 # this only runs if the module was *not* imported
 if __name__ == '__main__':
-    main(int(sys.argv[1]), int(sys.argv[2]))
+    main(int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
 

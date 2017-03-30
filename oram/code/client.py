@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, division
 from collections import namedtuple
 from twisted.internet import reactor, protocol
 from twisted.internet.defer import Deferred
@@ -37,13 +37,15 @@ class Client(protocol.Protocol):
 class clientFactory(protocol.ClientFactory):
 	protocol = Client
 
-	def __init__(self,ip,port):#, arch, enc, el1, el2, el3, el4, ports):
+	def __init__(self,ip, port, n,m):#, arch, enc, el1, el2, el3, el4, ports):
 		print("CF: init")
 		self.done = Deferred()
 		self.c_proto = None
 		
-		self.ips=ip # ['34.251.168.214','34.249.66.110','34.250.248.33']
-		self.ports = port#[8001,8002,8003]
+		self.ip = ip # ['34.251.168.214','34.249.66.110','34.250.248.33']
+		self.port = port#[8001,8002,8003]
+		self.n=n
+		self.m=m
 	
 		self.G = EcGroup(713)
 		self.o = self.G.order()
@@ -77,37 +79,40 @@ class clientFactory(protocol.ClientFactory):
 
 	#self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], ["", Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], 9, 2, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #parallel layered
 
-		self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "34.251.189.234", 8000, ""), 3], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g, Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], 9, 2,  [Actor("M1", "34.251.168.214",8001, ""), Actor("M2", "34.249.66.110",8002, ""), Actor("M3", "34.250.248.33", 8003, "")]] ]) #parallel rebuild '34.251.168.214','34.249.55.110','34.250.248.33'
+		nn = int(math.ceil(self.n/self.m)*self.m)
 
+		self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "localhost", 8000, ""), int(nn/self.m)], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g, Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], nn, int(math.ceil(2*self.m*math.log(nn))),  [Actor("M1", "localhost",8001, ""), Actor("M2", "localhost",8002, ""), Actor("M3", "localhost", 8003, "")]] ]) #parallel rebuild '34.251.168.214','34.249.55.110','34.250.248.33'
+
+		print(nn/self.m, self.m, nn, int(math.ceil(2*self.m*math.log(nn))), math.log(nn))
+		
 		#self.run()
 
 
 	def clientConnectionFailed(self, connector, reason):
-		print("Connection failed - goodbye!")
+		print("Connection failed - goodbye!", reason)
   
 	def clientConnectionLost(self, connector, reason):
-		print("Connection lost - goodbye!")
+		print("Connection lost - goodbye!", reason)
 
 
 	def run(self):
-		for i in range(len(self.ips)):
-			print(self.ips[i], self.ports[i])
-			reactor.connectTCP(self.ips[i], self.ports[i], self, 5, ('localhost', 9000))
+		print(self.ip, self.port)
+		reactor.connectTCP(self.ip, self.port, self, 10)
 		print("starting reactor")
-		#reactor.run()
+		reactor.run()
 
 
 # this connects the protocol to a server running on port 8000
-def main(ip, port):#arch, enc, el1, el2, el3, el4, ports):
-	f1 = clientFactory(ip, port)#arch, enc, el1, el2, el3, el4, ports)
+def main(ip, port, n, m):#arch, enc, el1, el2, el3, el4, ports):
+	f1 = clientFactory(ip, port, n, m )#arch, enc, el1, el2, el3, el4, ports)
 	f1.run()
    
 
 # this only runs if the module was *not* imported
 if __name__ == '__main__':
-	if len(sys.argv) <3:
+	if len(sys.argv) <5:
 		print('ERROR')
 	else:
-		main(sys.argv[1], int(sys.argv[2]))#, int(sys.argv[2]),  str(sys.argv[3]),  str(sys.argv[4]),  str(sys.argv[4]),  str(sys.argv[6]),  str(sys.argv[7]))
+		main(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]),  int(sys.argv[4]))#,  str(sys.argv[4]),  str(sys.argv[4]),  str(sys.argv[6]),  str(sys.argv[7]))
 
 

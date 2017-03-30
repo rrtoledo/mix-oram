@@ -22,34 +22,16 @@ from petlib.cipher import Cipher
 Keys = namedtuple('Keys', ['b', 'iv', 'kenc', 'seed'])
 Actor = namedtuple('Actor', ['name', 'host', 'port', 'pubk'])
 
-class Mix():
-# Object creating a mix server (client + server) with shuffling and encrypting capabilities
+class Session():
+# Structure to manage eviction
 
-	cascade = True
-
-	def __init__(self, name, ip, port, prvk, cascade=1, layered=1): 
-		print "Mix: init",name, ip, port, prvk, cascade, layered
-
-		#Mix initialization
-		self.name = name 		# Name of the mix
-		self.port = port 		# Port of the mix
-		self.ip = ip	 		# IP of the mix
-		self.cascade=cascade
-		self.layered=layered
-
-		self.PERM=0
-
-		#Mix keys
-		self.G = EcGroup(713)
-		self.o = self.G.order()
-		self.g = self.G.generator()
-		self.o_bytes = int(math.ceil(math.log(float(int(self.o))) / math.log(256)))	
-		#self.s = (self.G, self.o, self.g, self.o_bytes)
-		self.prvk= Bn.from_binary(base64.b64decode("/m8A5kOfWNhP4BMcUm7DF0/G0/TBs2YH8KAYzQ==")) #mix private key 
-		self.pubk= self.prvk * self.g #mix public key
-		
+	def __init__(self, sessionid):
+		print "Session: init"
 		#Mix variables
-		self.datas = {} # =[{round,[[],[],[]]}] dictionary of data
+		self.id = sessionid
+		self.cascade = 0
+		self.layered = 0
+		self.datas = {} # ={round, [mix:[#pack, #packtot, [datas]]] } dictionary of data
 		self.datalock = threading.Lock() # lock for accessing datas
 		self.round = 0 # current round
 
@@ -73,20 +55,59 @@ class Mix():
 		self.seedsprv=[[],[]] #[[old],[new]] private permutation seeds
 		self.ivsprv =[[],[]] #[[old],[new]] private iv tokens
 
-
-
 		#Flags for the parallel rebuild phase
-		self.stt = 0
+		self.stt = 1
 		self.dpi = 0
 		self.ed = 0
 		self.epi = 0
 		self.end = 0
 
-	def split(self, tosplit, k):
-		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
+	def verify_access(self, sender):
+		#verify if sender is among the mix list assigned by the client
+		print "Session: Verify"
+
+	def initialize_session(self, content):
+		print "Session: initialize"
+
+		self.cascade, self.layered, contt = content
+			
+		if self.cascade:
+			self.db, self.elprv, self.list = contt
+			self.rounds=1
+		else:
+			self.db, self.elprv, self.elpub, self.records, self.rounds, self.list = contt
+
+		#Parsing the list of mixes
+		self.db=[Actor(self.db[0][0], self.db[0][1], self.db[0][2], self.db[0][3]), self.db[1]]
+		for i in range(len(self.list)):
+			self.list[i]=Actor(self.list[i][0],self.list[i][1],self.list[i][2],self.list[i][3])
+			if self.name in self.list[i].name:
+				self.index = i
+		print "my index", self.index
+
+		self.ivsprv[1], self.keysprv[1], self.seedsprv[1], self.sharedsprv[1]= self.computeFromSharedSecrets(self.elprv[1]) # we prepare the first alloc
+
+		if not self.cascade:
+			a, b, self.seedspub[1], self.sharedspub[1]= self.computeFromSharedSecrets(self.elpub[1])
+			self.alloc[1]= self.permute_global(self.seedspub[1][0],self.records,len(self.list),0)
+
+		if not self.layered:
+			self.ivsprv[0], self.keysprv[0], self.seedsprv[0], self.sharedsprv[0]= self.computeFromSharedSecrets(self.elprv[0])
+			self.ivsprv[0]=self.ivsprv[0][::-1]
+			self.keysprv[0]=self.keysprv[0][::-1]
+			self.seedsprv[0]=self.seedsprv[0][:self.rounds]#we reverse the list
+			self.seedsprv[0]=self.seedsprv[0][::-1]
+			self.sharedsprv[0]=self.sharedsprv[0][::-1]
+			if not self.cascade:
+				a, b, self.seedspub[0], self.sharedspub[0]= self.computeFromSharedSecrets(self.elpub[0])
+				self.seedspub[0]=self.seedspub[0][:self.rounds]
+				self.seedspub[0]=self.seedspub[0][::-1] #we reverse the list
+				self.sharedspub[0]=self.sharedspub[0][:self.rounds]
+				self.sharedspub[0]=self.sharedspub[0][::-1]
+				self.alloc[1]= self.permute_global(self.seedspub[0][0],self.records,len(self.list),1)# we prepare the first alloc
 
 	def compute_path(self):
-		print "MIX: Compute Path"
+		print "Session: Compute Path"
 		#print  self.stt, self.dpi, self.ed, self.epi, self.end
 		ll = -1
 		with self.listlock:
@@ -150,6 +171,108 @@ class Mix():
 					return [self.db[0].host],[self.db[0].port], "DB", self.db[1]
 
 
+	def computeFromSharedSecrets(self, element):
+		print "MIX: Compute from Shared Secrets"
+		shared_secrets = [] # list of shared secret keys between Client and each mixnode
+		Bs = [] # list of blinding factors
+		IVs=[] # list of elements for IVs
+		Ks=[] # list of encryption keys
+		Ss=[] # list of permutation seeds
+		prod_bs = Bn(1) #blind product
+	
+		rounds = self.rounds
+		if not self.layered:
+			if self.cascade:
+				rounds+=1
+			else:
+				rounds+=len(self.list)+1
+
+		for i in range(rounds):
+			xysec = (self.prvk * prod_bs) * element #shared secret
+			shared_secrets.append(xysec)
+	
+			# blinding factors
+			k = self.KDF(xysec.export())
+			b = Bn.from_binary(k.b) % self.o
+			Bs.append(b)
+			IVs.append(k.iv)
+			Ks.append(k.kenc)
+			Ss.append(k.seed)
+			prod_bs = (b * prod_bs) % self.o
+
+		return IVs, Ks, Ss, shared_secrets
+
+	def update_flags(self):
+		#Update Rebuild methods flags
+		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
+		ll=-1
+		with self.listlock:
+			ll=len(self.list)
+
+		self.round += 1
+
+		if  not self.layered and ((not self.cascade and self.round == 1) or (self.cascade and round==0)):
+			self.stt=0 #Start
+			self.dpi=1 #Decryption and permutation
+			self.ed=0  #Encryption and decryption
+			self.epi=0 #Encryption and permutation
+			self.end=0 #End
+
+		if not self.layered and ((not self.cascade and self.round == self.rounds) or (self.cascade and self.round ==1)):
+			self.stt=0
+			self.dpi=0
+			self.ed=1
+			self.epi=0
+			self.end=0
+
+		if not self.layered and (( self.cascade and self.round == 2) or  ( not self.cascade and self.round == self.rounds+len(self.list)+1)):
+			self.stt=0
+			self.dpi=0
+			self.ed=0
+			self.epi=1
+			self.end=0
+
+		if ( self.cascade and self.round == 2) or ( not self.cascade and self.round == 2*self.rounds+len(self.list)):
+			self.stt=0
+			self.dpi=0
+			self.ed=0
+			self.epi=0
+			self.end=1
+		print "MIX: Update flag", self.round
+		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
+
+
+
+
+class Mix():
+# Object creating a mix server (client + server) with shuffling and encrypting capabilities
+
+	cascade = True
+
+	def __init__(self, name, ip, port, prvk, cascade=1, layered=1): 
+		print "Mix: init",name, ip, port, prvk, cascade, layered
+
+		#Mix initialization
+		self.name = name 		# Name of the mix
+		self.port = port 		# Port of the mix
+		self.ip = ip	 		# IP of the mix
+		self.cascade=cascade
+		self.layered=layered
+
+		#Mix keys
+		self.G = EcGroup(713)
+		self.o = self.G.order()
+		self.g = self.G.generator()
+		self.o_bytes = int(math.ceil(math.log(float(int(self.o))) / math.log(256)))	
+		#self.s = (self.G, self.o, self.g, self.o_bytes)
+		self.prvk= Bn.from_binary(base64.b64decode("/m8A5kOfWNhP4BMcUm7DF0/G0/TBs2YH8KAYzQ==")) #mix private key 
+		self.pubk= self.prvk * self.g #mix public key
+		
+		self.sessions = {} # Eviction session
+		self.sessionlock = threading.Lock() #lock for accessing any information
+
+	def split(self, tosplit, k):
+		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
 
 	def permute(self, seed, data, inverse):
 		#Input: permutation seed, data array to permute, inverse boolean
@@ -169,7 +292,8 @@ class Mix():
 			order = 0
 
 		for i in range(len(data)):
-			perm[i].extend([data[i]])
+			if type(data)==list:
+				perm[i].extend([data[i]])
 		perm.sort(key=lambda t:t[order])
 
 		return [perm[i][2] for i in range(len(perm))]
@@ -190,11 +314,11 @@ class Mix():
 		##print "tosend filtered", tosend
 		return tosend 
 
-	def sort_global_in(self, data, order):
+	def sort_global_in(self, data, order, index):
 		#Input: previous public seed, data arrays [[data from mix_1],...[from mix_m]], allocation (permute_global(seed, n, m, inverse)), inverse boolean
 		#Output: Data merged and sorted according to previous public seed [rec_{i*n/m},...rec_{(i+1)*n/m-1}]
-		print "MIX: Sort global in", data, order
-		order = order[self.index]
+		#print "MIX: Sort global in", data, order
+		order = order[index]
 		##print order
 
 		perm=[]
@@ -213,10 +337,12 @@ class Mix():
 		indices = [j for i in indices for j in i]
 		##print indices
 
-		if type(data[0])==list:
-			data=[data[i][j] for i in range(len(data)) for j in range(len(data[i]))]
-		else:
-			data= [data[i] for i in range(len(data))]
+		#should already be done now
+		#if type(data[0])==list:
+		#	data=[data[i][j] for i in range(len(data)) for j in range(len(data[i]))]
+		#else:
+		#	if type(data)==list:
+		#		data= [data[i] for i in range(len(data))]
 		
 		zipped = zip(indices, data)
 		##print zipped
@@ -232,21 +358,21 @@ class Mix():
 
 		return received  
 
-	def sort_global_out(self, data, order):
+	def sort_global_out(self, data, order, index, nbmix, nbrecords):
 		#Input: previous public seed, data array [rec_{i*n/m},...rec_{(i+1)*n/m-1}], allocation (permute_global(seed, n, m, inverse))
 		#Output: Data merged and sorted according to previous public seed [[data from mix_1],...[from mix_m]]
-		print "MIX: Sort global out", data, order
-		offset = self.index*(self.records/len(self.list))
-		rnge = (self.index+1)*(self.records/len(self.list))
-		##print self.index, offset, rnge
+		#print "MIX: Sort global out", data, order
+		offset = index*(nbrecords/nbmix)
+		rnge = (index+1)*(nbrecords/nbmix)
+		#print self.index, offset, rnge
 		tosend= []
-		for i in range(len(self.list)):
+		for i in range(nbmix):
 			tosend.extend([[]])
-			##print i, order[i]
+			#print i, order[i]
 			for j in range(len(order[i])):
-				##print i,j,order[i][j], "in", range(offset,rnge), "?"
+				#print i,j,"is", order[i][j], "in", range(offset,rnge), "?"
 				if order[i][j] in range(offset,rnge):
-					##print i,j,"true adding", data, order[i][j]-offset, data[order[i][j]-offset]
+					#print i,j,"true adding", data, order[i][j]-offset, data[order[i][j]-offset]
 					tosend[i].extend([data[order[i][j] - offset]])
 			##print "sending to",i,tosend[i]
 
@@ -257,7 +383,6 @@ class Mix():
 		#Input: Data array to split, length of resulting subarrays
 		#Output: Arrays of arrays of k elements
 		return [tosplit[i:i+k] for i in range(0, len(tosplit), k)]
-
 
 	def encrypt_cbc(self, key, iv, datablock):
 		#Input: Encryption key, datablock=[IV, [label,record]]
@@ -334,78 +459,6 @@ class Mix():
 			data=self.permute(seed, data, inverse)
 		return data
 
-	def computeFromSharedSecrets(self, element):
-		print "MIX: Compute from Shared Secrets"
-		shared_secrets = [] # list of shared secret keys between Client and each mixnode
-		Bs = [] # list of blinding factors
-		IVs=[] # list of elements for IVs
-		Ks=[] # list of encryption keys
-		Ss=[] # list of permutation seeds
-		prod_bs = Bn(1) #blind product
-	
-		rounds = self.rounds
-		if not self.layered:
-			if self.cascade:
-				rounds+=1
-			else:
-				rounds+=len(self.list)+1
-
-		for i in range(rounds):
-			xysec = (self.prvk * prod_bs) * element #shared secret
-			shared_secrets.append(xysec)
-	
-			# blinding factors
-			k = self.KDF(xysec.export())
-			b = Bn.from_binary(k.b) % self.o
-			Bs.append(b)
-			IVs.append(k.iv)
-			Ks.append(k.kenc)
-			Ss.append(k.seed)
-			prod_bs = (b * prod_bs) % self.o
-
-		return IVs, Ks, Ss, shared_secrets
-
-	def update_flags(self):
-		#Update Rebuild methods flags
-		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
-		ll=-1
-		with self.listlock:
-			ll=len(self.list)
-
-		self.round += 1
-
-
-		if  not self.layered and ((not self.cascade and self.round == 1) or (self.cascade and round==0)):
-			self.stt=0 #Start
-			self.dpi=1 #Decryption and permutation
-			self.ed=0  #Encryption and decryption
-			self.epi=0 #Encryption and permutation
-			self.end=0 #End
-
-		if not self.layered and ((not self.cascade and self.round == self.rounds) or (self.cascade and self.round ==1)):
-			self.stt=0
-			self.dpi=0
-			self.ed=1
-			self.epi=0
-			self.end=0
-
-		if not self.layered and (( self.cascade and self.round == 2) or  ( not self.cascade and self.round == self.rounds+len(self.list)+1)):
-			self.stt=0
-			self.dpi=0
-			self.ed=0
-			self.epi=1
-			self.end=0
-
-		if ( self.cascade and self.round == 2) or ( not self.cascade and self.round == 2*self.rounds+len(self.list)):
-			self.stt=0
-			self.dpi=0
-			self.ed=0
-			self.epi=0
-			self.end=1
-		print "MIX: Update flag", self.round
-		print "before updating", self.stt, self.dpi, self.ed, self.epi, self.end
-
-
 class ServerProto(Protocol):
 
 	def __init__(self):
@@ -418,155 +471,185 @@ class ServerProto(Protocol):
 
 	def dataReceived(self, data):
 		#Function called when some data is received from the made connection
-		#print "SP: Data received", self.transport.getPeer() #, data
+		print "SP: Data received", self.transport.getPeer() #, data
 		reactor.callInThread(self.dataParser, data)		
 
 	def dataParser(self,data):
 		#Function parsing the packets
 		#The inter Mix packet format is as follow [Operation asked, id request, packet for #round, [data], mix] #TODO to change to OP, id, mix, name data
-		print "SP: Data parser", pack.decode(data)
+		print "SP: Data parser", len(data)#, pack.decode(data)
+		
 		#Decode packet connection structure
-		data= pack.decode(data) 
+		data = pack.decode(data) 
 
 		#Parse meta data
-		mix = self.factory.mix
-		op=0
-		vs=0
-		turn=0
-		content=''
-		if "MIX" in data[0]:
-			op, vs, turn, content = data # operation, request id, content		
-		else:
-			op, vs, content = data
+		name, op, vs, turn, nbpack, nbtot, content = data # operation, request id, content	
 
-		if "MIX" in op:
-			if turn not in mix.datas.keys():
-				#print "first packet with turn=", turn, mix.datas
-				mix.datas[turn]=[0,[[],[],[]]]
-
-		#Stop connection
+		#Stop connection if function not triggered by the server itself
 		if "ME" not in op:
-			self.transport.loseConnection()
-		else:
-			if turn in mix.datas.keys():
-				mix.datas[turn][0]+=1
+			self.transport.loseConnection()	
 
+		#START - receive instructions, initialize the seeds, keys, ivs
 		if "STT" in op:
-			#START - receive instructions, initialize the seeds, keys, ivs
 			print "in STT"
 			
-			mix.stt=1
-			mix.dpi=0
-			mix.ed=0
-			mix.epi=0
-			mix.end=0
-
-			
-			if mix.cascade:
-				mix.db, mix.elprv, mix.list = content
-				mix.rounds=1
-			else:
-				mix.db, mix.elprv, mix.elpub, mix.records, mix.rounds, mix.list = content
-
-			#Parsing the list of mixes
-			mix.db=[Actor(mix.db[0][0], mix.db[0][1], mix.db[0][2], mix.db[0][3]), mix.db[1]]
-			for i in range(len(mix.list)):
-				mix.list[i]=Actor(mix.list[i][0],mix.list[i][1],mix.list[i][2],mix.list[i][3])
-				if mix.name in mix.list[i].name:
-					mix.index = i
-			print "my index", mix.index
-
-			if not mix.cascade:
-				a, b, mix.seedspub[1], mix.sharedspub[1]= mix.computeFromSharedSecrets(mix.elpub[1])
-				mix.alloc[1]= mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list),0)
-
-			mix.ivsprv[1], mix.keysprv[1], mix.seedsprv[1], mix.sharedsprv[1]= mix.computeFromSharedSecrets(mix.elprv[1]) # we prepare the first alloc
-
-
-			if not mix.layered:
-				mix.ivsprv[0], mix.keysprv[0], mix.seedsprv[0], mix.sharedsprv[0]= mix.computeFromSharedSecrets(mix.elprv[0])
-				mix.ivsprv[0]=mix.ivsprv[0][::-1]
-				mix.keysprv[0]=mix.keysprv[0][::-1]
-				mix.seedsprv[0]=mix.seedsprv[0][:mix.rounds]#we reverse the list
-				mix.seedsprv[0]=mix.seedsprv[0][::-1]
-				mix.sharedsprv[0]=mix.sharedsprv[0][::-1]
-				if not mix.cascade:
-					a, b, mix.seedspub[0], mix.sharedspub[0]= mix.computeFromSharedSecrets(mix.elpub[0])
-					mix.seedspub[0]=mix.seedspub[0][:mix.rounds]
-					mix.seedspub[0]=mix.seedspub[0][::-1] #we reverse the list
-					mix.sharedspub[0]=mix.sharedspub[0][:mix.rounds]
-					mix.sharedspub[0]=mix.sharedspub[0][::-1]
-					mix.alloc[1]= mix.permute_global(mix.seedspub[0][0],mix.records,len(mix.list),1)# we prepare the first alloc
-
-
-			if mix.index==0 or not mix.cascade:
-				range1=0
-				range2=len(mix.list)*mix.db[1]
+			with self.factory.mix.sessionlock:
+				if vs not in self.factory.mix.sessions.keys():
+				#Create new session if not existing one
+					session = Session(vs)
+					session.initialize(content)
+					self.factory.mix.sessions[vs]=session
+					
+					if session.index==0 or not session.cascade:
+						print "going to fetch"
+						range1=0
+						range2=len(session.list)*session.db[1]
 				
-				if not mix.cascade:
-					range1=mix.index*mix.db[1]
-					range2=(mix.index+1)*mix.db[1]
-					#print range2, mix.db[1]
-				c_factory = ClientFact(self, ["GET", vs, [range1, range2, ""]])
-				c_factory.protocol = ClientProto
-				reactor.callFromThread(reactor.connectTCP, mix.db[0].host, mix.db[0].port, c_factory,5)
+						if not session.cascade:
+							range1=session.index*session.db[1]
+							range2=(session.index+1)*session.db[1]
+						print range1, range2, session.db[0]
+
+					c_factory = ClientFact(self, ["GET", vs, [range1, range2, ""]])
+					c_factory.protocol = ClientProto
+					reactor.callFromThread(reactor.connectTCP, session.db[0].host, session.db[0].port, c_factory,5)
+
+		#Initi some parameters
+		datakeys = []
+		senderidx = -1
+		with self.factory.mix.sessionlock:
+			if vs in self.factory.mix.sessions.keys():
+				session = self.factory.mix.sessions[vs]
+				with session.datalock:
+					datakeys = session.datas.keys()
+				ll = []
+				with session.listlock:
+					ll = session.list
+				for i in range(len(ll)):
+					if ll[i].host == self.transport.getPeer().host and ll[i].name == name:
+						senderidx=i
 
 
+		#PUT - data received from the database
 		if "PUT" in op:
-			#PUT - data received from the database
 			print "in PUT"
-			mix.datas[0] = [1, content]
-			mix.dbcheck = 1
-			print mix.datas
-			time.sleep(5)			
 
-		if "MIX" in op and not "ME" in op: 
-			#MIX = receive data from mixes except host
+			#if first packet from DB, initialize the session/turn data structure
+			if turn not in datakeys:
+				print "new turn, creating turn"
+				datapack = []
+				for i in range(packtot):
+					datapack.extend([[]])
+				datas = [turn, [0, nbtot, datapack]]
+				with self.factory.mix.sessionlock:
+					with self.factory.mix.sessions[vs].datalock:
+						self.factory.mix.sessions[vs].datas[turn] = 	datas	
+
+			#put data in data structure
+			with self.factory.mix.sessionlock:
+				with self.factory.mix.sessions[vs].datalock:
+					if datas[turn][1][2][nbpack] == []: #TODO create structure
+						print "new data, adding data"	
+						self.factory.mix.sessions[vs].datas[turn][1][2][nbpack] = content
+						self.factory.mix.sessions[vs].datas[turn][1][0] += 1
+				
+			print "finish PUT"
+			#if all packet received from DB, wait a few seconds
+			if nbpack == nbtot -1:
+				print "last pack, sleeping"
+				time.sleep(5)	
+
+
+		#MIX = receive data from mixes except host
+		if "MIX" in op: 
 			print "in MIX"
 
-			index = -1
-			with mix.datalock:
-				if mix.cascade:
-					print "in cascade"
-					cntt, name =content
-					mix.datas[turn][1]=cntt
-				else:
-					print "not cascade", 
-					idx = -1
-					cntt, name = content
-					#Looking for sender identity to find location where to save the data
-					for i in range(len(mix.list)):
-						if mix.list[i].port == self.transport.getPeer().port and mix.list[i].host == self.transport.getPeer().host:
-							idx=i
-						if mix.list[i].name == name: #needed in local
-							idx=i
-					mix.datas[turn][0]+=1
-					mix.datas[turn][1][idx]=cntt
+			#if new turn, create structure
+			if turn not in datakeys:
+				print "new turn, creating turn"
+				counter = 1
+				with self.factory.mix.sessionlock:
+					if not self.factory.mix.sessions[vs].cascade:
+						with self.factory.mix.sessions[vs].listlock:
+							counter = len(mix.sessions[vs].list)
+				datas = []
+				for i in range(counter):
+					datapack = []
+					packtot = -1
+					if counter == 1 or i == senderidx:
+						for i in range(counter):
+							datapack.extend([[]])
+						packtot = nbtot
 
-		#Check if data can be sent (look if enough packets were received depending on the mix-net and round)	
-		idx=-1
-		receive=0
-		with mix.datalock:
-			print mix.datas
-			print mix.stt, mix.dpi, mix.ed, mix.epi, mix.end
-			print mix.round, mix.rounds
+					#in the layered ED phase, we do not expect packets from the any node except the previous (hence packtot=0)
+					prevsender = self.factory.mix.sessions[vs].index -1
+					if self.factory.mix.sessions[vs].index == 0:
+						prevsender = len(self.factory.mix.sessions[vs].list)-1
+					if not self.factory.mix.sessions[vs].layered and self.factory.mix.sessions[vs].round >= self.factory.mix.sessions[vs].rounds and self.factory.mix.sessions[vs].round < self.factory.mix.sessions[vs].rounds + len(self.factory.mix.sessions[vs].list) and i != prevsender: #tocheck #TODO  
+						packtot = 0
 
-			if len(mix.datas.keys()) != 0 :
-				idx = min(mix.datas.keys())
-				if idx  == mix.round :
-					receive=mix.datas[idx][0]
-					print idx,mix.datas[idx], mix.datas
+					datas.extend([ [turn, [0, packtot, datapack]] ])
+				with self.factory.mix.sessionlock:
+					with self.factory.mix.sessions[vs].datalock:
+						self.factory.mix.sessions[vs].datas[turn] = datas	
+
+			#if data received by myself, update structure and add all data
+			if "ME" in op:
+				with self.factory.mix.sessionlock:
+					index = self.factory.mix.sessions[vs].index
+					with self.factory.mix.sessions[vs].datalock:
+						if self.factory.mix.sessions[vs].datas[turn][1][index][2] == []: #TODO create structure
+							print "new data, adding data"	
+							self.factory.mix.sessions[vs].datas[turn][1][index][2] = content
+							self.factory.mix.sessions[vs].datas[turn][1][index][1] = 1
+							self.factory.mix.sessions[vs].datas[turn][1][index][0] = 1
+			#if data from other mix
+			else:
+				with self.factory.mix.sessionlock:
+					with self.factory.mix.sessions[vs].datalock:
+						#if parallel
+						if not self.factory.mix.sessions[vs].cascade:
+							#if it is the first packet received from the mix/turn, we update the expected nb of packets
+							if self.factory.mix.sessions[vs].datas[turn][1][senderidx][1] == -1:
+								self.factory.mix.sessions[vs].datas[turn][1][senderidx][1] = nbtot
+								datapack=[]
+								for i in range(nbtot):
+									datapack.extend([[]])
+								self.factory.mix.sessions[vs].datas[turn][1][senderidx][2]=datapack
+							#if packet not received, we store it
+							if  self.factory.mix.sessions[vs].datas[turn][1][senderidx][2][nbpack] == []:
+								self.factory.mix.sessions[vs].datas[turn][1][senderidx][2][nbpack] = content
+								self.factory.mix.sessions[vs].datas[turn][1][senderidx][0] += 1
+
+						#if cascade, the mix/turn is already initialized
+						else:
+							#if packet not received, we store it
+							if  self.factory.mix.sessions[vs].datas[turn][1][2][nbpack] == []:
+								self.factory.mix.sessions[vs].datas[turn][1][2][nbpack] = content
+								self.factory.mix.sessions[vs].datas[turn][1][0] += 1
+
+		#Check if data can be sent (look if all packets were received)	
+		print "prepare if data can be sent"
+		received = 0
+		expected = 0
+		with self.factory.mix.sessionlock:
+			with self.factory.mix.sessions[vs].datalock:
+				expected = len(self.factory.mix.sessions[vs].datas[turn])
+				for i in range(len(self.factory.mix.sessions[vs].datas[turn])):
+					if self.factory.mix.sessions[vs].datas[turn][i][0] == self.factory.mix.sessions[vs].datas[turn][i][1]:
+						received += 1
 			
-		if "PUT" in op or ('MIX' in op and ( (mix.cascade) or ((not mix.cascade) and mix.round==idx and ( receive==len(mix.list) or ((mix.ed)  and ((mix.round==mix.rounds and receive==len(mix.list)) or (mix.round>mix.rounds)) )))) ):
-			print "Data can be sent, Start computing"
-			print op, mix.cascade, mix.round, idx, mix.rounds, len(mix.list), mix.ed
+		if ("PUT" in op or 'MIX' in op) and  received==expected:
+			print "Data from turn", turn,"can be sent, Start computing"
 
 			#Erasing data to send from mix.datas
 			toprocess = []
-			with mix.datalock:
-				toprocess = mix.datas[min(mix.datas.keys())][1]
-				#print "deleting ",min(mix.datas.keys()), mix.datas[min(mix.datas.keys())]
-				del mix.datas[min(mix.datas.keys())]
+			with self.factory.mix.sessionlock:
+				with self.factory.mix.sessions[vs].datalock:
+					for i in range(len(self.factory.mix.sessions[vs].datas[turn][1][2])):
+						toprocess.extend(self.factory.mix.sessions[vs].datas[turn][1][2][i])
+					#print "deleting ",min(mix.datas.keys()), mix.datas[min(mix.datas.keys())]
+					del self.factory.mix.sessions[vs].datas[turn][1][2]
 
 			#Calling process Data
 			self.processData(toprocess, vs)
@@ -576,191 +659,243 @@ class ServerProto(Protocol):
 		#Sort, encrypt and permute data
 		#Return to main thread to send data
 		print "SP: Compute Data", datas
-		mix = self.factory.mix
 
-		dpi=mix.dpi
-		stt=mix.stt
-		ed=mix.ed
-		epi=mix.epi
-		end=mix.end
-		rnd=mix.round
+		dpi=-1
+		stt=-1
+		ed=-1
+		epi=-1
+		end=-1
+		rnd=-1
+		rnds=-1
+		ll=-1
+		layered=-1
+		cascade=-1
+		alloc=[]
+		seedsprv=[]
+		keysprv=[]
+		ivsprv=[]
+		index=-1
+
+		with self.factory.mix.sessionlock:
+			dpi=self.factory.mix.sessions[vs].dpi
+			stt=self.factory.mix.sessions[vs].stt
+			ed=self.factory.mix.sessions[vs].ed
+			epi=self.factory.mix.sessions[vs].epi
+			end=self.factory.mix.sessions[vs].end
+			rnd=self.factory.mix.sessions[vs].round
+			rnds=self.factory.mix.sessions[vs].rounds
+			ll=self.factory.mix.sessions[vs].list
+			layered=self.factory.mix.sessions[vs].layered
+			cascade=self.factory.mix.sessions[vs].cascade
+			alloc = self.factory.mix.sessions[vs].alloc
+			seedsprv=self.factory.mix.sessions[vs].seedsprv
+			keysprv=self.factory.mix.sessions[vs].keysprv
+			ivsprv=self.factory.mix.sessions[vs].ivsprv
+			index = self.factory.mix.sessions[vs].index
 		#print stt,dpi,ed,epi,end,rnd
 
 		#Sort received data thanks to allocation
-		if not mix.cascade and (epi or dpi or end or (ed and mix.round==mix.rounds)): #if parallel and not start nor ed
-			print "Sort in", mix.alloc[0], datas
-			datas = mix.sort_global_in(datas, mix.alloc[0])
-		else:
-			if type(datas[0])==list:
-				if not stt:
-					datas=[datas[i][j] for i in range(len(datas)) for j in range(len(datas[i]))]
-			else:
-				datas= [datas[i] for i in range(len(datas))]
+		if not cascade and (epi or dpi or end or (ed and rnd==rnds)): #if parallel and not start nor ed
+			print "Sort in", alloc[0], datas
+			datas = self.factory.mix.sort_global_in(datas, alloc[0],index)
 		#print "After Sorting in when receiving finished", datas
 		
 
 
 		#Permute the data (and prepare the relevant parameters)
-		offset=mix.rounds
-		if not mix.layered:
-			if mix.cascade:
+		offset=rnds
+		if not layered:
+			if cascade:
 				offset+=1
 			else:
-				offset+=len(mix.list)+1
+				offset+=len(ll)+1
 
 		seed = 0 
 		key = 0 
 		iv = 0 
 		inverse = 0
-		if mix.cascade:
-			if mix.layered:
+		if cascade:
+			if layered:
 				print "Cascade Layered Permute"
-				seed = mix.seedsprv[1][rnd]
-				key = mix.keysprv[1][rnd]
-				iv = mix.ivsprv[1][rnd]
-				datas=mix.cascade_layered(seed, key, iv, inverse, datas)		
+				seed = seedsprv[1][rnd]
+				key = keysprv[1][rnd]
+				iv = ivsprv[1][rnd]
+				datas=self.factory.mix.cascade_layered(seed, key, iv, inverse, datas)		
 			else:
 				print "Cascade Rebuild Permute"
 				if epi or ed or end:
-					seed = mix.seedsprv[1][rnd-offset]
-					key = mix.keysprv[1][rnd-offset]
-					iv = mix.ivsprv[1][rnd-offset]
+					seed = seedsprv[1][rnd-offset]
+					key = keysprv[1][rnd-offset]
+					iv = ivsprv[1][rnd-offset]
 				if stt or dpi:
-					seed= mix.seedsprv[0][rnd]
-					key= mix.keysprv[0][rnd]
-					iv=mix.ivsprv[0][rnd]
+					seed= seedsprv[0][rnd]
+					key= keysprv[0][rnd]
+					iv=ivsprv[0][rnd]
 					inverse = 1
-				datas=mix.cascade_rebuild(seed, key, iv, inverse, datas)
+				datas=self.factory.mix.cascade_rebuild(seed, key, iv, inverse, datas)
 				if ed:
-					key=mix.keysprv[0][rnd]
-					iv=mix.ivsprv[0][rnd]
-					datas=mix.cascade_rebuild(seed, key, iv,  inverse, datas)
+					key=.keysprv[0][rnd]
+					iv=ivsprv[0][rnd]
+					datas=self.factory.mix.cascade_rebuild(seed, key, iv,  inverse, datas)
 		else:
-			if mix.layered:
+			if layered:
 				print "Parallel Layered Permute"
-				seed = mix.seedsprv[1][rnd]
-				key = mix.keysprv[1][rnd]
-				iv = mix.ivsprv[1][rnd]
-				datas=mix.parallel_layered(seed, key, iv, inverse, datas)
+				seed = seedsprv[1][rnd]
+				key = keysprv[1][rnd]
+				iv = ivsprv[1][rnd]
+				datas=self.factory.mix.parallel_layered(seed, key, iv, inverse, datas)
 			else:
 				print "Parallel Rebuild Permute"
 				if epi or ed or end:
 					#print rnd-offset ,mix.seedsprv[1][rnd-offset]
-					seed = mix.seedsprv[1][rnd-offset]
-					key = mix.keysprv[1][rnd-offset]
-					iv = mix.ivsprv[1][rnd-offset]
+					seed = seedsprv[1][rnd-offset]
+					key = keysprv[1][rnd-offset]
+					iv = ivsprv[1][rnd-offset]
 				if stt or dpi:
-					seed= mix.seedsprv[0][rnd]
-					key= mix.keysprv[0][rnd]
-					iv=mix.ivsprv[0][rnd]
+					seed= seedsprv[0][rnd]
+					key= keysprv[0][rnd]
+					iv= ivsprv[0][rnd]
 					inverse = 1
-				datas=mix.parallel_rebuild(seed, key, iv, inverse, datas)
+				datas=self.factory.mix.parallel_rebuild(seed, key, iv, inverse, datas)
 				if ed:
-					key=mix.keysprv[0][rnd]
-					iv=mix.ivsprv[0][rnd]
-					datas=mix.parallel_rebuild(seed, key, iv, inverse, datas)
+					key= keysprv[0][rnd]
+					iv= ivsprv[0][rnd]
+					datas=self.factory.mix.parallel_rebuild(seed, key, iv, inverse, datas)
 
+		reactor.callFromThread(self.sendData, datas, vs, stt, dpi, ed, epi, end, rnd, rnds, len(ll))
 
-
-		reactor.callFromThread(self.sendData, datas, vs, stt, dpi, ed, epi, end, rnd)
-
-	def sendData(self, datas, vs, stt, dpi, ed, epi, end, rnd):
+	def sendData(self, datas, vs, stt, dpi, ed, epi, end, rnd, rnds, ll):
 		#Called by function computeData in thread
 		#Sort data and send it to mixes/db
 		print "SP: Send Data"#, datas
 		
-		mix = self.factory.mix
+		layered=-1
+		cascade=-1
+		with self.factory.mix.sessionlock:
+			layered=self.factory.mix.layered
+			cascade=self.factory.mix.cascade
 
 		#Sort data thanks to allocation
-		if not mix.cascade: #if parallel and not ed nor end
-			if mix.layered or (not mix.layered and (stt or dpi or epi or (ed and mix.round==mix.rounds+len(mix.list)))):
+		if not cascade: #if parallel and not ed nor end
+			if layered or (not layered and (stt or dpi or epi or (ed and rnd==rnds+ll))):
 				print "Sort out", datas, mix.alloc[1]
 				datas = mix.sort_global_out(datas, mix.alloc[1])
 
 		print "Sorting out before sending finished", datas
 
 		# Merge data array if needed
-		if not mix.cascade and (mix.end or (mix.ed and mix.round!= mix.rounds+ len(mix.list))):
+		if not cascade and (end or (ed and rnd!= rnds+ ll)):
 			if rnd != mix.rounds+len(mix.list):
 				if type(datas[0])==list:
 					datas = [datas[i][j] for i in range(len(datas)) for j in range(len(datas[i]))]
 			else:
-				datas=[ [datas[i]] for i in range(len(datas))]
+				if type(data)==list:
+					datas=[ [datas[i]] for i in range(len(datas))]
+
+		print "data merged finished if needed"
 
 		#Compute messages path
-		ips, ports, names, offset = mix.compute_path()
-		print ips, ports, offset
+		ips, ports, names, offset = self.factory.mix.compute_path()
+		print "compute path finished", ips, ports, offset
 
 		#update round and flags
-		mix.update_flags()
-		print mix.stt, mix.dpi, mix.ed, mix.epi, mix.end
+		self.factory.mix.update_flags(vs)
+
+		updatedstt=-1
+		updateddpi=-1
+		updateded=-1
+		updatedepi=-1
+		updatedend=-1
+		updatedrnd=-1
+		seedspub=[]
+		alloc=[]
+		records=-1
+		name = self.factory.mix.name
+		with self.factory.mix.sessionlock:
+			updatedstt= self.factory.mix.sessions[vs].stt
+			updateddpi= self.factory.mix.sessions[vs].dpi
+			updateded = self.factory.mix.sessions[vs].ed
+			updatedepi= self.factory.mix.sessions[vs].dpi
+			updatedend= self.factory.mix.sessions[vs].end
+			updatedrnd= self.factory.mix.sessions[vs].round
+			seedspub =  self.factory.mix.sessions[vs].seedspub
+			alloc = self.factory.mix.sessions[vs].alloc
+			records= self.factory.mix.sessions[vs].records
+
+		print "update flag finished", updatedstt, updateddpi, updateded, updatedepi, updatedend
 
 		#update record allocation
-		print "updating allocs", mix.alloc
-		if not mix.cascade and not mix.ed:
+		print "updating allocs", alloc
+		if not cascade and not updateded:
 			inverse = 0
-			if not mix.layered and mix.dpi:
+			if not layered and updateddpi:
 				print "parallel, dpi"
 				inverse=1
-				mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[0][mix.round],mix.records,len(mix.list),inverse)]
-				print mix.alloc, mix.round
+				alloc=[alloc[1], self.factory.mix.permute_global(seedspub[0][updatedrnd],records,ll),inverse)]
+				print alloc, updatedrnd
 				##print "UPDATE OLD SEED", mix.round,"/",len(mix.seedspub[0])
 			else:
 				print "parallel not dpi",rnd
-				rndd = mix.round
-				if not mix.layered:
-					rndd = rndd - mix.rounds - len(mix.list)
-				mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[1][rndd],mix.records,len(mix.list),inverse)]
+				rndd = rnd
+				if not layered:
+					rndd = rndd - rnds - ll
+				alloc=[alloc[1], self.factory.mix.permute_global(seedspub[1][rndd],records,ll,inverse)]
 				##print "UPDATE NEW seed",rnd,"/",len(mix.seedspub[1])
-		if mix.epi and mix.round==mix.rounds + len(mix.list)+1: 
+		if updatedepi and updatedrnd==rnds + ll+1: 
 			# if rnd=last round of ED (or first EPI round == mix.round), we prepare the alloc of the first round of E/Pi
 			print "last round of ed"
-			mix.alloc[0]= mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)
-			mix.alloc[1]= mix.permute_global(mix.seedspub[1][1],mix.records,len(mix.list), 0)
-		if mix.ed and mix.round == mix.rounds:
+			alloc[0]= self.factory.mix.permute_global(seedspub[1][0],records,ll, 0)
+			alloc[1]= self.factory.mix.permute_global(seedspub[1][1],records,ll, 0)
+		if updateded and updatedrnd == rnds:
 			print "first round ed"
-			mix.alloc=[mix.alloc[1], mix.permute_global(mix.seedspub[1][0],mix.records,len(mix.list), 0)]
+			alloc=[alloc[1], self.factory.mix.permute_global(seedspub[1][0],records,ll, 0)]
+		with self.factory.mix.sessionlock:
+			self.factory.mix.sessions[vs].alloc=alloc
 		print "SP: updated allocs", mix.alloc
 			
+		print "sending data"
 		if offset==0:
-			c_factories = []
+			#Sending data to mixes
 			for i in range(len(ips)):
 				#Prepare data
-				tosend = [datas, mix.name]
-				if not mix.cascade:
-					if mix.layered or (not mix.layered and (stt or dpi or epi or (ed and rnd==mix.rounds+len(mix.list)))):
-						tosend=[datas[i], mix.name] 
-				#Create clients
-				c_factories.extend([ClientFact(self, [ "MIX", vs, mix.round, tosend ])])	
-				c_factories[i].protocol = ClientProto
+				tosend = datas
+				if not cascade:
+					if layered or (not layered and (stt or dpi or epi or (ed and rnd==rnds+ll))):
+						tosend=datas[i] 
 
-				if names[i]==mix.name :
+				if names[i] == name :
 					#If send data to itself, store data and call dataParser
-					with mix.datalock:
-						if mix.round not in mix.datas.keys():
-							mix.datas[mix.round]=[0,[[],[],[]]]
-						if not mix.cascade:
-							mix.datas[mix.round][1][mix.index]=tosend[0]
-						else:
-							mix.datas[mix.round][1]=tosend[0]
-					reactor.callInThread(self.dataParser, pack.encode(["MIXME", vs, mix.round, []]))
+					reactor.callInThread(self.dataParser, pack.encode([name, "MIXME", vs, updatedrnd, 0, 1, tosend]))
 				else:
-					#Else send to mix			
-					reactor.connectTCP(ips[i], ports[i], c_factories[i],5)
+					#Create clients
+					#TODO if record size = s,  len(tosend) / ( create 20kB/s ) clients
+					size = sys.getsizeof(tosend[0]) #record size is an invariant
+					nbrec = 20000 / size
+					nbpack = len(tosend)/nbrec
+					c_factories = []
+					for j in range(nbpack):
+						c_factories.extend([ClientFact(self, [ name, "MIX", vs, updatedrnd, nbpack, nbtot, tosend[j*nbrec:(j+1)*nbrec] ])])	
+						c_factories[j].protocol = ClientProto
+						reactor.connectTCP(ips[i], ports[i], c_factories[j], 5)
 
 			
 		else:
 			#If data to be sent to the Database
 			#Prepare range to put the data in
+			db=[]
+			index =-1
+			with self.factory.mix.sessionlock:
+				db= self.factory.mix.sessions[vs].db
+				index = self.factory.mix.sessions[vs].index
 			range1=0
-			range2=len(mix.list)*mix.db[1]
-			if not mix.cascade:
-				range1=mix.index*mix.db[1]
-				range2=(mix.index+1)*mix.db[1]
+			range2=ll*db[1]
+			if not cascade:
+				range1=index*db[1]
+				range2=(index+1)*db[1]
 			#Create client and send data
 			c_factory=ClientFact(self, ["PUT", vs, [range1, range2, datas] ])
 			c_factory.protocol = ClientProto
-			reactor.connectTCP(mix.db[0].host, mix.db[0].port, c_factory,5)
+			reactor.connectTCP(db[0].host, db[0].port, c_factory,5)
 
 		print "data sent to mixes/db"#, datas 
 
@@ -800,7 +935,7 @@ class ClientProto(Protocol):
 	def connectionMade(self):
 		# Function called when connection made with DB
 		# Send GET packet previously made
-		print "--- CP: Connection made",  self.transport.getPeer() #self.factory.data,
+		print "--- CP: Connection made",  self.transport.getPeer() ,self.factory.data,
 		self.factory.c_protos.append(self)
 		self.cdata=self.factory.data
 		self.transport.write(pack.encode(self.factory.data))
@@ -823,18 +958,18 @@ class ClientFact(ClientFactory):
 	protocol = ClientProto
 
 	def __init__(self, s_proto, data):
-		#print "CF: init",data
+		print "CF: init"#,data
 		self.done = Deferred()
 		self.s_proto = s_proto
 		self.c_protos = []
 		self.data = data
 
 	def clientConnectionFailed(self, connector, reason):
-	        #print 'CF: Connection failed:', reason.getErrorMessage()
+	        print 'CF: Connection failed:', reason.getErrorMessage()
 	        self.done.errback(reason)
 
 	def clientConnectionLost(self, connector, reason):
-	        #print 'CF: Connection lost:', reason.getErrorMessage()
+	        print 'CF: Connection lost:', reason.getErrorMessage()
 	        self.done.callback(None)
 
 
