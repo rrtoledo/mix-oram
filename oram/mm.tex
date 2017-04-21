@@ -23,6 +23,7 @@
 \usepackage{amsthm}
 \usepackage{color}
 \usepackage{float}
+\usepackage[justification=centering]{caption}
 
 \usepackage{tikz}
 \usetikzlibrary{shapes, positioning, matrix, backgrounds, decorations.pathreplacing}
@@ -179,7 +180,7 @@ We introduce here the two randomization methods over a semi-trusted cascade mix-
 (CC.east) edge     	node{}    	([yshift=1em]Y.west);
 \end{tikzpicture}
 \centering
-\caption{Eviction method with the encryptions $k$ and permutations seeds $\sigma$. } \label{fig:eviction}
+\caption{Cascade Mix-ORAM.\newline Rebuild method (all phases) and Layered method (only the Wrapping phase) } \label{fig:eviction}
 \end{figure} 
 
 
@@ -282,9 +283,9 @@ $$ \tau(\epsilon) \leq \frac{n}{2k}  \cdot \log \left (\frac{n}{s}\right) $$
 %
 \subsection{Parallel Mix-ORAM}\label{parallelMixORAM}
 %
-We now consider the mix-net as a collection of mixes communicating to each other. The eviction algorithm is composed of the unwrapping (for the rebuild method) and the wrapping phases which consist each of $r$ rounds.
+We now consider the mix-net in a stratified configuration. The eviction algorithm is composed of the Unwrapping  and the Wrapping phases which consist each of $r$ rounds and the E/D phase as depicted in Figure~\ref{fig:Par}.
 
-The mixes have each been allocated a chunk of the database ($mix_{idx}$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seed to compute which record to send to each mix as written in Algorithm~\ref{alg:PRA}.
+The mixes have each been allocated a chunk of the database ($mix_{idx}$ having $[idx\cdot n/m : (idx+1)\cdot n/m]$) and use the public permutation seeds $\sigma_{pub}$ to compute which record to send to each.
 
 
 \begin{figure*}
@@ -408,7 +409,7 @@ block/.style={draw, fill=white, rectangle, font=\small}]
 \end{tikzpicture}
 \end{minipage}
 \centering
-\caption{Parallel mix-net: Rebuild method (all phase) and Layered method (only the Wrapping phase) with 3 mixes.}\label{fig:Par}
+\caption{Parallel Mix-ORAM with 3 mixes.\newline Rebuild method (all phases) and Layered method (only the Wrapping phase).}\label{fig:Par}
 \end{figure*}
 
 \subsubsection{Parallel Layered scheme.}
@@ -431,17 +432,19 @@ b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b
 b_{pub,j+1}&=h_b(sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
 
-\noindent\textit{Mix operations.} In this scheme the mix $mix_i$ receive a list of encrypted record from all mixes (or the database). It first merges the record lists and  sorts them to the natural order thanks to the public seed. It then encrypts each record and permute them according to the private key and seed. It finally computes the record allocation arrays (c.f. Algorithm~\ref{alg:PRA}) before sending the records accordingly to them.\\
+\vspace{-1em}
 
-\noindent\textit{Client operations.} The client can find the record index locally as it was stored before the eviction. To decrypt a record, the client uses the same Layered Trial and Error algorithm, depicted in Algorithm~\ref{alg:ldec}, with the new number of rounds and a different function to retrieve the list of mixes storing the record during the different rounds.
-The access method is the same as described in Algorithm~\ref{alg:lacc}. \\
+\noindent\textit{Mix operations.} In this scheme the mix $mix_i$ receive a list of encrypted record from all mixes (or the database). It first merges the record lists and  sorts them to the natural order thanks to the public seed. It then encrypts each record and permute them according to the private key and seed. It finally computes the record allocation arrays before sending the records accordingly to them.\\
+
+\noindent\textit{Client operations.} The client can find the record index locally as it was stored before the eviction. To decrypt a record, the client uses the same Layered Trial and Error algorithm as in the cascade configuration, with the new number of rounds and a different function to retrieve the list of mixes storing the record during the different rounds.
+The access method is the same as described in the cascade configuration. \\
 
 \noindent\textit{Costs.} The mix communication cost is $ (r+2) \cdot n \cdot b$, the mix permutation cost is $m \log(n/s) \cdot C_{\Pi}(n/m)$ with $C_{\Pi}(n/m)$ the cost of permuting $n/m$ elements and the encryption cost $m/2 \log(n)\cdot  C_{cbc}$ with $C_{cbc}$ the cost of encrypting one data block. The client Lookup cost is of the order $O(1)$ as the indices, i.e. $n\log n$ bit, are stored locally. The client decryption cost will be talked in the evaluation (Section~\ref{Evaluation}), and the group elements stored on the client represents $2\kappa m$ bits.
 
 \subsubsection{Parallel Rebuild method.}
-When performing an eviction, the client assigns to each mix  $k=\frac{n}{m}$ distinct indexes together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.
+When performing an eviction, the client assigns to each mix $k=\frac{n}{m}$ distinct indices together with a list of shared secrets from which will be derive public and private permutation seeds and encryption keys.
 
-At first, the mixes fetch their allocated records from the database. They then unwrap the previous permutation: the last wrapping permutations are undone in reverse order thanks to the old private seeds and the records are decrypted with the old encryption keys before being distributed to all mixes according to the inverse permutation of the old public seeds. Then starts the wrapping, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds. Between the wrapping and unwrapping phases, the mixes exchanged in a cascade fashion their records and encrypt them with both the new and the old key.\\
+At first, the mixes fetch their allocated records from the database. They then unwrap the records by decrypting and permuting locally the records with the old private seeds and encryption keys and redistributing them with the old public seeds. Then every record is encrypted with the new keys and decrypted with the old keys during the E/D phase by all mixes. Finally the wrapping starts, where the records are permuted according to the new seeds, encrypted with the new encryption keys and distributed to the mixes according to the new public seeds.\\
 
 \noindent\textit{Mix Instructions.}
 The client sends the same instructions as in the Parallel Layered design but with double the amount of group elements $\alpha$, the old and the new ones. The message format is then : 
@@ -453,15 +456,17 @@ b_{i,j+1}&=h_b(\alpha_{i,j}, ss_{i,j}), & \alpha_{i,j+1} &= g^{z_i\Pi_{k\leq j}b
 b_{pub,j+1}&=h_b(y_c, sk_{j}), &\beta_{i, j+1} &= g^{\Pi_{k\leq j}b_{pub,k}\Pi_{l\neq i}m_l}\\
 \end{align*}
 
+\vspace{-1em}
+
 \noindent\textit{Mix Operations.} During the first $r$ rounds, the records are first sorted, then  unwrapped (permuted and decrypted with the old keys and seeds) and sent to the mix-net according to the public record allocation. Then the groups of $n/m$ records are encrypted and decrypted in $m$ parallel cascades. Finally, the records are sorted, wrapped (encrypted and permuted with the new ones) and sent to the mix-net according to the public allocation during the last $r$ rounds.\\
 
-\noindent\textit{Client Operations.} To access and decrypt a record, the client uses the same algorithms as in the Cascade Rebuild scheme but decrypt for $m$ more rounds.  To recover a record remote position, the client derive from the $m+1$ group elements the permutation seeds used during the $r$ rounds of operations as depicted in Algorithm~\ref{alg:PIL} with the last index in the indices array being the one sought.
+\noindent\textit{Client Operations.} To find a record position, the client uses the same algorithm as in the Cascade Rebuild scheme but compute between each round using the public seeds to which mix the record was sent, the list of indices and mixes are stored. To decrypt the record, the client uses the index and mix list decrypt the record with the successive indices as counter and encryption keys.\\
 
 \noindent\textit{Costs.} The mix communication cost is $ (2m+r+2) \cdot n \cdot b$, the mix permutation cost is $8m \log n \cdot C_{\Pi}(n/m)$ with $C_{\Pi}(n/m)$ the cost of permuting $n/m$ elements and the encryption cost $n (4 \log n +2) \cdot C_{ctr}$ with $C_{ctr}$ the cost of encrypting one data block. The client Lookup cost is of the order $m (C_{\Pi}(n)+C_{\Pi}(n/m))$. The client decryption cost is $(r+m) C_{ctr}$, and the group elements stored on the client represents $2\kappa (m+1)$ bits.
 
 \section{Security Argument}\label{Security}
 
-We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.
+We first remark that all of the eviction meta data is independent of data content, as it is entirely determined by the sole parameter $n$. The mix instructions are never shared between mixes and never shared with the database, the encryption keys and permutation seeds thus remain secret and are refreshed at every round. The data content is also never revealed to the adversary and is refreshed upon reception by every mix.\\
 
 \noindent\textbf{Cascade mix-net.}
 In this architecture, the whole database passes by every mix including the honest one where it is locally permuted and re-encrypted with the private shared keys. As a polynomial adversary cannot break the PRF, the database order is kept confidential.\\
@@ -484,22 +489,42 @@ We now want to find the average number of encryption layers per record before de
 Hence we have, $E[e]\leq r/s \cdot \sum_{i=1}^n E[\tau_i] = r/s\ \sum_{i=1}^n \left (\frac{(n+1-i)(n+i)}{2}\cdot \frac{1}{i}\right )$ from which can be calculated the result presented earlier. 
 \end{proof}
 
-To reduce these numbers, we modify the access method written in Algorithm~\ref{alg:lacc}. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, with $d$ high enough, yields a better approximation of the uniform distribution assumption and we would obtain  $E[e_{all}]\leq n/(sd) \cdot H_n $ and $E[e] \leq {r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
+To reduce these numbers, we modify the access method as follows. When the client requests a record from the database, $d$ other records are chosen uniformly at random from the set of unaccessed records. These records are then fetched, their encryption is refreshed as written previously and the client overwrites with these records their older version on the database. Doing so, with $d$ high enough, yields a better approximation of the uniform distribution assumption and we would obtain  $E[e_{all}]\leq n/(sd) \cdot H_n $ and $E[e] \leq {r/(sd)} \cdot \left [ \frac{n+1}{2}\cdot(H_n-1/2)+1/2 \right ] \ H_n$.
 With $d=\sqrt n$, we now have $E[e_{all}]\leq 15 r$ and $E[e]\leq 7r$.
+
+
+\begin{table*}
+\centering
+\begin{tabular}{l *2c}
+\toprule
+    					& Cascade - Layered	 			& Cascade - Rebuild						\\
+\midrule
+\#Rounds ($r$) & $m$ & $3m$ \\
+Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$  \\
+Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $2 m n C_{\Pi}(n)$ \\
+Mix Communication cost & $(m+1) \cdot C_{com}(n)$ & $r \cdot C_{com}(n)$\\
+Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ \\
+Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ \\
+Client Additional storage & $n\log(n)+ 2 \kappa m$ & $km$ \\
+\bottomrule
+\end{tabular}
+\centering
+\caption{Cost comparison of the designs with $C_{E}$ the cost of 1 encryption, $C_{\Pi}(x)$ the permutation cost and $C_{com}(x)$ the communication cost of $x$ records in the scheme.}
+\end{table*}
 
 \begin{table*}
 \centering
 \begin{tabular}{l *4c}
 \toprule
-    					& Cascade - Layered	 			& Cascade - Rebuild							& Parallel - Layered 						& Parallel - Rebuild\\
+& Parallel - Layered 						& Parallel - Rebuild\\
 \midrule
-\#Rounds ($r$) & $m$ & $3m$ & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
-Mix Encryption cost & $m \cdot  n$ & $4m  \cdot  n$ & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
-Mix Permutation cost & $m n \cdot C_{\Pi}(n)$ & $2 m n C_{\Pi}(n)$ & $m \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $8m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
-Mix Communication cost & $(m+1) \cdot C_{com}(n)$ & $r \cdot C_{com}(n)$ & $m(r+2) \cdot C_{com}\left(\frac{n}{m}\right)$ & $m(2r+m+2) \cdot C_{com}\left(\frac{n}{m}\right)$\\
-Client Lookup cost & $O(1)$ & $m\cdot C_{\Pi}(n)$ & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
-Client Decryption cost & $\sim \frac{nr}{2s} H_n$ & $2m$ & $\sim \frac{nr}{2s} H_n$ & $2m$\\
-Client Additional storage & $n\log(n)+ 2 \kappa m$ & $km$ &$n\log(n)+ 2 \kappa  (m+1)$ & $2 \kappa  (m+1)$ \\
+\#Rounds ($r$)  & $\frac{m}{2} \log\left( \frac{n}{s}\right)$ &  $4m\log(n) +  m$ \\
+Mix Encryption cost  & $\frac{n}{2} \log\left (\frac{n}{s}\right)$ & $n(4\log(n) + 2) $ \\
+Mix Permutation cost & $m \log\left (\frac{n}{s}\right)\cdot C_{\Pi}\left(\frac{n}{m}\right)$ & $8m\log(n) \cdot C_{\Pi}\left ( \frac{n}{m} \right )$ \\
+Mix Communication cost & $m(r+2) \cdot C_{com}\left(\frac{n}{m}\right)$ & $m(2r+m+2) \cdot C_{com}\left(\frac{n}{m}\right)$\\
+Client Lookup cost & $O(1)$ & $m \cdot [C_{\Pi}\left ( \frac{n}{m}\right )h+ 2C_{\Pi}(n)]$\\
+Client Decryption cost &  $\sim \frac{nr}{2s} H_n$ & $2m$\\
+Client Additional storage &$n\log(n)+ 2 \kappa  (m+1)$ & $2 \kappa  (m+1)$ \\
 \bottomrule
 \end{tabular}
 \centering
@@ -517,7 +542,7 @@ The Layered method needs more additional space and decryption takes longer than 
 
 \subsection{Implementation, Benchmark and Performances}\label{Implementation}
 
-\raphael{Ania example} We implement the system prototypes in ?? lines of Python 2.7 code for mix nodes, providers and clients, including unit-tests, deployment, and orchestration code, the source code being available under an open-source license5. We use the Twisted 15.5.0 network library for networking and the cryptographic tools from the petlib7 library. Thus, we implement Loopix as a multi-thread system, with cryptographic processing happening in a thread pool separated from the rest of the operations in the main thread loop. 
+We implement the system prototypes in ?? lines of Python 2.7 code for mix nodes, database and clients, including unit-tests, deployment, and orchestration code, the source code being available under an open-source license5. We use the Twisted 15.5.0 network library for networking and the cryptographic tools from the petlib7 library.\\
 
 Experimental Setup. We present an experimental performance evaluation of the systems running on the AWS EC2 platform. All mix nodes run as separate instances on ??? instances running EC2 Linux on ?? machines with ?? RAM memory. 
  
@@ -537,10 +562,10 @@ Parallel Rebuild  	& 0 				& 0 				& 0 			\\
 \caption{Performance (s) of the designs for the eviction of xxx records of yykbit.}
 \end{table}
 
-\iffalse
+
 \section{Acknowledgement}
 Danezis was supported by H2020  PANORAMIX Grant (ref. 653497) and EPSRC Grant EP/M013286/1; and Toledo by Microsoft Research.
-\fi
+
 
 \section{Conclusion}\label{Conclusion}
 New ORAM with mix-net ; amortizable eviction ; can fetch while eviction running ; multi-user friendly as all the secrets are on the server
