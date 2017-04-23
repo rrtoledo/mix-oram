@@ -41,7 +41,8 @@ class clientFactory(protocol.ClientFactory):
 		print("CF: init")
 		self.done = Deferred()
 		self.c_proto = None
-		
+		self.name = "C"
+
 		self.ip = ip # ['34.251.168.214','34.249.66.110','34.250.248.33']
 		self.port = port#[8001,8002,8003]
 		self.n=n
@@ -51,37 +52,19 @@ class clientFactory(protocol.ClientFactory):
 		self.o = self.G.order()
 		self.g = self.G.generator()
 		self.o_bytes = int(math.ceil(math.log(float(int(self.o))) / math.log(256)))
-		#self.data = ["STT", int(urandom(2).encode('hex'),16), [ Actor("DB", "127.0.0.1", 8000, ""), 3]]
-#	if arch:
-#	if enc:
-#		self.data[2].extend([["", Bn.from_binary(base64.b64decode(el2))]])
-#		
-#	else:
-#		self.data[2].extend([[Bn.from_binary(base64.b64decode(el2)), Bn.from_binary(base64.b64decode(el2))]])
-#	else:
-#	if enc:
-#		self.data[2].extend([["", Bn.from_binary(base64.b64decode(el2))],[["", Bn.from_binary(base64.b64decode(el4))]]])
-#	else:
-#		self.data[2].extend([ [Bn.from_binary(base64.b64decode(el1)), Bn.from_binary(base64.b64decode(el2))], [Bn.from_binary(base64.b64decode(el3)), Bn.from_binary(base64.b64decode(el4))]])
-
-#	actors=[]
-#	for i in range(len(ports)):
-#		actors.extend([Actor("M"+str(i), "127.0.0.1", 8001+i, "")])
-#	self.data[2].extend([[actors]])
-
-#def test(self):
-
-#self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) # cascade layered
-
-
-#self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #cascade rebuild
-
-
-	#self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "127.0.0.1", 8000, ""), 3], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], ["", Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], 9, 2, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]] ]) #parallel layered
 
 		nn = int(math.ceil(self.n/self.m)*self.m)
 
-		self.data = pack.encode(["STT", int(urandom(2).encode('hex'),16), [[ Actor("DB", "localhost", 8000, ""), int(nn/self.m)], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g, Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], nn, int(math.ceil(2*self.m*math.log(nn))),  [Actor("M1", "localhost",8001, ""), Actor("M2", "localhost",8002, ""), Actor("M3", "localhost", 8003, "")]] ]) #parallel rebuild '34.251.168.214','34.249.55.110','34.250.248.33'
+		#self.data = pack.encode([self.name, "STT", 9842, -1, "", 0, 1, [1, 1, [[ Actor("DB", "127.0.0.1", 8000, ""), int(nn/self.m)], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], nn, 1, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]]]]) # cascade layered
+
+
+		self.data = pack.encode([self.name, "STT", 1342, -1, "", 0, 1, [1, 0, [[ Actor("DB", "127.0.0.1", 8000, ""), int(nn/self.m)], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], nn, 1, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]]]]) #cascade rebuild
+
+		#rounds= int(math.ceil(m *math.log(math.sqrt(nn)) /2))
+		#self.data = pack.encode([self.name, "STT", 98621, -1, "", 0, 1, [0, 1, [[ Actor("DB", "127.0.0.1", 8000, ""), int(nn/self.m)], ["", Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], ["", Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], nn, rounds, [Actor("M1", "127.0.0.1",8001, ""), Actor("M2", "127.0.0.1",8002, ""), Actor("M3", "127.0.0.1", 8003, "")]]]]) #parallel layered
+
+		#rounds= int(math.ceil(4 * m *(math.log(nn)+1)))
+		#self.data = pack.encode([self.name, "STT", 91864, -1,"",  0, 1, [0,0,[[ Actor("DB", "localhost", 8000, ""), int(nn/self.m)], [Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g, Bn.from_binary(base64.b64decode("z7yGAen5eAgHBRB9nrafE6h9V0kW/VO2zC7cPQ=="))*self.g], [Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g, Bn.from_binary(base64.b64decode("266YjC8rEyiEpqXCNXCz1qXTEnwAsqz/tCyzcA=="))*self.g], nn, rounds,  [Actor("M1", "localhost",8001, ""), Actor("M2", "localhost",8002, ""), Actor("M3", "localhost", 8003, "")]]]]) #parallel rebuild '34.251.168.214','34.249.55.110','34.250.248.33'
 
 		print(nn/self.m, self.m, nn, int(math.ceil(2*self.m*math.log(nn))), math.log(nn))
 		
@@ -111,7 +94,7 @@ def main(ip, port, n, m):#arch, enc, el1, el2, el3, el4, ports):
 # this only runs if the module was *not* imported
 if __name__ == '__main__':
 	if len(sys.argv) <5:
-		print('ERROR')
+		print('ERROR', len(sys.argv))
 	else:
 		main(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]),  int(sys.argv[4]))#,  str(sys.argv[4]),  str(sys.argv[4]),  str(sys.argv[6]),  str(sys.argv[7]))
 
